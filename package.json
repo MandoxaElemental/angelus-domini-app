@@ -11,17 +11,20 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.104.0",
     "axios": "^1.15.0",
-    "expo": "~54.0.33",
+    "expo": "^55.0.18",
+    "expo-device": "~8.0.10",
+    "expo-notifications": "~55.0.21",
     "expo-secure-store": "^55.0.13",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
     "react-native-web": "^0.21.0",
-    "uuid": "^13.0.0"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "expo-module-scripts": "^2.0.0",
     "typescript": "~5.9.2"
   },
   "private": true
