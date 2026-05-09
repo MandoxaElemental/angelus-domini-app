@@ -1,31 +1,16 @@
 import { useEffect, useState } from "react";
 import { Text, View, Button } from "react-native";
-import { getToken } from "../store/auth";
-import LoginScreen from "./LoginScreen";
 import { getNextPrayerTime } from "../utils/prayer";
 import { getUserId } from "../utils/user";
 import { completePrayer, getGlobalCount, startPrayer } from "../api/prayerApi";
 import Bell from "../components/Bell";
 
-export default function App() {
+export default function MainApp() {
   const [timeLeft, setTimeLeft] = useState("00:00:00");
   const [session, setSession] = useState<any>(null);
   const [count, setCount] = useState(0);
   const [userId, setUserId] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const token = await getToken();
-      setIsLoggedIn(!!token);
-    })();
-  }, []);
-
-  if (!isLoggedIn) {
-    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
-  }
-
-  // ⏳ countdown
   useEffect(() => {
     const interval = setInterval(() => {
       const next = getNextPrayerTime();

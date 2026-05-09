@@ -54,7 +54,9 @@ export default function RegisterScreen({ goToLogin }: any) {
       <TextInput
         value={email}
         autoCapitalize="none"
-        onChangeText={setEmail}
+        autoCorrect={false}
+        keyboardType="email-address"
+        onChangeText={(text) => setEmail(text)}
         style={{ borderWidth: 1, marginBottom: 10, width: 200 }}
       />
 
@@ -62,7 +64,7 @@ export default function RegisterScreen({ goToLogin }: any) {
       <TextInput
         value={password}
         secureTextEntry
-        onChangeText={setPassword}
+        onChangeText={(text) => setPassword(text)}
         style={{ borderWidth: 1, marginBottom: 20, width: 200 }}
       />
 
@@ -77,4 +79,6 @@ export default function RegisterScreen({ goToLogin }: any) {
       </View>
     </View>
   );
+
+  console.log([...email]);
 }

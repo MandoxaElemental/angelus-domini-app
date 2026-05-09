@@ -1,4 +1,3 @@
-// /src/screens/LoginScreen.tsx
 import { useState } from "react";
 import { View, TextInput, Button, Text } from "react-native";
 import { login } from "../api/authApi";
