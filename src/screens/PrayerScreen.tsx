@@ -13,10 +13,17 @@ import { createAudioPlayer } from "expo-audio";
 import { LinearGradient } from "expo-linear-gradient";
 
 type PrayerItem =
-  | { type: "call"; text: string }
-  | { type: "response"; text: string }
-  | { type: "prayer"; text: string }
-  | { type: "bell"; text: string; count: number };
+  | {
+      type: "call" | "response" | "prayer";
+      text: string;
+      audio: any;
+      duration: number;
+    }
+  | {
+      type: "bell";
+      text: string;
+      count: number;
+    };
 
 const SIGN_OF_THE_CROSS = `In the name of the Father, and of the Son, and of the Holy Spirit. Amen.`;
 
@@ -33,32 +40,128 @@ Pour forth, we beseech Thee, O Lord, Thy grace into our hearts; that we, to whom
 Amen.`;
 
 const PRAYER_SEQUENCE: PrayerItem[] = [
-  { type: "prayer", text: SIGN_OF_THE_CROSS },
+  {
+    type: "prayer",
+    text: SIGN_OF_THE_CROSS,
+    audio: require("../../assets/audio/SignOfTheCross.mp3"),
+    duration: 4000,
+  },
+
   { type: "bell", text: "", count: 3 },
-  { type: "call", text: "The Angel of the Lord declared unto Mary" },
-  { type: "response", text: "And she conceived of the Holy Spirit." },
 
-  { type: "call", text: HAIL_MARY_PART_1 },
-  { type: "response", text: HAIL_MARY_PART_2 },
+  {
+    type: "call",
+    text: "The Angel of the Lord declared unto Mary",
+    audio: require("../../assets/audio/Call1.mp3"),
+    duration: 2000,
+  },
 
-  { type: "call", text: "Behold the handmaid of the Lord" },
-  { type: "response", text: "Be it done unto me according to thy word." },
+  {
+    type: "response",
+    text: "And she conceived of the Holy Spirit.",
+    audio: require("../../assets/audio/Response1.mp3"),
+    duration: 2000,
+  },
 
-  { type: "call", text: HAIL_MARY_PART_1 },
-  { type: "response", text: HAIL_MARY_PART_2 },
+  {
+    type: "call",
+    text: HAIL_MARY_PART_1,
+    audio: require("../../assets/audio/HailMary1.mp3"),
+    duration: 7000,
+  },
 
-  { type: "call", text: "And the Word was made flesh" },
-  { type: "response", text: "And dwelt among us." },
+  {
+    type: "response",
+    text: HAIL_MARY_PART_2,
+    audio: require("../../assets/audio/HolyMary1.mp3"),
+    duration: 6000,
+  },
 
-  { type: "call", text: HAIL_MARY_PART_1 },
-  { type: "response", text: HAIL_MARY_PART_2 },
+  {
+    type: "call",
+    text: "Behold the handmaid of the Lord",
+    audio: require("../../assets/audio/Call2.mp3"),
+    duration: 2000,
+  },
 
-  { type: "call", text: CLOSING_CALL.call },
-  { type: "response", text: CLOSING_CALL.response },
+  {
+    type: "response",
+    text: "Be it done unto me according to thy word.",
+    audio: require("../../assets/audio/Response2.mp3"),
+    duration: 2000,
+  },
 
-  { type: "prayer", text: CLOSING_PRAYER },
+  {
+    type: "call",
+    text: HAIL_MARY_PART_1,
+    audio: require("../../assets/audio/HailMary2.mp3"),
+    duration: 7000,
+  },
+
+  {
+    type: "response",
+    text: HAIL_MARY_PART_2,
+    audio: require("../../assets/audio/HolyMary2.mp3"),
+    duration: 6000,
+  },
+
+  {
+    type: "call",
+    text: "And the Word was made flesh",
+    audio: require("../../assets/audio/Call3.mp3"),
+    duration: 2000,
+  },
+
+  {
+    type: "response",
+    text: "And dwelt among us.",
+    audio: require("../../assets/audio/Response3.mp3"),
+    duration: 2000,
+  },
+
+  {
+    type: "call",
+    text: HAIL_MARY_PART_1,
+    audio: require("../../assets/audio/HailMary3.mp3"),
+    duration: 7000,
+  },
+
+  {
+    type: "response",
+    text: HAIL_MARY_PART_2,
+    audio: require("../../assets/audio/HolyMary3.mp3"),
+    duration: 6000,
+  },
+
+  {
+    type: "call",
+    text: CLOSING_CALL.call,
+    audio: require("../../assets/audio/Call4.mp3"),
+    duration: 2000,
+  },
+
+  {
+    type: "response",
+    text: CLOSING_CALL.response,
+    audio: require("../../assets/audio/Response4.mp3"),
+    duration: 3000,
+  },
+
+  {
+    type: "prayer",
+    text: CLOSING_PRAYER,
+    audio: require("../../assets/audio/Prayer.mp3"),
+    duration: 20000,
+  },
+
   { type: "bell", text: "", count: 3 },
-  { type: "prayer", text: SIGN_OF_THE_CROSS },
+
+  {
+    type: "prayer",
+    text: SIGN_OF_THE_CROSS,
+    audio: require("../../assets/audio/SignOfTheCross.mp3"),
+    duration: 4000,
+  },
 ];
 
 export default function PrayerScreen() {
@@ -84,14 +187,12 @@ export default function PrayerScreen() {
       setCurrentStep((p) => p + 1);
     });
   };
-  const getStepDuration = (text: string) => {
-    const words = text.trim().split(/\s+/).length;
+  const playPrayerAudio = async (audioFile: any) => {
+    const player = createAudioPlayer(audioFile);
 
-    const duration =
-      words * 550 + // reading pace
-      1200; // contemplative pause
+    player.play();
 
-    return Math.min(Math.max(duration, 4000), 18000);
+    return player;
   };
   const [autoPlay, setAutoPlay] = useState(false);
   const animateBellSwing = () => {
@@ -228,17 +329,29 @@ export default function PrayerScreen() {
 
     if (item.type === "bell") return;
 
-    if (currentStep >= PRAYER_SEQUENCE.length - 1) {
-      setAutoPlay(false);
-      return;
-    }
+    let player: any;
 
-    const timeout = setTimeout(() => {
+    const runPrayer = async () => {
+      player = await playPrayerAudio(item.audio);
+
+      await new Promise((resolve) => setTimeout(resolve, item.duration + 800));
+
+      player.remove();
+
+      if (currentStep >= PRAYER_SEQUENCE.length - 1) {
+        setAutoPlay(false);
+        return;
+      }
+
       transitionToNext();
-    }, getStepDuration(item.text));
+    };
 
-    return () => clearTimeout(timeout);
-  }, [currentStep, autoPlay, item.type]);
+    runPrayer();
+
+    return () => {
+      player?.remove();
+    };
+  }, [currentStep, autoPlay]);
 
   useEffect(() => {
     let interval: any;

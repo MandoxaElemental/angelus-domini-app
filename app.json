@@ -21,7 +21,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.angelusapp"
     },
@@ -30,7 +29,15 @@
     },
     "plugins": [
       "expo-font",
-      "expo-audio"
+      "expo-audio",
+      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/bell.png",
+          "color": "#C9A24A"
+        }
+      ]
     ]
   }
 }

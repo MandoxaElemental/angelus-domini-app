@@ -4,8 +4,23 @@ import RegisterScreen from "./src/screens/RegisterScreen";
 import { getToken } from "./src/store/auth";
 import MainApp from "./src/screens/MainApp";
 import PrayerScreen from "./src/screens/PrayerScreen";
+import {
+  registerForPushNotificationsAsync,
+  setupAngelusNotifications,
+} from "./services/notifications";
 
 export default function App() {
+  useEffect(() => {
+    async function initNotifications() {
+      const granted = await registerForPushNotificationsAsync();
+
+      if (granted) {
+        await setupAngelusNotifications();
+      }
+    }
+
+    initNotifications();
+  }, []);
   return <PrayerScreen />;
   // const [isLoggedIn, setIsLoggedIn] = useState(false);
   // const [loading, setLoading] = useState(true);
