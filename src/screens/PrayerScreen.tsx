@@ -14,15 +14,17 @@ import { LinearGradient } from "expo-linear-gradient";
 
 type PrayerItem =
   | {
-      type: "call" | "response" | "prayer";
+      type: "versicle" | "response" | "prayer";
       text: string;
-      audio: any;
       duration: number;
+      volume?: number;
+      audio?: any;
     }
   | {
       type: "bell";
       text: string;
       count: number;
+      duration: number;
     };
 
 const SIGN_OF_THE_CROSS = `In the name of the Father, and of the Son, and of the Holy Spirit. Amen.`;
@@ -31,7 +33,7 @@ const HAIL_MARY_PART_1 = `Hail Mary, full of grace, the Lord is with thee. Bless
 
 const HAIL_MARY_PART_2 = `Holy Mary, Mother of God, pray for us sinners now and at the hour of our death. Amen.`;
 const CLOSING_CALL = {
-  call: "Pray for us, O Holy Mother of God.",
+  versicle: "Pray for us, O Holy Mother of God.",
   response: "That we may be made worthy of the promises of Christ.",
 };
 
@@ -43,124 +45,141 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
   {
     type: "prayer",
     text: SIGN_OF_THE_CROSS,
-    audio: require("../../assets/audio/SignOfTheCross.mp3"),
     duration: 4000,
+    audio: require("../../assets/audio/SignOfTheCross.mp3"),
   },
 
-  { type: "bell", text: "", count: 3 },
+  {
+    type: "bell",
+    text: "",
+    count: 3,
+    duration: 7500,
+  },
 
   {
-    type: "call",
+    type: "versicle",
     text: "The Angel of the Lord declared unto Mary",
-    audio: require("../../assets/audio/Call1.mp3"),
     duration: 2000,
+    audio: require("../../assets/audio/Versicle1.mp3"),
   },
 
   {
     type: "response",
     text: "And she conceived of the Holy Spirit.",
-    audio: require("../../assets/audio/Response1.mp3"),
     duration: 2000,
+    audio: require("../../assets/audio/Response1.mp3"),
   },
-
   {
-    type: "call",
+    type: "versicle",
     text: HAIL_MARY_PART_1,
-    audio: require("../../assets/audio/HailMary1.mp3"),
     duration: 7000,
+    audio: require("../../assets/audio/HailMaryV1.mp3"),
+    volume: 0.5,
   },
-
   {
     type: "response",
     text: HAIL_MARY_PART_2,
-    audio: require("../../assets/audio/HolyMary1.mp3"),
     duration: 6000,
+    audio: require("../../assets/audio/HolyMaryV1.mp3"),
+    volume: 0.5,
   },
-
   {
-    type: "call",
+    type: "bell",
+    text: "",
+    count: 3,
+    duration: 7500,
+  },
+  {
+    type: "versicle",
     text: "Behold the handmaid of the Lord",
-    audio: require("../../assets/audio/Call2.mp3"),
     duration: 2000,
+    audio: require("../../assets/audio/Versicle2.mp3"),
   },
 
   {
     type: "response",
     text: "Be it done unto me according to thy word.",
-    audio: require("../../assets/audio/Response2.mp3"),
     duration: 2000,
+    audio: require("../../assets/audio/Response2.mp3"),
   },
-
   {
-    type: "call",
+    type: "versicle",
     text: HAIL_MARY_PART_1,
-    audio: require("../../assets/audio/HailMary2.mp3"),
     duration: 7000,
+    audio: require("../../assets/audio/HailMaryV2.mp3"),
+    volume: 0.5,
   },
-
   {
     type: "response",
     text: HAIL_MARY_PART_2,
-    audio: require("../../assets/audio/HolyMary2.mp3"),
     duration: 6000,
+    audio: require("../../assets/audio/HolyMaryV2.mp3"),
+    volume: 0.5,
   },
-
   {
-    type: "call",
+    type: "bell",
+    text: "",
+    count: 3,
+    duration: 7500,
+  },
+  {
+    type: "versicle",
     text: "And the Word was made flesh",
-    audio: require("../../assets/audio/Call3.mp3"),
     duration: 2000,
+    audio: require("../../assets/audio/Versicle3.mp3"),
   },
 
   {
     type: "response",
     text: "And dwelt among us.",
-    audio: require("../../assets/audio/Response3.mp3"),
     duration: 2000,
+    audio: require("../../assets/audio/Response3.mp3"),
   },
-
   {
-    type: "call",
+    type: "versicle",
     text: HAIL_MARY_PART_1,
-    audio: require("../../assets/audio/HailMary3.mp3"),
     duration: 7000,
+    audio: require("../../assets/audio/HailMaryV3.mp3"),
+    volume: 0.5,
   },
-
   {
     type: "response",
     text: HAIL_MARY_PART_2,
-    audio: require("../../assets/audio/HolyMary3.mp3"),
     duration: 6000,
+    audio: require("../../assets/audio/HolyMaryV3.mp3"),
+    volume: 0.5,
   },
-
   {
-    type: "call",
-    text: CLOSING_CALL.call,
-    audio: require("../../assets/audio/Call4.mp3"),
-    duration: 2000,
+    type: "versicle",
+    text: CLOSING_CALL.versicle,
+    duration: 3000,
+    audio: require("../../assets/audio/Versicle4.mp3"),
   },
 
   {
     type: "response",
     text: CLOSING_CALL.response,
-    audio: require("../../assets/audio/Response4.mp3"),
     duration: 3000,
+    audio: require("../../assets/audio/Response4.mp3"),
   },
-
   {
     type: "prayer",
     text: CLOSING_PRAYER,
+    duration: 19000,
     audio: require("../../assets/audio/Prayer.mp3"),
-    duration: 20000,
+    volume: 0.5,
   },
-
-  { type: "bell", text: "", count: 3 },
-
+  {
+    type: "bell",
+    text: "",
+    count: 3,
+    duration: 7500,
+  },
   {
     type: "prayer",
     text: SIGN_OF_THE_CROSS,
-    audio: require("../../assets/audio/SignOfTheCross.mp3"),
     duration: 4000,
+    audio: require("../../assets/audio/SignOfTheCross.mp3"),
   },
 ];
 
@@ -174,6 +193,7 @@ export default function PrayerScreen() {
   const ringScale = useRef(new Animated.Value(1)).current;
   const ringOpacity = useRef(new Animated.Value(0.4)).current;
   const bellRotate = useRef(new Animated.Value(0)).current;
+  const audioRef = useRef<any>(null);
   const transitionToNext = () => {
     if (currentStep >= PRAYER_SEQUENCE.length - 1) {
       return;
@@ -187,14 +207,33 @@ export default function PrayerScreen() {
       setCurrentStep((p) => p + 1);
     });
   };
-  const playPrayerAudio = async (audioFile: any) => {
-    const player = createAudioPlayer(audioFile);
 
-    player.play();
+  useEffect(() => {
+    if (item.type === "bell") return;
 
-    return player;
-  };
+    const run = async () => {
+      audioRef.current?.remove?.();
+
+      if (item.audio) {
+        const player = createAudioPlayer(item.audio);
+
+        audioRef.current = player;
+
+        player.volume = item.volume ?? 1;
+
+        player.play();
+      }
+    };
+
+    run();
+
+    return () => {
+      audioRef.current?.remove?.();
+    };
+  }, [currentStep]);
+
   const [autoPlay, setAutoPlay] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(true);
   const animateBellSwing = () => {
     bellRotate.setValue(0);
 
@@ -212,7 +251,7 @@ export default function PrayerScreen() {
         useNativeDriver: true,
       }),
       Animated.timing(bellRotate, {
-        toValue: 0.6,
+        toValue: 0.5,
         duration: 140,
         easing: Easing.inOut(Easing.ease),
         useNativeDriver: true,
@@ -329,29 +368,19 @@ export default function PrayerScreen() {
 
     if (item.type === "bell") return;
 
-    let player: any;
+    if (!audioEnabled) return;
 
-    const runPrayer = async () => {
-      player = await playPrayerAudio(item.audio);
+    if (currentStep >= PRAYER_SEQUENCE.length - 1) {
+      setAutoPlay(false);
+      return;
+    }
 
-      await new Promise((resolve) => setTimeout(resolve, item.duration + 800));
-
-      player.remove();
-
-      if (currentStep >= PRAYER_SEQUENCE.length - 1) {
-        setAutoPlay(false);
-        return;
-      }
-
+    const timeout = setTimeout(() => {
       transitionToNext();
-    };
+    }, item.duration);
 
-    runPrayer();
-
-    return () => {
-      player?.remove();
-    };
-  }, [currentStep, autoPlay]);
+    return () => clearTimeout(timeout);
+  }, [currentStep, autoPlay, item.type]);
 
   useEffect(() => {
     let interval: any;
@@ -387,9 +416,9 @@ export default function PrayerScreen() {
   };
 
   const renderPrayer = () => {
-    if (item.type === "call") {
+    if (item.type === "versicle") {
       return (
-        <Animated.Text style={[styles.call, { opacity: fadeAnim }]}>
+        <Animated.Text style={[styles.versicle, { opacity: fadeAnim }]}>
           {item.text}
         </Animated.Text>
       );
@@ -455,6 +484,10 @@ export default function PrayerScreen() {
           />
         </View>
       </View>
+
+      <Text style={styles.subtitle}>
+        Meditating on the mystery of the Incarnation
+      </Text>
       <View style={styles.timeSelector}>
         {[
           { label: "6:00 AM", value: "6am" },
@@ -552,36 +585,55 @@ export default function PrayerScreen() {
         </LinearGradient>
       </TouchableOpacity>
       {/* ⚙️ CONTROLS */}
-      <View style={styles.controlsRow}>
-        {/* Auto Pray / Pause */}
+      <View style={styles.footerControls}>
         <TouchableOpacity
-          style={styles.controlButton}
-          onPress={() => setAutoPlay((p) => !p)}
+          onPress={() => {
+            const next = !autoPlay;
+
+            setAutoPlay(next);
+
+            if (next && currentStep === 0 && item.type !== "bell") {
+              audioRef.current?.remove?.();
+
+              if (item.audio) {
+                const player = createAudioPlayer(item.audio);
+
+                audioRef.current = player;
+
+                player.play();
+              }
+            }
+          }}
         >
-          <LinearGradient
-            colors={["#F6E7C8", "#E8D4AF"]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={styles.controlButton}
-          >
-            <Text style={styles.controlText}>
-              {autoPlay ? "⏸ Pause" : "▶ Auto Pray"}
-            </Text>
-          </LinearGradient>
+          <Text style={styles.footerAction}>
+            {autoPlay ? "Pause" : "Auto Pray"}
+          </Text>
         </TouchableOpacity>
 
-        {/* Restart */}
-        <TouchableOpacity style={styles.controlButton} onPress={handleRestart}>
-          <LinearGradient
-            colors={["#F6E7C8", "#E8D4AF"]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={styles.controlButton}
-          >
-            <Text style={styles.controlText}>↺ Restart</Text>
-          </LinearGradient>
+        <Text style={styles.footerDivider}>•</Text>
+
+        <TouchableOpacity onPress={handleRestart}>
+          <Text style={styles.footerAction}>Restart</Text>
         </TouchableOpacity>
-      </View>{" "}
+
+        <Text style={styles.footerDivider}>•</Text>
+
+        <TouchableOpacity
+          onPress={() => {
+            const next = !audioEnabled;
+
+            setAudioEnabled(next);
+
+            if (!next) {
+              audioRef.current?.remove?.();
+            }
+          }}
+        >
+          <Text style={styles.footerAction}>
+            {audioEnabled ? "Audio On" : "Audio Off"}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -589,13 +641,15 @@ export default function PrayerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F1E7",
+    backgroundColor: "#F7F2EA",
   },
 
   header: {
-    height: 120,
+    height: 100,
     backgroundColor: "#2F4A7A",
     padding: 24,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -627,6 +681,16 @@ const styles = StyleSheet.create({
     height: 72,
     position: "absolute",
     zIndex: 1,
+  },
+
+  subtitle: {
+    marginTop: 18,
+    marginBottom: 6,
+    textAlign: "center",
+    color: "#2F4A7A",
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: "400",
   },
 
   imageContainer: {
@@ -676,19 +740,19 @@ const styles = StyleSheet.create({
     color: "#C9A24A",
     marginTop: 10,
   },
-  call: {
+  versicle: {
     fontSize: 26,
     color: "#3F2E24",
     marginBottom: 6,
     textAlign: "center",
-    lineHeight: 40,
+    lineHeight: 36,
     fontFamily: "Montserrat-Regular",
   },
   response: {
     fontSize: 26,
     color: "#3F2E24",
     textAlign: "center",
-    lineHeight: 40,
+    lineHeight: 36,
     fontFamily: "Garamond-Regular",
   },
   responseItalic: {
@@ -696,12 +760,12 @@ const styles = StyleSheet.create({
     color: "#3F2E24",
     fontStyle: "italic",
     textAlign: "center",
-    lineHeight: 40,
+    lineHeight: 36,
     fontFamily: "Garamond-Regular",
   },
   prayer: {
     fontSize: 26,
-    lineHeight: 40,
+    lineHeight: 36,
     textAlign: "center",
     color: "#3F2E24",
     fontFamily: "Garamond-Regular",
@@ -748,9 +812,9 @@ const styles = StyleSheet.create({
   },
   timeSelector: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "space-around",
     paddingHorizontal: 24,
-    marginTop: 12,
+    marginTop: 8,
     marginBottom: 12,
   },
 
@@ -766,6 +830,7 @@ const styles = StyleSheet.create({
   },
 
   timeButtonActive: {
+    fontWeight: "semibold",
     shadowColor: "#4B6FB0",
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -785,32 +850,33 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
-  controlsRow: {
+  footerControls: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 16,
-    marginBottom: 24,
-  },
-
-  controlButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 24,
-    justifyContent: "center",
     alignItems: "center",
+    marginBottom: 26,
+    marginTop: -4,
   },
 
-  controlText: {
-    color: "#3F2E24",
-    fontSize: 16,
+  footerAction: {
+    color: "#6B5E52",
+    fontSize: 14,
+    fontWeight: "500",
+    paddingHorizontal: 6,
+  },
+
+  footerDivider: {
+    color: "#B8AA96",
+    fontSize: 14,
+    marginHorizontal: 2,
   },
 
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   buttonGradient: {
     width: "100%",
-    padding: 20,
+    paddingVertical: 16,
     borderRadius: 32,
     alignItems: "center",
   },
