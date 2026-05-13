@@ -45,8 +45,8 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
   {
     type: "prayer",
     text: SIGN_OF_THE_CROSS,
-    duration: 4000,
-    audio: require("../../assets/audio/SignOfTheCross.mp3"),
+    duration: 3000,
+    audio: require("../../assets/audio/SignOfTheCross1.mp3"),
   },
 
   {
@@ -179,7 +179,7 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
     type: "prayer",
     text: SIGN_OF_THE_CROSS,
     duration: 4000,
-    audio: require("../../assets/audio/SignOfTheCross.mp3"),
+    audio: require("../../assets/audio/SignOfTheCross2.mp3"),
   },
 ];
 
@@ -446,8 +446,10 @@ export default function PrayerScreen() {
       {/* 🔷 HEADER */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerMain}>ANGELUS</Text>
-          <Text style={styles.headerSub}>DOMINI</Text>
+          <Image
+            source={require("../../assets/Logo.png")}
+            style={styles.logo}
+          />
         </View>
 
         <View style={styles.bellContainer}>
@@ -654,14 +656,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  headerMain: {
-    color: "white",
-    fontSize: 28,
-  },
-  headerSub: {
-    color: "#C9A24A",
-    fontSize: 18,
-  },
   bellContainer: {
     width: 72,
     height: 72,
@@ -754,6 +748,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 36,
     fontFamily: "Garamond-Regular",
+  },
+  logo: {
+    height: "120%",
+    width: "120%",
   },
   responseItalic: {
     fontSize: 26,
