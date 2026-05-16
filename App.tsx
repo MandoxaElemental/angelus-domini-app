@@ -1,15 +1,27 @@
 import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+} from "react-native";
+
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
-import { getToken } from "./src/store/auth";
 import MainApp from "./src/screens/MainApp";
 import PrayerScreen from "./src/screens/PrayerScreen";
+
 import {
   registerForPushNotificationsAsync,
   setupAngelusNotifications,
 } from "./services/notifications";
 
+type Screen = "login" | "register" | "main" | "prayer";
+
 export default function App() {
+  const [screen, setScreen] = useState<Screen>("prayer");
+
   useEffect(() => {
     async function initNotifications() {
       const granted = await registerForPushNotificationsAsync();
@@ -21,47 +33,78 @@ export default function App() {
 
     initNotifications();
   }, []);
-  return <PrayerScreen />;
-  // const [isLoggedIn, setIsLoggedIn] = useState(false);
-  // const [loading, setLoading] = useState(true);
-  // const [screen, setScreen] = useState<"login" | "register">("login");
-  // console.log("SUPABASE ENV:", {
-  //   url: process.env.EXPO_PUBLIC_SUPABASE_URL,
-  //   key: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-  // });
-  // useEffect(() => {
-  //   (async () => {
-  //     try {
-  //       console.log("GETTING TOKEN...");
-  //       const token = await getToken();
-  //       console.log("TOKEN:", token);
 
-  //       setIsLoggedIn(!!token);
-  //     } catch (err) {
-  //       console.error("GET TOKEN ERROR:", err);
-  //     } finally {
-  //       setLoading(false);
-  //       console.log("LOADING FALSE");
-  //     }
-  //   })();
-  // }, []);
+  const renderScreen = () => {
+    switch (screen) {
+      case "login":
+        return (
+          <LoginScreen
+            onLogin={() => setScreen("main")}
+            goToRegister={() => setScreen("register")}
+          />
+        );
 
-  // if (loading) {
-  //   return <div style={{ color: "black" }}>Loading...</div>;
-  // }
+      case "register":
+        return <RegisterScreen goToLogin={() => setScreen("login")} />;
 
-  // if (isLoggedIn) {
-  //   return <MainApp />;
-  // }
+      case "main":
+        return <MainApp />;
 
-  // if (screen === "login") {
-  //   return (
-  //     <LoginScreen
-  //       onLogin={() => setIsLoggedIn(true)}
-  //       goToRegister={() => setScreen("register")}
-  //     />
-  //   );
-  // }
+      case "prayer":
+        return <PrayerScreen />;
 
-  // return <RegisterScreen goToLogin={() => setScreen("login")} />;
+      default:
+        return <PrayerScreen />;
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* TEST NAV BAR */}
+      <View style={styles.nav}>
+        <TouchableOpacity onPress={() => setScreen("login")}>
+          <Text style={styles.link}>Login</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => setScreen("register")}>
+          <Text style={styles.link}>Register</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => setScreen("main")}>
+          <Text style={styles.link}>Main</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => setScreen("prayer")}>
+          <Text style={styles.link}>Prayer</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.content}>{renderScreen()}</View>
+    </SafeAreaView>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+
+  nav: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 12,
+    backgroundColor: "#eee",
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+  },
+
+  link: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#2F4A7A",
+  },
+
+  content: {
+    flex: 1,
+  },
+});
