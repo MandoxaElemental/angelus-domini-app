@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "angelus-app",
+    "slug": "angelus-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/Angelus-domini.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/angelusdominiicon.png",
+      "resizeMode": "contain",
+       "backgroundColor": "#1F3A6E"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.angelus-app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/angelusdominiicon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/angelusdominiicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+       "expo-splash-screen"
+    ]
+  }
+}
