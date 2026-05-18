@@ -37,7 +37,8 @@
           "icon": "./assets/bell.png",
           "color": "#C9A24A"
         }
-      ]
+      ],
+      "expo-router"
     ]
   }
 }
