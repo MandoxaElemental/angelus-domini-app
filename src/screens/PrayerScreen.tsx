@@ -46,7 +46,7 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
   {
     type: "versicle",
     text: SIGN_OF_THE_CROSS,
-    duration: 3000,
+    duration: 4000,
     audio: require("../../assets/audio/SignOfTheCross1.mp3"),
   },
 
@@ -128,7 +128,7 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
 
   {
     type: "response",
-    text: "And dwelt among us.",
+    text: "And dwelt amongst us.",
     duration: 3500,
     audio: require("../../assets/audio/Response3.mp3"),
   },
@@ -160,7 +160,7 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
   {
     type: "prayer",
     text: CLOSING_PRAYER,
-    duration: 25000,
+    duration: 19000,
     audio: require("../../assets/audio/Prayer.mp3"),
   },
   {
@@ -181,7 +181,23 @@ export default function PrayerScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const scrollY = useRef(0);
-  const [selectedTime, setSelectedTime] = useState("12pm");
+  const getUpcomingPrayerTime = () => {
+    const now = new Date();
+
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const prayerTimes = [
+      { value: "6am", minutes: 6 * 60 },
+      { value: "12pm", minutes: 12 * 60 },
+      { value: "6pm", minutes: 18 * 60 },
+    ];
+
+    const upcoming = prayerTimes.find((time) => currentMinutes < time.minutes);
+
+    return upcoming ? upcoming.value : "6am";
+  };
+
+  const [selectedTime, setSelectedTime] = useState(getUpcomingPrayerTime());
   const item = PRAYER_SEQUENCE[currentStep];
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const ringScale = useRef(new Animated.Value(1)).current;
@@ -204,7 +220,7 @@ export default function PrayerScreen() {
     Animated.timing(fadeAnim, {
       toValue: 0,
       duration: 600,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start(() => {
       setCurrentStep((p) => p + 1);
 
@@ -248,31 +264,31 @@ export default function PrayerScreen() {
         toValue: 1,
         duration: 180,
         easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(bellRotate, {
         toValue: -1,
         duration: 180,
         easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(bellRotate, {
         toValue: 0.5,
         duration: 140,
         easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(bellRotate, {
         toValue: -0.4,
         duration: 140,
         easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(bellRotate, {
         toValue: 0,
         duration: 120,
         easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     ]).start();
   };
@@ -286,12 +302,12 @@ export default function PrayerScreen() {
           toValue: 1.35,
           duration: 1400,
           easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(ringOpacity, {
           toValue: 0,
           duration: 1400,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]).start();
 
@@ -304,6 +320,18 @@ export default function PrayerScreen() {
       player.remove();
     }
   };
+
+  useEffect(() => {
+    const updatePrayerTime = () => {
+      setSelectedTime(getUpcomingPrayerTime());
+    };
+
+    updatePrayerTime();
+
+    const interval = setInterval(updatePrayerTime, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (item.type !== "bell") return;
@@ -341,24 +369,24 @@ export default function PrayerScreen() {
             toValue: 1.25,
             duration: 900,
             easing: Easing.out(Easing.ease),
-            useNativeDriver: true,
+            useNativeDriver: false,
           }),
           Animated.timing(ringOpacity, {
             toValue: 0,
             duration: 900,
-            useNativeDriver: true,
+            useNativeDriver: false,
           }),
         ]),
         Animated.parallel([
           Animated.timing(ringScale, {
             toValue: 1,
             duration: 0,
-            useNativeDriver: true,
+            useNativeDriver: false,
           }),
           Animated.timing(ringOpacity, {
             toValue: 0.4,
             duration: 0,
-            useNativeDriver: true,
+            useNativeDriver: false,
           }),
         ]),
       ]),
@@ -378,7 +406,7 @@ export default function PrayerScreen() {
       toValue: 1,
       duration: 1200,
       easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   }, [currentStep]);
 
@@ -404,7 +432,7 @@ export default function PrayerScreen() {
 
     if (item.type === "prayer") {
       interval = setInterval(() => {
-        scrollY.current += 0.7;
+        scrollY.current += 0.9;
         scrollRef.current?.scrollTo({ y: scrollY.current, animated: false });
       }, 30);
     }
@@ -810,7 +838,7 @@ const styles = StyleSheet.create({
     minHeight: 260,
     textAlign: "center",
     justifyContent: "center",
-    shadowColor: "#3F2E24",
+    shadowColor: "#4a392f",
     shadowOffset: {
       width: 0,
       height: 12,
@@ -828,7 +856,7 @@ const styles = StyleSheet.create({
 
   prayerContent: {
     paddingTop: 50,
-    paddingBottom: 80,
+    paddingBottom: 60,
   },
 
   label: {
@@ -836,18 +864,19 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   versicle: {
-    fontSize: 32,
-    color: "#3F2E24",
+    fontSize: 30,
+    color: "#4a392f",
     marginBottom: 6,
     textAlign: "center",
-    lineHeight: 34,
-    fontFamily: "Montserrat-Regular",
+    lineHeight: 42,
+    fontFamily: "Garamond-Regular",
+    fontWeight: "semibold",
   },
   response: {
-    fontSize: 32,
-    color: "#3F2E24",
+    fontSize: 30,
+    color: "#4a392f",
     textAlign: "center",
-    lineHeight: 34,
+    lineHeight: 42,
     fontFamily: "Garamond-Regular",
   },
   logo: {
@@ -856,18 +885,18 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
   },
   responseItalic: {
-    fontSize: 32,
-    color: "#3F2E24",
+    fontSize: 30,
+    color: "#4a392f",
     fontStyle: "italic",
     textAlign: "center",
-    lineHeight: 34,
+    lineHeight: 42,
     fontFamily: "Garamond-Regular",
   },
   prayer: {
-    fontSize: 32,
-    lineHeight: 38,
+    fontSize: 30,
+    lineHeight: 42,
     textAlign: "center",
-    color: "#3F2E24",
+    color: "#4a392f",
     fontFamily: "Garamond-Regular",
   },
 
@@ -907,7 +936,7 @@ const styles = StyleSheet.create({
   controls: {
     textAlign: "center",
     marginBottom: 20,
-    color: "#3F2E24",
+    color: "#4a392f",
     opacity: 0.7,
   },
   timeSelector: {

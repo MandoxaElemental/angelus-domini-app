@@ -20,7 +20,7 @@ import {
 type Screen = "login" | "register" | "main" | "prayer";
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("prayer");
+  const [screen, setScreen] = useState<Screen>("login");
 
   useEffect(() => {
     async function initNotifications() {
@@ -54,7 +54,7 @@ export default function App() {
         return <PrayerScreen />;
 
       default:
-        return <PrayerScreen />;
+        return <MainApp />;
     }
   };
 
