@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { createAudioPlayer } from "expo-audio";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFonts } from "expo-font";
 
 type PrayerItem =
   | {
@@ -181,23 +182,25 @@ export default function PrayerScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const scrollY = useRef(0);
-  const getUpcomingPrayerTime = () => {
+  const getCurrentPrayerTime = () => {
     const now = new Date();
-
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    const prayerTimes = [
-      { value: "6am", minutes: 6 * 60 },
-      { value: "12pm", minutes: 12 * 60 },
-      { value: "6pm", minutes: 18 * 60 },
-    ];
+    // 6:00 AM → 11:59 AM
+    if (currentMinutes >= 6 * 60 && currentMinutes < 12 * 60) {
+      return "6am";
+    }
 
-    const upcoming = prayerTimes.find((time) => currentMinutes < time.minutes);
+    // 12:00 PM → 5:59 PM
+    if (currentMinutes >= 12 * 60 && currentMinutes < 18 * 60) {
+      return "12pm";
+    }
 
-    return upcoming ? upcoming.value : "6am";
+    // 6:00 PM → 5:59 AM
+    return "6pm";
   };
 
-  const [selectedTime, setSelectedTime] = useState(getUpcomingPrayerTime());
+  const [selectedTime, setSelectedTime] = useState(getCurrentPrayerTime());
   const item = PRAYER_SEQUENCE[currentStep];
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const ringScale = useRef(new Animated.Value(1)).current;
@@ -323,7 +326,7 @@ export default function PrayerScreen() {
 
   useEffect(() => {
     const updatePrayerTime = () => {
-      setSelectedTime(getUpcomingPrayerTime());
+      setSelectedTime(getCurrentPrayerTime());
     };
 
     updatePrayerTime();
@@ -865,19 +868,20 @@ const styles = StyleSheet.create({
   },
   versicle: {
     fontSize: 30,
-    color: "#4a392f",
+    color: "#53433b",
     marginBottom: 6,
     textAlign: "center",
     lineHeight: 42,
-    fontFamily: "Garamond-Regular",
+    fontFamily: "CormorantGaramond",
     fontWeight: "semibold",
   },
   response: {
     fontSize: 30,
-    color: "#4a392f",
+    color: "#53433b",
     textAlign: "center",
     lineHeight: 42,
-    fontFamily: "Garamond-Regular",
+    fontFamily: "CormorantGaramond",
+    fontStyle: "italic",
   },
   logo: {
     width: 140,
@@ -886,7 +890,7 @@ const styles = StyleSheet.create({
   },
   responseItalic: {
     fontSize: 30,
-    color: "#4a392f",
+    color: "#53433b",
     fontStyle: "italic",
     textAlign: "center",
     lineHeight: 42,
@@ -896,7 +900,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 42,
     textAlign: "center",
-    color: "#4a392f",
+    color: "#53433b",
     fontFamily: "Garamond-Regular",
   },
 
@@ -936,7 +940,7 @@ const styles = StyleSheet.create({
   controls: {
     textAlign: "center",
     marginBottom: 20,
-    color: "#4a392f",
+    color: "#53433b",
     opacity: 0.7,
   },
   timeSelector: {
@@ -959,7 +963,7 @@ const styles = StyleSheet.create({
   },
 
   timeButtonActive: {
-    fontWeight: "semibold",
+    fontWeight: 900,
     shadowColor: "#4B6FB0",
     shadowOpacity: 0.35,
     shadowRadius: 8,

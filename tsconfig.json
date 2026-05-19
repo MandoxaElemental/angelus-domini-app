@@ -3,5 +3,34 @@
   "compilerOptions": {
     "strict": true,
     "ignoreDeprecations": "6.0"
+  },
+  "expo": {
+    "plugins": [
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/CormorantGaramond-VariableFont_wght.ttf"
+          ],
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "CormorantGaramond",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/CormorantGaramond-Italic-VariableFont_wght.ttf",
+                    "weight": 700,
+                    "style": "italic"
+                  },
+                ]
+              }
+            ]
+          },
+          "ios": {
+            "fonts": ["./assets/fonts/CormorantGaramond-VariableFont_wght.ttf", "./assets/fonts/CormorantGaramond-Italic-VariableFont_wght.ttf"]
+          }
+        }
+      ]
+    ]
   }
 }
