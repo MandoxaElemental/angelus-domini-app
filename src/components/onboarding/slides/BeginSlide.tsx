@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, ImageBackground, StyleSheet } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles } from "../styles/sharedStyles";
-import { GOLD, IVORY } from "../../../lib/constants/colors";
+import { GOLD, IVORY, BLUE } from "../../../lib/constants/colors";
 import { FONT_TITLE_BOLD } from "../../../lib/constants/fonts";
 
 type Props = {
@@ -48,15 +48,15 @@ const styles = StyleSheet.create({
     paddingTop: 72,
     paddingHorizontal: 32,
   },
-  title: {
-    fontFamily: FONT_TITLE_BOLD,
-    fontSize: 36,
-    color: "#FDFAF0",
-    paddingTop: 70,
-    textAlign: "center",
-    letterSpacing: 0.3,
-    lineHeight: 48,
-  },
+title: {
+  fontFamily: "PlayfairDisplay_400Regular",  // hardcoded to test
+  fontSize: 36,
+  color: "#1F3A6E",
+  paddingTop: 70,
+  textAlign: "center",
+  letterSpacing: 0.3,
+  lineHeight: 48,
+},
   tagline: {
     fontSize: 30,
     fontStyle: "italic",
