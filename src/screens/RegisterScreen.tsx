@@ -71,8 +71,13 @@ function GlassInput({
   );
 }
 
-// ← replaced useRouter with goToLogin prop
-export default function RegisterScreen({ goToLogin }: { goToLogin: () => void }) {
+export default function RegisterScreen({
+  goToLogin,
+  goToHome,
+}: {
+  goToLogin: () => void;
+  goToHome: () => void;
+}) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -80,6 +85,7 @@ export default function RegisterScreen({ goToLogin }: { goToLogin: () => void })
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
 
+  // ✅ ALL hooks declared before any early return
   const [fontsLoaded] = useFonts({
     PlayfairDisplay_400Regular,
     PlayfairDisplay_400Regular_Italic,
@@ -90,6 +96,7 @@ export default function RegisterScreen({ goToLogin }: { goToLogin: () => void })
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
+  // ✅ Early return AFTER all hooks
   if (!fontsLoaded) return null;
 
   const handleRegister = async () => {
@@ -97,15 +104,25 @@ export default function RegisterScreen({ goToLogin }: { goToLogin: () => void })
       alert("Fill all fields");
       return;
     }
+    if (!selectedCountry) {
+      alert("Please select a country");
+      return;
+    }
     try {
       setLoading(true);
-      const data = await register(email, username, password);
-      if (!data.session) {
-        alert("Check your email to confirm your account.");
+      const data = await register(
+        email,
+        username,
+        password,
+        selectedCountry.name
+      );
+
+      if (data.session) {
+        goToHome();
       } else {
-        alert("Account created!");
+        alert("Check your email to confirm your account.");
+        goToLogin();
       }
-      goToLogin(); // ← replaces router.replace("/login")
     } catch (err: any) {
       console.log("REGISTER ERROR:", err);
       alert(err.message || "Something went wrong");
@@ -123,7 +140,6 @@ export default function RegisterScreen({ goToLogin }: { goToLogin: () => void })
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Hero text ── */}
           <View style={styles.heroSection}>
             <Text style={styles.heroTitle}>Begin with the{"\n"}Angelus</Text>
             <View style={styles.taglineContainer}>
@@ -133,7 +149,6 @@ export default function RegisterScreen({ goToLogin }: { goToLogin: () => void })
             </View>
           </View>
 
-          {/* ── Form ── */}
           <View style={styles.formSection}>
             <GlassInput>
               <TextInput
@@ -168,7 +183,6 @@ export default function RegisterScreen({ goToLogin }: { goToLogin: () => void })
               />
             </GlassInput>
 
-            {/* Country Selector */}
             <TouchableOpacity
               onPress={() => setCountryModalVisible(true)}
               activeOpacity={0.8}
@@ -183,7 +197,6 @@ export default function RegisterScreen({ goToLogin }: { goToLogin: () => void })
               </GlassInput>
             </TouchableOpacity>
 
-            {/* Register Button */}
             <TouchableOpacity
               onPress={handleRegister}
               disabled={loading}
@@ -195,9 +208,8 @@ export default function RegisterScreen({ goToLogin }: { goToLogin: () => void })
               </Text>
             </TouchableOpacity>
 
-            {/* Already have account */}
             <TouchableOpacity
-              onPress={goToLogin} // ← replaces router.replace("/login")
+              onPress={goToLogin}
               activeOpacity={0.85}
               style={styles.loginBtn}
             >
@@ -208,7 +220,6 @@ export default function RegisterScreen({ goToLogin }: { goToLogin: () => void })
           </View>
         </ScrollView>
 
-        {/* Country Modal */}
         <Modal
           visible={countryModalVisible}
           transparent
@@ -268,19 +279,13 @@ export default function RegisterScreen({ goToLogin }: { goToLogin: () => void })
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
+  root: { flex: 1, backgroundColor: "#000" },
   bg: {
     flex: 1,
     width: "100%",
     height: "100%",
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
   },
   scroll: {
     flexGrow: 1,
@@ -315,18 +320,9 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,
   },
-  pauseText: {
-    top: 0,
-    left: -50,
-  },
-  listenText: {
-    top: 34,
-    left: 5,
-  },
-  prayText: {
-    top: 68,
-    left: 50,
-  },
+  pauseText: { top: 0, left: -50 },
+  listenText: { top: 34, left: 5 },
+  prayText: { top: 68, left: 50 },
   formSection: {
     paddingHorizontal: 20,
     gap: 8,
@@ -430,12 +426,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  countryRowSelected: {
-    backgroundColor: "#F5F0E8",
-  },
-  countryFlag: {
-    fontSize: 20,
-  },
+  countryRowSelected: { backgroundColor: "#F5F0E8" },
+  countryFlag: { fontSize: 20 },
   countryName: {
     fontSize: 14,
     color: "#1C1C1C",

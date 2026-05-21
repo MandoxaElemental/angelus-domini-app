@@ -31,7 +31,6 @@ SplashScreen.preventAutoHideAsync();
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
-// ✅ Single type controls every screen in the app
 type Screen = "onboarding" | "register" | "login" | "main";
 
 export default function App() {
@@ -41,7 +40,6 @@ export default function App() {
   const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
   const [frame, setFrame] = useState<Rect>(initialFrame);
 
-  // --- Font loading ---
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_400Regular,
     PlayfairDisplay_400Bold,
@@ -49,11 +47,9 @@ export default function App() {
     PlayfairDisplay_600SemiBold,
   });
 
-  // --- App state ---
   const [isReady, setIsReady] = useState(false);
   const [screen, setScreen] = useState<Screen>("onboarding");
 
-  // --- Safe area (web only) ---
   const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
     setInsets(metrics.insets);
     setFrame(metrics.frame);
@@ -63,17 +59,14 @@ export default function App() {
     if (Platform.OS !== "web") return;
   }, [handleSafeAreaUpdate]);
 
-  // --- App preparation ---
   useEffect(() => {
     async function prepareApp() {
       try {
-        // RESET ONBOARDING FOR TESTING — remove this line when done testing
-        await AsyncStorage.removeItem("onboarded");
+        await AsyncStorage.removeItem("onboarded"); // remove when done testing
 
         const token = await getToken();
         const onboarded = await AsyncStorage.getItem("onboarded");
 
-        // ✅ Decide starting screen based on stored state
         if (token) {
           setScreen("main");
         } else if (onboarded === "true") {
@@ -92,14 +85,12 @@ export default function App() {
     prepareApp();
   }, []);
 
-  // --- Hide splash when fonts AND app are ready ---
   useEffect(() => {
     if (isReady && (fontsLoaded || fontError)) {
       SplashScreen.hideAsync();
     }
   }, [isReady, fontsLoaded, fontError]);
 
-  // --- QueryClient ---
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -112,7 +103,6 @@ export default function App() {
       })
   );
 
-  // --- Safe area metrics ---
   const providerInitialMetrics = useMemo(() => {
     const metrics = initialWindowMetrics ?? { insets: initialInsets, frame: initialFrame };
     return {
@@ -125,7 +115,6 @@ export default function App() {
     };
   }, [initialInsets, initialFrame]);
 
-  // --- Loading screen ---
   if (!isReady || (!fontsLoaded && !fontError)) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -134,36 +123,32 @@ export default function App() {
     );
   }
 
-  // --- Screen logic ---
-  // Flow: onboarding → register → login → main
   const screenContent = () => {
     switch (screen) {
-
       case "onboarding":
         return (
-          // ✅ Skip or Get Started → goes to RegisterScreen
           <OnboardingScreen onDone={() => setScreen("register")} />
         );
 
       case "register":
         return (
           <RegisterScreen
-            // ✅ After successful registration → go to login
             goToLogin={async () => {
               await AsyncStorage.setItem("onboarded", "true");
               setScreen("login");
             }}
-            // ✅ "Already have an account?" link → go to login
-            goToLoginDirect={() => setScreen("login")}
+            goToHome={async () => {
+              // ✅ Auto login after register → skip login → go straight to main
+              await AsyncStorage.setItem("onboarded", "true");
+              setScreen("main");
+            }}
           />
         );
 
       case "login":
         return (
           <LoginScreen
-            // ✅ After successful login → go to main app
             onLogin={() => setScreen("main")}
-            // ✅ "Don't have an account?" link → go to register
             goToRegister={() => setScreen("register")}
           />
         );
@@ -176,7 +161,6 @@ export default function App() {
     }
   };
 
-  // --- Content wrapped in providers ---
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
@@ -186,7 +170,6 @@ export default function App() {
     </GestureHandlerRootView>
   );
 
-  // --- Web: manually override safe area context ---
   if (Platform.OS === "web") {
     return (
       <SafeAreaProvider initialMetrics={providerInitialMetrics}>
