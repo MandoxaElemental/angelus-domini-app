@@ -7,6 +7,10 @@
   "expo": {
     "plugins": [
       [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/audio/triple-bell.mp3"]
+        },
         "expo-font",
         {
           "fonts": [

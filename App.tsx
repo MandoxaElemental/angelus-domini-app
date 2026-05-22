@@ -1,97 +1,86 @@
-import { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+
+import { NavigationContainer, useNavigation } from "@react-navigation/native";
+
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import MainApp from "./src/screens/MainApp";
 import PrayerScreen from "./src/screens/PrayerScreen";
 
-import {
-  registerForPushNotificationsAsync,
-  setupAngelusNotifications,
-} from "./services/notifications";
+import { testNotificationNow } from "./services/notifications";
 
-type Screen = "login" | "register" | "main" | "prayer";
+const Stack = createNativeStackNavigator();
 
-export default function App() {
-  const [screen, setScreen] = useState<Screen>("login");
-
-  useEffect(() => {
-    async function initNotifications() {
-      const granted = await registerForPushNotificationsAsync();
-
-      if (granted) {
-        await setupAngelusNotifications();
-      }
-    }
-
-    initNotifications();
-  }, []);
-
-  const renderScreen = () => {
-    switch (screen) {
-      case "login":
-        return (
-          <LoginScreen
-            onLogin={() => setScreen("main")}
-            goToRegister={() => setScreen("register")}
-          />
-        );
-
-      case "register":
-        return <RegisterScreen goToLogin={() => setScreen("login")} />;
-
-      case "main":
-        return <MainApp />;
-
-      case "prayer":
-        return <PrayerScreen />;
-
-      default:
-        return <MainApp />;
-    }
-  };
+function DevNavbar() {
+  const navigation = useNavigation<any>();
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* TEST NAV BAR */}
-      <View style={styles.nav}>
-        <TouchableOpacity onPress={() => setScreen("login")}>
-          <Text style={styles.link}>Login</Text>
-        </TouchableOpacity>
+    <View style={styles.nav}>
+      <TouchableOpacity onPress={() => navigation.navigate("login")}>
+        <Text style={styles.link}>Login</Text>
+      </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => setScreen("register")}>
-          <Text style={styles.link}>Register</Text>
-        </TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.navigate("register")}>
+        <Text style={styles.link}>Register</Text>
+      </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => setScreen("main")}>
-          <Text style={styles.link}>Main</Text>
-        </TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.navigate("main")}>
+        <Text style={styles.link}>Main</Text>
+      </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => setScreen("prayer")}>
-          <Text style={styles.link}>Prayer</Text>
-        </TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.navigate("Prayer")}>
+        <Text style={styles.link}>Prayer</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={testNotificationNow}>
+        <Text style={styles.link}>Test Notification</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function AppNavigator() {
+  return (
+    <View style={{ flex: 1 }}>
+      {/* DEV NAVBAR */}
+      <DevNavbar />
+
+      {/* SCREENS */}
+      <View style={{ flex: 1 }}>
+        <Stack.Navigator
+          initialRouteName="login"
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          <Stack.Screen name="login" component={LoginScreen} />
+
+          <Stack.Screen name="register" component={RegisterScreen} />
+
+          <Stack.Screen name="main" component={MainApp} />
+
+          <Stack.Screen name="Prayer" component={PrayerScreen} />
+        </Stack.Navigator>
       </View>
+    </View>
+  );
+}
 
-      <View style={styles.content}>{renderScreen()}</View>
-    </SafeAreaView>
+export default function App() {
+  return (
+    <NavigationContainer>
+      <AppNavigator />
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-
   nav: {
     flexDirection: "row",
     justifyContent: "space-around",
+    alignItems: "center",
     paddingVertical: 12,
     backgroundColor: "#eee",
     borderBottomWidth: 1,
@@ -99,12 +88,8 @@ const styles = StyleSheet.create({
   },
 
   link: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: "#2F4A7A",
-  },
-
-  content: {
-    flex: 1,
   },
 });
