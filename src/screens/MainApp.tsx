@@ -419,16 +419,17 @@ function ProgressCard({
       </View>
 
       <Text style={styles.progressTitle}>{title}</Text>
-
-      <Text style={styles.progressSubtitle}>
-        {isCompleted
-          ? "Completed"
-          : isActive
-            ? "Praying"
-            : isMissed
-              ? "Missed"
-              : "Upcoming"}
-      </Text>
+      <View style={styles.progressBox}>
+        <Text style={styles.progressSubtitle}>
+          {isCompleted
+            ? "Completed"
+            : isActive
+              ? "Praying"
+              : isMissed
+                ? "Missed"
+                : "Upcoming"}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -620,6 +621,15 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     alignItems: "center",
     paddingVertical: 18,
+    shadowColor: "#3B2E22",
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+
+    elevation: 6,
   },
 
   progressCardActive: {
@@ -645,12 +655,22 @@ const styles = StyleSheet.create({
   progressTitle: {
     fontSize: 17,
     color: COLORS.textPrimary,
-    fontWeight: "600",
+    fontWeight: "500",
     fontFamily: "CormorantGaramond",
   },
 
-  progressSubtitle: {
+  progressBox: {
     marginTop: 4,
+    padding: 2,
+    width: 100,
+    borderRadius: 999,
+    borderColor: COLORS.border,
+    borderWidth: 2,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  progressSubtitle: {
     fontSize: 12,
     color: COLORS.textSecondary,
     fontFamily: "CormorantGaramond",
@@ -666,6 +686,16 @@ const styles = StyleSheet.create({
     padding: 5,
     flexDirection: "row",
     alignItems: "center",
+
+    shadowColor: "#3B2E22",
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+
+    elevation: 6,
   },
 
   globe: {
