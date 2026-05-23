@@ -8,10 +8,13 @@ import {
   Image,
   Animated,
   Easing,
+  Modal,
 } from "react-native";
 import { createAudioPlayer } from "expo-audio";
 import { LinearGradient } from "expo-linear-gradient";
-
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 type PrayerItem =
   | {
       type: "versicle" | "response" | "prayer";
@@ -181,24 +184,27 @@ export default function PrayerScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const scrollY = useRef(0);
-  const getUpcomingPrayerTime = () => {
+  const getCurrentPrayerTime = () => {
     const now = new Date();
-
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    const prayerTimes = [
-      { value: "6am", minutes: 6 * 60 },
-      { value: "12pm", minutes: 12 * 60 },
-      { value: "6pm", minutes: 18 * 60 },
-    ];
+    // 6:00 AM → 11:59 AM
+    if (currentMinutes >= 6 * 60 && currentMinutes < 12 * 60) {
+      return "6am";
+    }
 
-    const upcoming = prayerTimes.find((time) => currentMinutes < time.minutes);
+    // 12:00 PM → 5:59 PM
+    if (currentMinutes >= 12 * 60 && currentMinutes < 18 * 60) {
+      return "12pm";
+    }
 
-    return upcoming ? upcoming.value : "6am";
+    // 6:00 PM → 5:59 AM
+    return "6pm";
   };
 
-  const [selectedTime, setSelectedTime] = useState(getUpcomingPrayerTime());
+  const [selectedTime, setSelectedTime] = useState(getCurrentPrayerTime());
   const item = PRAYER_SEQUENCE[currentStep];
+  const nextItem = PRAYER_SEQUENCE[currentStep + 1];
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const ringScale = useRef(new Animated.Value(1)).current;
   const ringOpacity = useRef(new Animated.Value(0.4)).current;
@@ -207,6 +213,10 @@ export default function PrayerScreen() {
   const [autoPlay, setAutoPlay] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const isTransitioning = useRef(false);
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const onComplete = route.params?.onComplete;
 
   const transitionToNext = () => {
     if (isTransitioning.current) return;
@@ -323,7 +333,7 @@ export default function PrayerScreen() {
 
   useEffect(() => {
     const updatePrayerTime = () => {
-      setSelectedTime(getUpcomingPrayerTime());
+      setSelectedTime(getCurrentPrayerTime());
     };
 
     updatePrayerTime();
@@ -498,228 +508,303 @@ export default function PrayerScreen() {
     }
   };
 
+  useEffect(() => {
+    const isLastStep = currentStep === PRAYER_SEQUENCE.length - 1;
+
+    if (!isLastStep) return;
+
+    const timeout = setTimeout(() => {
+      const slot =
+        selectedTime === "6am"
+          ? "morning"
+          : selectedTime === "12pm"
+            ? "noon"
+            : "evening";
+
+      onComplete?.(slot);
+
+      setShowCompletionModal(true);
+    }, item.duration);
+
+    return () => clearTimeout(timeout);
+  }, [currentStep]);
+
   return (
-    <View style={styles.container}>
-      {/* 🔷 HEADER */}
-      <View style={styles.header}>
-        <Image source={require("../../assets/Logo.png")} style={styles.logo} />
-
-        <View style={styles.bellContainer}>
-          {/* Ringing effect */}
-          <Animated.Image
-            source={require("../../assets/ring.png")}
-            style={[
-              styles.bellEffect,
-              {
-                opacity: ringOpacity,
-                transform: [{ scale: ringScale }],
-              },
-            ]}
-            resizeMode="contain"
+    <>
+      <View style={styles.container}>
+        {/* 🔷 HEADER */}
+        <View style={styles.header}>
+          <Image
+            source={require("../../assets/Logo.png")}
+            style={styles.logo}
           />
 
-          {/* Bell */}
-          <Animated.Image
-            source={require("../../assets/bell.png")}
-            resizeMode="contain"
-            style={[
-              styles.bellImage,
-              {
-                transform: [
-                  {
-                    rotate: bellRotate.interpolate({
-                      inputRange: [-1, 1],
-                      outputRange: ["-12deg", "12deg"],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
+          <View style={styles.bellContainer}>
+            {/* Ringing effect */}
+            <Animated.Image
+              source={require("../../assets/ring.png")}
+              style={[
+                styles.bellEffect,
+                {
+                  opacity: ringOpacity,
+                  transform: [{ scale: ringScale }],
+                },
+              ]}
+              resizeMode="contain"
+            />
+
+            {/* Bell */}
+            <Animated.Image
+              source={require("../../assets/bell.png")}
+              resizeMode="contain"
+              style={[
+                styles.bellImage,
+                {
+                  transform: [
+                    {
+                      rotate: bellRotate.interpolate({
+                        inputRange: [-1, 1],
+                        outputRange: ["-12deg", "12deg"],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          </View>
         </View>
-      </View>
 
-      <Text style={styles.subtitle}>
-        Meditating on the mystery of the Incarnation
-      </Text>
-      <View style={styles.timeSelector}>
-        {[
-          { label: "6:00 AM", value: "6am" },
-          { label: "12:00 PM", value: "12pm" },
-          { label: "6:00 PM", value: "6pm" },
-        ].map((t) => {
-          const active = selectedTime === t.value;
+        <Text style={styles.subtitle}>
+          Meditating on the mystery of the Incarnation
+        </Text>
+        <View style={styles.timeSelector}>
+          {[
+            { label: "6:00 AM", value: "6am" },
+            { label: "12:00 PM", value: "12pm" },
+            { label: "6:00 PM", value: "6pm" },
+          ].map((t) => {
+            const active = selectedTime === t.value;
 
-          return (
-            <TouchableOpacity
-              key={t.value}
-              onPress={() => setSelectedTime(t.value)}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={
-                  active ? ["#3D5C97", "#2F4A7A"] : ["#FDF6EA", "#EEDFC4"]
-                }
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={[styles.timeButton, active && styles.timeButtonActive]}
+            return (
+              <TouchableOpacity
+                key={t.value}
+                onPress={() => setSelectedTime(t.value)}
+                activeOpacity={0.85}
               >
-                <Text
-                  style={[styles.timeText, active && styles.timeTextActive]}
+                <LinearGradient
+                  colors={
+                    active ? ["#3D5C97", "#2F4A7A"] : ["#FDF6EA", "#EEDFC4"]
+                  }
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={[styles.timeButton, active && styles.timeButtonActive]}
                 >
-                  {t.label}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      {/* 🖼 IMAGE */}
-      <View style={styles.imageContainer}>
-        <Image
-          source={require("../../assets/angelus.png")}
-          style={styles.image}
-        />
+                  <Text
+                    style={[styles.timeText, active && styles.timeTextActive]}
+                  >
+                    {t.label}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {/* 🖼 IMAGE */}
+        <View style={styles.imageContainer}>
+          <Image
+            source={require("../../assets/angelus.png")}
+            style={styles.image}
+          />
 
-        {/* Top fade */}
-        {/* <LinearGradient
+          {/* Top fade */}
+          {/* <LinearGradient
           colors={["#F8F1E7", "transparent"]}
           style={styles.topGradient}
           pointerEvents="none"
         /> */}
 
-        {/* Bottom fade */}
-        {/* <LinearGradient
+          {/* Bottom fade */}
+          {/* <LinearGradient
           colors={["transparent", "#F8F1E7"]}
           style={styles.bottomGradient}
           pointerEvents="none"
         /> */}
-      </View>
-      {/* 📜 PRAYER CARD */}
+        </View>
+        {/* 📜 PRAYER CARD */}
 
-      <View style={styles.card}>
-        {item.type === "prayer" ? (
-          <View style={styles.prayerScrollWindow}>
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              showsHorizontalScrollIndicator={false}
-              ref={scrollRef}
-              contentContainerStyle={[
-                styles.cardContent,
-                item.type === "prayer" && styles.prayerContent,
-              ]}
-            >
-              {renderPrayer()}
-            </ScrollView>
+        <View style={styles.card}>
+          {item.type === "prayer" ? (
+            <View style={styles.prayerScrollWindow}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                showsHorizontalScrollIndicator={false}
+                ref={scrollRef}
+                contentContainerStyle={[
+                  styles.cardContent,
+                  item.type === "prayer" && styles.prayerContent,
+                ]}
+              >
+                {renderPrayer()}
+              </ScrollView>
 
-            {/* Top Fade */}
-            <LinearGradient
-              colors={["#FFFAF2", "transparent"]}
-              style={styles.topFade}
-              pointerEvents="none"
+              {/* Top Fade */}
+              <LinearGradient
+                colors={["#FFFAF2", "transparent"]}
+                style={styles.topFade}
+                pointerEvents="none"
+              />
+
+              {/* Bottom Fade */}
+              <LinearGradient
+                colors={["transparent", "#FFFAF2"]}
+                style={styles.bottomFade}
+                pointerEvents="none"
+              />
+            </View>
+          ) : item.type === "bell" ? (
+            <View style={styles.bellCardContent}>
+              {/* The NEXT prayer underneath */}
+              <Animated.View
+                style={[
+                  StyleSheet.absoluteFillObject,
+                  styles.nextPrayerLayer,
+                  {
+                    opacity: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.25, 1],
+                    }),
+                  },
+                ]}
+              >
+                <Text style={styles.upcomingPrayer}>
+                  {nextItem?.text || ""}
+                </Text>
+              </Animated.View>
+
+              {/* Full frosted overlay */}
+              <BlurView intensity={50} tint="light" style={styles.fullCardBlur}>
+                <View style={styles.blurInner}></View>
+              </BlurView>
+            </View>
+          ) : (
+            <View style={styles.normalContent}>{renderPrayer()}</View>
+          )}
+        </View>
+
+        {/* ⚪ DOTS */}
+        <View style={styles.dots}>
+          {PRAYER_SEQUENCE.map((_, i) => (
+            <View
+              key={i}
+              style={[styles.dot, i === currentStep && styles.activeDot]}
             />
-
-            {/* Bottom Fade */}
-            <LinearGradient
-              colors={["transparent", "#FFFAF2"]}
-              style={styles.bottomFade}
-              pointerEvents="none"
-            />
-          </View>
-        ) : (
-          <View style={styles.normalContent}>{renderPrayer()}</View>
-        )}
-      </View>
-
-      {/* ⚪ DOTS */}
-      <View style={styles.dots}>
-        {PRAYER_SEQUENCE.map((_, i) => (
-          <View
-            key={i}
-            style={[styles.dot, i === currentStep && styles.activeDot]}
-          />
-        ))}
-      </View>
-      {/* 🟡 BUTTON */}
-      <TouchableOpacity
-        style={[
-          styles.button,
-          (autoPlay || item.type === "bell") && styles.buttonDisabled,
-        ]}
-        onPress={handleNext}
-        disabled={autoPlay || item.type === "bell"}
-      >
-        <LinearGradient
-          colors={["#D4AF57", "#B9923F"]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={styles.buttonGradient}
-        >
-          <Text style={styles.buttonText}>
-            {autoPlay
-              ? "Praying..."
-              : currentStep === PRAYER_SEQUENCE.length - 1
-                ? "Finish"
-                : "Continue"}
-          </Text>
-        </LinearGradient>
-      </TouchableOpacity>
-      {/* ⚙️ CONTROLS */}
-      <View style={styles.footerControls}>
+          ))}
+        </View>
+        {/* 🟡 BUTTON */}
         <TouchableOpacity
-          onPress={() => {
-            const next = !autoPlay;
+          style={[
+            styles.button,
+            (autoPlay || item.type === "bell") && styles.buttonDisabled,
+          ]}
+          onPress={handleNext}
+          disabled={autoPlay || item.type === "bell"}
+        >
+          <LinearGradient
+            colors={["#D4AF57", "#B9923F"]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={styles.buttonGradient}
+          >
+            <Text style={styles.buttonText}>
+              {autoPlay
+                ? "Praying..."
+                : currentStep === PRAYER_SEQUENCE.length - 1
+                  ? "Finish"
+                  : "Continue"}
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        {/* ⚙️ CONTROLS */}
+        <View style={styles.footerControls}>
+          <TouchableOpacity
+            onPress={() => {
+              const next = !autoPlay;
 
-            setAutoPlay(next);
+              setAutoPlay(next);
 
-            if (
-              next &&
-              audioEnabled &&
-              currentStep === 0 &&
-              item.type !== "bell"
-            ) {
-              audioRef.current?.remove?.();
+              if (
+                next &&
+                audioEnabled &&
+                currentStep === 0 &&
+                item.type !== "bell"
+              ) {
+                audioRef.current?.remove?.();
 
-              if (item.audio) {
-                const player = createAudioPlayer(item.audio);
+                if (item.audio) {
+                  const player = createAudioPlayer(item.audio);
 
-                audioRef.current = player;
+                  audioRef.current = player;
 
-                player.play();
+                  player.play();
+                }
               }
-            }
-          }}
-        >
-          <Text style={styles.footerAction}>
-            {autoPlay ? "Pause" : "Auto Pray"}
-          </Text>
-        </TouchableOpacity>
+            }}
+          >
+            <Text style={styles.footerAction}>
+              {autoPlay ? "Pause" : "Auto Pray"}
+            </Text>
+          </TouchableOpacity>
 
-        <Text style={styles.footerDivider}>•</Text>
+          <Text style={styles.footerDivider}>•</Text>
 
-        <TouchableOpacity onPress={handleRestart}>
-          <Text style={styles.footerAction}>Restart</Text>
-        </TouchableOpacity>
+          <TouchableOpacity onPress={handleRestart}>
+            <Text style={styles.footerAction}>Restart</Text>
+          </TouchableOpacity>
 
-        <Text style={styles.footerDivider}>•</Text>
+          <Text style={styles.footerDivider}>•</Text>
 
-        <TouchableOpacity
-          onPress={() => {
-            const next = !audioEnabled;
+          <TouchableOpacity
+            onPress={() => {
+              const next = !audioEnabled;
 
-            setAudioEnabled(next);
+              setAudioEnabled(next);
 
-            if (!next) {
-              audioRef.current?.remove?.();
-            }
-          }}
-        >
-          <Text style={styles.footerAction}>
-            {audioEnabled ? "Voice On" : "Voice Off"}
-          </Text>
-        </TouchableOpacity>
+              if (!next) {
+                audioRef.current?.remove?.();
+              }
+            }}
+          >
+            <Text style={styles.footerAction}>
+              {audioEnabled ? "Voice On" : "Voice Off"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+      <Modal visible={showCompletionModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Ionicons name="checkmark-circle" size={64} color="#8FAF8B" />
+
+            <Text style={styles.modalTitle}>Prayer Complete</Text>
+
+            <Text style={styles.modalText}>
+              You have completed the Angelus for this hour.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setShowCompletionModal(false);
+
+                navigation.goBack();
+              }}
+            >
+              <Text style={styles.modalButtonText}>Return Home</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -865,19 +950,20 @@ const styles = StyleSheet.create({
   },
   versicle: {
     fontSize: 30,
-    color: "#4a392f",
+    color: "#6F440A",
     marginBottom: 6,
     textAlign: "center",
     lineHeight: 42,
-    fontFamily: "Garamond-Regular",
+    fontFamily: "CormorantGaramond",
     fontWeight: "semibold",
   },
   response: {
     fontSize: 30,
-    color: "#4a392f",
+    color: "#6F440A",
     textAlign: "center",
     lineHeight: 42,
-    fontFamily: "Garamond-Regular",
+    fontFamily: "CormorantGaramond",
+    fontStyle: "italic",
   },
   logo: {
     width: 140,
@@ -886,7 +972,7 @@ const styles = StyleSheet.create({
   },
   responseItalic: {
     fontSize: 30,
-    color: "#4a392f",
+    color: "#6F440A",
     fontStyle: "italic",
     textAlign: "center",
     lineHeight: 42,
@@ -896,7 +982,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 42,
     textAlign: "center",
-    color: "#4a392f",
+    color: "#6F440A",
     fontFamily: "Garamond-Regular",
   },
 
@@ -936,7 +1022,7 @@ const styles = StyleSheet.create({
   controls: {
     textAlign: "center",
     marginBottom: 20,
-    color: "#4a392f",
+    color: "#6F440A",
     opacity: 0.7,
   },
   timeSelector: {
@@ -959,7 +1045,7 @@ const styles = StyleSheet.create({
   },
 
   timeButtonActive: {
-    fontWeight: "semibold",
+    fontWeight: 900,
     shadowColor: "#4B6FB0",
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -1008,5 +1094,106 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 32,
     alignItems: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+
+  modalCard: {
+    width: "100%",
+    backgroundColor: "#FFFAF2",
+    borderRadius: 28,
+    padding: 30,
+    alignItems: "center",
+  },
+
+  modalTitle: {
+    marginTop: 18,
+    fontSize: 34,
+    color: "#2F4A7A",
+    fontFamily: "CormorantGaramond",
+  },
+
+  modalText: {
+    marginTop: 12,
+    textAlign: "center",
+    color: "#6B5E52",
+    fontSize: 18,
+    lineHeight: 28,
+  },
+
+  modalButton: {
+    marginTop: 26,
+    backgroundColor: "#C9A24A",
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 30,
+  },
+
+  modalButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  bellCardContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+
+  nextPrayerLayer: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 28,
+  },
+
+  upcomingPrayer: {
+    fontSize: 30,
+    lineHeight: 42,
+    textAlign: "center",
+    color: "#6F440A",
+    fontFamily: "CormorantGaramond",
+  },
+
+  fullCardBlur: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+
+  blurInner: {
+    alignItems: "center",
+    paddingHorizontal: 30,
+  },
+
+  transitionLabel: {
+    fontSize: 14,
+    letterSpacing: 3,
+    textTransform: "uppercase",
+    color: "#8E7A5A",
+    marginBottom: 14,
+  },
+
+  transitionSubtext: {
+    fontSize: 24,
+    color: "#6F440A",
+    fontFamily: "CormorantGaramond",
+    opacity: 0.9,
+  },
+
+  upNextText: {
+    fontSize: 30,
+    color: "#6F440A",
+    marginBottom: 6,
+    textAlign: "center",
+    lineHeight: 42,
+    fontFamily: "CormorantGaramond",
+    fontWeight: "semibold",
   },
 });

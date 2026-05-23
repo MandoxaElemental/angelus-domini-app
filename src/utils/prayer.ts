@@ -1,27 +1,97 @@
-export function getNextPrayerTime(): Date {
-  const now = new Date();
-  const hours = [6, 12, 18];
+export type PrayerStatus = "upcoming" | "active" | "completed" | "missed";
 
-  for (let h of hours) {
-    const target = new Date();
-    target.setHours(h, 0, 0, 0);
+export const PRAYERS = [
+  {
+    key: "morning",
+    title: "Morning Angelus",
+    icon: "Morning",
+    hour: 6,
+    minute: 0,
+    endHour: 12,
+  },
+  {
+    key: "noon",
+    title: "Noon Angelus",
+    icon: "Noon",
+    hour: 12,
+    minute: 0,
+    endHour: 18,
+  },
+  {
+    key: "evening",
+    title: "Evening Angelus",
+    icon: "Evening",
+    hour: 18,
+    minute: 0,
+    endHour: 23,
+    endMinute: 59,
+  },
+];
 
-    if (now <= target) return target;
-  }
+export function getPrayerDate(hour: number, minute = 0) {
+  const date = new Date();
 
-  const tomorrow = new Date();
-  tomorrow.setDate(now.getDate() + 1);
-  tomorrow.setHours(6, 0, 0, 0);
+  date.setHours(hour, minute, 0, 0);
 
-  return tomorrow;
+  return date;
 }
 
-export function getSlot(): string {
+export function getNextPrayer() {
   const now = new Date();
 
-  let hourSlot = 6;
-  if (now.getHours() >= 9) hourSlot = 12;
-  if (now.getHours() >= 15) hourSlot = 18;
+  for (const prayer of PRAYERS) {
+    const prayerTime = getPrayerDate(prayer.hour, prayer.minute);
 
-  return `${now.toISOString().split("T")[0]}_${hourSlot}`;
+    if (now < prayerTime) {
+      return {
+        ...prayer,
+        time: prayerTime,
+      };
+    }
+  }
+
+  // next day's morning prayer
+  const tomorrowMorning = getPrayerDate(6, 0);
+
+  tomorrowMorning.setDate(tomorrowMorning.getDate() + 1);
+
+  return {
+    ...PRAYERS[0],
+    time: tomorrowMorning,
+  };
+}
+
+export function getPrayerStatus(key: string, completed: boolean): PrayerStatus {
+  const now = new Date();
+
+  const prayer = PRAYERS.find((p) => p.key === key);
+
+  if (!prayer) return "upcoming";
+
+  const start = new Date();
+  start.setHours(prayer.hour, prayer.minute, 0, 0);
+
+  const end = new Date();
+  end.setHours(prayer.endHour, prayer.endMinute ?? 0, 0, 0);
+
+  if (completed) {
+    return "completed";
+  }
+
+  if (now < start) {
+    return "upcoming";
+  }
+
+  if (now >= start && now <= end) {
+    return "active";
+  }
+
+  return "missed";
+}
+
+export function formatPrayerTime(date: Date) {
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
