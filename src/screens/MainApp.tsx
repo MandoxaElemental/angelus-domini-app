@@ -326,7 +326,7 @@ export default function MainApp() {
           <View style={styles.globalCard}>
             <View style={styles.globe}>
               <Image
-                source={require("../../assets/Globe.png")}
+                source={require("../../assets/globe.png")}
                 style={styles.globeIcon}
               />
             </View>
