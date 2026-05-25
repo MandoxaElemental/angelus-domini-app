@@ -85,7 +85,6 @@ export default function RegisterScreen({
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
 
-  // ✅ ALL hooks declared before any early return
   const [fontsLoaded] = useFonts({
     PlayfairDisplay_400Regular,
     PlayfairDisplay_400Regular_Italic,
@@ -96,7 +95,6 @@ export default function RegisterScreen({
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
-  // ✅ Early return AFTER all hooks
   if (!fontsLoaded) return null;
 
   const handleRegister = async () => {
@@ -118,7 +116,7 @@ export default function RegisterScreen({
       );
 
       if (data.session) {
-        goToHome();
+        goToHome(); // ✅ auto login → go to MainApp
       } else {
         alert("Check your email to confirm your account.");
         goToLogin();

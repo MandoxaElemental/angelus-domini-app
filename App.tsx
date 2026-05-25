@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as SplashScreen from "expo-splash-screen";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -10,7 +10,7 @@ import {
   SafeAreaInsetsContext,
   initialWindowMetrics,
 } from "react-native-safe-area-context";
-import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
+import type { EdgeInsets, Rect } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   PlayfairDisplay_400Regular,
@@ -19,11 +19,12 @@ import {
   PlayfairDisplay_600SemiBold,
   useFonts,
 } from "@expo-google-fonts/playfair-display";
+import { NavigationContainer } from "@react-navigation/native";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
-import MainApp from "./src/screens/MainApp";
+import TabLayout from "./src/navigation/TabLayout";
 import { getToken } from "./src/store/auth";
 
 SplashScreen.preventAutoHideAsync();
@@ -49,15 +50,6 @@ export default function App() {
 
   const [isReady, setIsReady] = useState(false);
   const [screen, setScreen] = useState<Screen>("onboarding");
-
-  const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
-    setInsets(metrics.insets);
-    setFrame(metrics.frame);
-  }, []);
-
-  useEffect(() => {
-    if (Platform.OS !== "web") return;
-  }, [handleSafeAreaUpdate]);
 
   useEffect(() => {
     async function prepareApp() {
@@ -126,9 +118,7 @@ export default function App() {
   const screenContent = () => {
     switch (screen) {
       case "onboarding":
-        return (
-          <OnboardingScreen onDone={() => setScreen("register")} />
-        );
+        return <OnboardingScreen onDone={() => setScreen("register")} />;
 
       case "register":
         return (
@@ -138,7 +128,6 @@ export default function App() {
               setScreen("login");
             }}
             goToHome={async () => {
-              // ✅ Auto login after register → skip login → go straight to main
               await AsyncStorage.setItem("onboarded", "true");
               setScreen("main");
             }}
@@ -153,18 +142,26 @@ export default function App() {
           />
         );
 
+      // ✅ NavigationContainer only mounts here — tabs never show on other screens
       case "main":
-        return <MainApp />;
+        return (
+          <NavigationContainer>
+            <TabLayout onLogout={() => setScreen("login")} />
+          </NavigationContainer>
+        );
 
       default:
         return null;
     }
   };
 
+  // ✅ No NavigationContainer here — only plain View wrapping
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        {screenContent()}
+        <View style={{ flex: 1 }}>
+          {screenContent()}
+        </View>
         <StatusBar style="auto" />
       </QueryClientProvider>
     </GestureHandlerRootView>

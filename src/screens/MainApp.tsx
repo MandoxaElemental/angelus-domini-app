@@ -1,27 +1,35 @@
 import { useEffect, useState } from "react";
 import { Text, View, Button, TouchableOpacity, StyleSheet } from "react-native";
-import { getToken, logout } from "../store/auth";
-import LoginScreen from "./LoginScreen";
+import { logout } from "../store/auth";
 import { getNextPrayerTime } from "../utils/prayer";
 import { getUserId } from "../utils/user";
 import { completePrayer, getGlobalCount, startPrayer } from "../api/prayerApi";
 import Bell from "../components/Bell";
 import { supabase } from "../lib/supabaseClient";
 
-export default function MainApp() {
+type Props = {
+  onLogout: () => void;
+};
+
+export default function MainApp({ onLogout }: Props) {
   const [timeLeft, setTimeLeft] = useState("00:00:00");
   const [session, setSession] = useState<any>(null);
   const [count, setCount] = useState(0);
   const [userId, setUserId] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+  // ✅ Runs on mount — user is already authenticated guaranteed by App.tsx
   useEffect(() => {
     (async () => {
-      const token = await getToken();
-      setIsLoggedIn(!!token);
+      const uid = await getUserId();
+      setUserId(uid);
+      const sess = await startPrayer(uid);
+      setSession(sess);
+      const globalCount = await getGlobalCount(sess.slot);
+      setCount(globalCount);
     })();
   }, []);
 
+  // ✅ Countdown timer
   useEffect(() => {
     const interval = setInterval(() => {
       const next = getNextPrayerTime();
@@ -39,22 +47,6 @@ export default function MainApp() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    (async () => {
-      const uid = await getUserId();
-      setUserId(uid);
-      const sess = await startPrayer(uid);
-      setSession(sess);
-      const globalCount = await getGlobalCount(sess.slot);
-      setCount(globalCount);
-    })();
-  }, [isLoggedIn]);
-
-  if (!isLoggedIn) {
-    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
-  }
-
   const handleComplete = async () => {
     if (!session) return;
     await completePrayer(userId, session.sessionId);
@@ -62,13 +54,12 @@ export default function MainApp() {
     setCount(newCount);
   };
 
+  // ✅ Signs out from supabase + clears local token, then tells App.tsx to go to login
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut(); // invalidate supabase session
-      await logout();               // wipe SecureStore token + userId
-      setSession(null);
-      setUserId("");
-      setIsLoggedIn(false);
+      await supabase.auth.signOut();
+      await logout();
+      onLogout();
     } catch (err) {
       console.error("Logout error:", err);
     }
@@ -82,14 +73,12 @@ export default function MainApp() {
 
   return (
     <View style={styles.container}>
-      {/* Logout button — top right */}
       <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
         <Text style={styles.logoutText}>Log out</Text>
       </TouchableOpacity>
 
       <View style={styles.inner}>
         <Text style={styles.title}>Angelus</Text>
-
         <Text style={styles.label}>Next Prayer In</Text>
         <Text style={styles.countdown}>{timeLeft}</Text>
 
