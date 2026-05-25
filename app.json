@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/angelusdominiicon.png",
       "resizeMode": "contain",
-       "backgroundColor": "#1F3A6E"
+      "backgroundColor": "#1F3A6E"
     },
     "ios": {
       "supportsTablet": true,
@@ -29,7 +29,8 @@
     },
     "plugins": [
       "expo-secure-store",
-       "expo-splash-screen"
+      "expo-splash-screen",
+      "expo-audio"
     ]
   }
 }

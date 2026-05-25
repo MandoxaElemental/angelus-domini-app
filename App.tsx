@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import 'react-native-get-random-values';
 import * as SplashScreen from "expo-splash-screen";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -25,7 +26,7 @@ import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import TabLayout from "./src/navigation/TabLayout";
-import { getToken } from "./src/store/auth";
+import { supabase } from "./src/lib/supabaseClient";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,8 +39,8 @@ export default function App() {
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
 
-  const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
-  const [frame, setFrame] = useState<Rect>(initialFrame);
+  const [insets] = useState<EdgeInsets>(initialInsets);
+  const [frame] = useState<Rect>(initialFrame);
 
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_400Regular,
@@ -51,30 +52,45 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [screen, setScreen] = useState<Screen>("onboarding");
 
-  useEffect(() => {
-    async function prepareApp() {
-      try {
-        await AsyncStorage.removeItem("onboarded"); // remove when done testing
+useEffect(() => {
+  async function prepareApp() {
+    try {
+      await AsyncStorage.removeItem("onboarded"); // ← ADD THIS (remove after testing)
 
-        const token = await getToken();
-        const onboarded = await AsyncStorage.getItem("onboarded");
+      // ✅ Use Supabase directly — this waits for the persisted session to load
+      const { data: { session } } = await supabase.auth.getSession();
+      const onboarded = await AsyncStorage.getItem("onboarded");
 
-        if (token) {
-          setScreen("main");
-        } else if (onboarded === "true") {
-          setScreen("login");
-        } else {
-          setScreen("onboarding");
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 2500));
-      } catch (e) {
-        console.warn(e);
-      } finally {
-        setIsReady(true);
+      if (session?.user) {
+        setScreen("main");
+      } else if (onboarded === "true") {
+        setScreen("login");
+      } else {
+        setScreen("onboarding");
       }
+
+      await new Promise(resolve => setTimeout(resolve, 2500));
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      setIsReady(true);
     }
-    prepareApp();
+  }
+  prepareApp();
+
+    // ✅ Listen for auth changes (login/logout) and update screen automatically
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (session?.user) {
+          setScreen("main");
+        } else {
+          const onboarded = await AsyncStorage.getItem("onboarded");
+          setScreen(onboarded === "true" ? "login" : "onboarding");
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -142,7 +158,6 @@ export default function App() {
           />
         );
 
-      // ✅ NavigationContainer only mounts here — tabs never show on other screens
       case "main":
         return (
           <NavigationContainer>
@@ -155,7 +170,6 @@ export default function App() {
     }
   };
 
-  // ✅ No NavigationContainer here — only plain View wrapping
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>

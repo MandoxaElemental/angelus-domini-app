@@ -1,14 +1,23 @@
-// /src/utils/user.ts
-import * as SecureStore from "expo-secure-store";
-import { v4 as uuidv4 } from "uuid";
+import { supabase } from "../lib/supabaseClient";
 
 export async function getUserId(): Promise<string> {
-  let id = await SecureStore.getItemAsync("userId");
+  let { data: { session } } = await supabase.auth.getSession();
 
-  if (!id) {
-    id = uuidv4();
-    await SecureStore.setItemAsync("userId", id);
+  if (!session?.user?.id) {
+    await new Promise<void>((resolve) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (_event, s) => {
+          if (s) {
+            session = s;
+            subscription.unsubscribe();
+            resolve();
+          }
+        }
+      );
+      setTimeout(resolve, 5000);
+    });
   }
 
-  return id;
+  if (!session?.user?.id) throw new Error("No authenticated user");
+  return session.user.id;
 }

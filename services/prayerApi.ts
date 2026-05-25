@@ -1,7 +1,7 @@
-import 'react-native-get-random-values';
-import { v4 as uuidv4 } from 'uuid';
-import { supabase } from "../lib/supabaseClient";
-import { getSlot } from "../utils/prayer";
+import { supabase } from "../src/lib/supabaseClient";
+import { getSlot } from "../src/utils/prayer";
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,10 @@ export const startPrayer = async (userId: string): Promise<PrayerSession> => {
     .eq("Slot", slot)
     .maybeSingle();
 
-  if (fetchError) throw fetchError;
+  if (fetchError) {
+    console.error("startPrayer fetch error:", fetchError);
+    throw fetchError;
+  }
 
   if (existing) {
     return {
@@ -37,11 +40,10 @@ export const startPrayer = async (userId: string): Promise<PrayerSession> => {
     };
   }
 
-  // Create new session with generated UUID
+  // Create new session
   const { data, error } = await supabase
     .from("PrayerSessions")
     .insert({
-      SessionId: uuidv4(),
       UserId: userId,
       Slot: slot,
       PrayerTypeId: 1,
@@ -52,7 +54,10 @@ export const startPrayer = async (userId: string): Promise<PrayerSession> => {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("startPrayer insert error:", error);
+    throw error;
+  }
 
   return {
     sessionId: data.SessionId,
@@ -70,11 +75,17 @@ export const completePrayer = async (
 ): Promise<void> => {
   const { error } = await supabase
     .from("PrayerSessions")
-    .update({ Completed: true, CompletedAt: new Date().toISOString() })
+    .update({
+      Completed: true,
+      CompletedAt: new Date().toISOString(),
+    })
     .eq("SessionId", sessionId)
     .eq("UserId", userId);
 
-  if (error) throw error;
+  if (error) {
+    console.error("completePrayer error:", error);
+    throw error;
+  }
 };
 
 // ─── Get Global Count ─────────────────────────────────────────────────────────
@@ -86,7 +97,11 @@ export const getGlobalCount = async (slot: string): Promise<number> => {
     .eq("Slot", slot)
     .eq("Completed", true);
 
-  if (error) throw error;
+  if (error) {
+    console.error("getGlobalCount error:", error);
+    throw error;
+  }
+
   return count ?? 0;
 };
 
@@ -99,6 +114,10 @@ export const getHistory = async (userId: string) => {
     .eq("UserId", userId)
     .order("CreatedAt", { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    console.error("getHistory error:", error);
+    throw error;
+  }
+
   return data;
 };
