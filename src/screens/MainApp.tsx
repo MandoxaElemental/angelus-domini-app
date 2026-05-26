@@ -805,8 +805,8 @@ const styles = StyleSheet.create({
 
   progressBox: {
     marginTop: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 5,
+    paddingVertical: 2,
+    paddingHorizontal: 2,
     minWidth: 100,
     borderRadius: 999,
     borderWidth: 2,
