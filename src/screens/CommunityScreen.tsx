@@ -5,8 +5,12 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   ActivityIndicator,
+  Animated,
+  Easing,
+  Image,
+  SafeAreaView,
 } from "react-native";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Svg, {
   Circle,
   Ellipse,
@@ -114,9 +118,46 @@ type CountryRow = { country: string; count: number };
 export default function CommunityScreen() {
   const [activeTab, setActiveTab] = useState<"country" | "region">("country");
   const [countries, setCountries] = useState<CountryRow[]>([]);
-  const [totalUsers, setTotalUsers] = useState(0);
+  const [totalPrayedToday, setTotalPrayedToday] = useState(0);
   const [loading, setLoading] = useState(true);
   const { s, fs, hp, width } = useScale();
+
+  const ringScale = useRef(new Animated.Value(1)).current;
+  const ringOpacity = useRef(new Animated.Value(0.4)).current;
+  const bellRotate = useRef(new Animated.Value(0)).current;
+
+  // ── Bell ring pulse loop ──────────────────────────────────────────────────
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(ringScale, { toValue: 1.25, duration: 900, easing: Easing.out(Easing.ease), useNativeDriver: false }),
+          Animated.timing(ringOpacity, { toValue: 0, duration: 900, useNativeDriver: false }),
+        ]),
+        Animated.parallel([
+          Animated.timing(ringScale, { toValue: 1, duration: 0, useNativeDriver: false }),
+          Animated.timing(ringOpacity, { toValue: 0.4, duration: 0, useNativeDriver: false }),
+        ]),
+      ])
+    );
+    pulse.start();
+    return () => { pulse.stop(); };
+  }, []);
+
+  // ── Bell swing loop ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const swing = () => {
+      Animated.sequence([
+        Animated.timing(bellRotate, { toValue: 1, duration: 180, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: -1, duration: 180, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: 0.5, duration: 140, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: -0.4, duration: 140, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: 0, duration: 120, easing: Easing.out(Easing.ease), useNativeDriver: false }),
+      ]).start(() => setTimeout(swing, 3000));
+    };
+    const timer = setTimeout(swing, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const sizes = useMemo(() => ({
     mapW:       Math.round(width * 0.56),
@@ -129,17 +170,48 @@ export default function CommunityScreen() {
     countW:     s(42),
   }), [s, width]);
 
+  // ── Fetch: unique users who prayed today, grouped by country ─────────────
   const fetchCounts = async () => {
     try {
-      const { data, error } = await supabase.from("users").select("Country");
-      if (error) throw error;
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+      const todayStart = `${todayStr}T00:00:00+00:00`;
+      const todayEnd   = `${todayStr}T23:59:59+00:00`;
 
+      // Get all completed PrayerSessions today with the UserId
+      const { data: sessions, error: sessErr } = await supabase
+        .from("PrayerSessions")
+        .select("UserId")
+        .eq("Completed", true)
+        .gte("ScheduledTime", todayStart)
+        .lte("ScheduledTime", todayEnd);
+
+      if (sessErr) throw sessErr;
+
+      if (!sessions || sessions.length === 0) {
+        setTotalPrayedToday(0);
+        setCountries([]);
+        setLoading(false);
+        return;
+      }
+
+      // Unique user IDs who prayed today
+      const uniqueUserIds = [...new Set(sessions.map((s: any) => s.UserId))];
+      setTotalPrayedToday(uniqueUserIds.length);
+
+      // ✅ FIXED: use "Id" (capital I) to match the users table column
+      const { data: userData, error: userErr } = await supabase
+        .from("users")
+        .select("Id, Country")
+        .in("Id", uniqueUserIds);
+
+      if (userErr) throw userErr;
+
+      // Count unique prayers per country
       const countMap: Record<string, number> = {};
-      let total = 0;
-      for (const row of data ?? []) {
-        const c = row.Country ?? "Unknown";
-        countMap[c] = (countMap[c] ?? 0) + 1;
-        total++;
+      for (const user of userData ?? []) {
+        const country = user.Country ?? "Unknown";
+        countMap[country] = (countMap[country] ?? 0) + 1;
       }
 
       const sorted = Object.entries(countMap)
@@ -147,22 +219,27 @@ export default function CommunityScreen() {
         .sort((a, b) => b.count - a.count);
 
       setCountries(sorted);
-      setTotalUsers(total);
     } catch (err) {
-      console.error("Error fetching country counts:", err);
+      console.error("❌ CommunityScreen fetchCounts error:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  // ── On mount ──────────────────────────────────────────────────────────────
   useEffect(() => {
     fetchCounts();
   }, []);
 
+  // ── Real-time: refresh on any PrayerSession change ────────────────────────
   useEffect(() => {
     const channel = supabase
-      .channel("users-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "users" }, () => {
+      .channel("community-realtime")
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "PrayerSessions",
+      }, () => {
         fetchCounts();
       })
       .subscribe();
@@ -179,82 +256,122 @@ export default function CommunityScreen() {
   });
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.cream }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.cream }}>
+
+      {/* ── HEADER ── */}
+      <View style={{
+        height: 100,
+        backgroundColor: "#2F4A7A",
+        paddingRight: 24,
+        paddingLeft: 12,
+        borderBottomLeftRadius: 25,
+        borderBottomRightRadius: 25,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}>
+        <Image
+          source={require("../../assets/Logo.png")}
+          style={{ width: 140, height: 40, resizeMode: "contain" }}
+        />
+        <View style={{ width: 85, height: 85, justifyContent: "center", alignItems: "center" }}>
+          <Animated.Image
+            source={require("../../assets/ring.png")}
+            style={{
+              width: 85, height: 85,
+              position: "absolute", zIndex: 1,
+              opacity: ringOpacity,
+              transform: [{ scale: ringScale }],
+            }}
+            resizeMode="contain"
+          />
+          <Animated.Image
+            source={require("../../assets/bell.png")}
+            resizeMode="contain"
+            style={{
+              width: 85, height: 85,
+              position: "absolute", zIndex: 2,
+              transform: [{
+                rotate: bellRotate.interpolate({
+                  inputRange: [-1, 1],
+                  outputRange: ["-12deg", "12deg"],
+                }),
+              }],
+            }}
+          />
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={{ paddingBottom: s(40) }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Title */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            paddingHorizontal: hp,
-            paddingTop: s(28),
-            marginBottom: s(12),
-          }}
-        >
-          <Text
-            style={{
+        {/* ── TITLE ROW ── */}
+        <View style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingHorizontal: hp,
+          paddingTop: s(28),
+          marginBottom: s(12),
+        }}>
+          <View>
+            <Text style={{
               fontFamily: "PlayfairDisplay_400Bold",
               fontSize: fs(30),
               color: C.navy,
               lineHeight: fs(36),
-            }}
-          >
-            {"Global\nPrayer"}
-          </Text>
-          <View
-            style={{
-              width: s(54), height: s(62),
-              backgroundColor: "#EDE4CC",
-              borderRadius: s(10),
-              borderWidth: 1, borderColor: "#C9B87A",
-              alignItems: "center", justifyContent: "center",
-            }}
-          >
-            <Text style={{ fontSize: fs(26) }}>🔔</Text>
+            }}>
+              Global Prayer
+            </Text>
+            <Text style={{
+              fontSize: fs(10),
+              color: C.muted,
+              letterSpacing: 0.8,
+              marginTop: s(4),
+              textTransform: "uppercase",
+            }}>
+              We pray together. We are one Church
+            </Text>
           </View>
+          <Image
+            source={require("../../assets/combell.png")}
+            style={{ width: s(90), height: s(110), opacity: 0.85 }}
+            resizeMode="contain"
+          />
         </View>
 
-        {/* Map Card */}
-        <View
-          style={{
-            marginHorizontal: hp,
-            backgroundColor: C.card,
-            borderRadius: sizes.cardRadius,
-            borderWidth: 1, borderColor: C.border,
-            padding: s(16),
-            minHeight: s(130),
-            overflow: "hidden",
-          }}
-        >
+        {/* ── MAP CARD ── */}
+        <View style={{
+          marginHorizontal: hp,
+          backgroundColor: C.card,
+          borderRadius: sizes.cardRadius,
+          borderWidth: 1, borderColor: C.border,
+          padding: s(16),
+          minHeight: s(130),
+          overflow: "hidden",
+        }}>
           <View style={{ flexDirection: "row", gap: s(12) }}>
             <GlobeIcon size={sizes.globeSize} />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: fs(11), color: C.muted, marginBottom: 1 }}>Today</Text>
               <Text style={{ fontSize: fs(11), color: C.muted, marginBottom: s(4) }}>{today}</Text>
-              <Text
-                style={{
-                  fontFamily: "PlayfairDisplay_400Bold",
-                  fontSize: fs(34), color: C.gold,
-                  lineHeight: fs(38), letterSpacing: -0.5,
-                }}
-              >
-                {totalUsers.toLocaleString()}
+              <Text style={{
+                fontFamily: "PlayfairDisplay_400Bold",
+                fontSize: fs(34), color: C.gold,
+                lineHeight: fs(38), letterSpacing: -0.5,
+              }}>
+                {totalPrayedToday.toLocaleString()}
               </Text>
-              <Text
-                style={{
-                  fontSize: fs(9), fontWeight: "700",
-                  letterSpacing: 1.3, color: C.brown,
-                  textTransform: "uppercase", marginTop: 2,
-                }}
-              >
+              <Text style={{
+                fontSize: fs(9), fontWeight: "700",
+                letterSpacing: 1.3, color: C.brown,
+                textTransform: "uppercase", marginTop: 2,
+              }}>
                 PEOPLE HAVE PRAYED
               </Text>
               <Text style={{ fontSize: fs(10), color: C.muted, marginTop: 2 }}>
-                around the world
+                around the world today
               </Text>
             </View>
           </View>
@@ -266,18 +383,16 @@ export default function CommunityScreen() {
           </View>
         </View>
 
-        {/* Tabs */}
-        <View
-          style={{
-            flexDirection: "row",
-            paddingHorizontal: hp,
-            paddingTop: s(14),
-            paddingBottom: s(6),
-            borderBottomWidth: 1.5,
-            borderBottomColor: C.border,
-            marginTop: s(4),
-          }}
-        >
+        {/* ── TABS ── */}
+        <View style={{
+          flexDirection: "row",
+          paddingHorizontal: hp,
+          paddingTop: s(14),
+          paddingBottom: s(6),
+          borderBottomWidth: 1.5,
+          borderBottomColor: C.border,
+          marginTop: s(4),
+        }}>
           {(["country", "region"] as const).map((tab) => {
             const active = activeTab === tab;
             return (
@@ -293,13 +408,11 @@ export default function CommunityScreen() {
                   marginBottom: -1.5,
                 }}
               >
-                <Text
-                  style={{
-                    fontSize: fs(13),
-                    color: active ? C.gold : C.muted,
-                    fontWeight: active ? "700" : "400",
-                  }}
-                >
+                <Text style={{
+                  fontSize: fs(13),
+                  color: active ? C.gold : C.muted,
+                  fontWeight: active ? "700" : "400",
+                }}>
                   {tab === "country" ? "By Country" : "By Region"}
                 </Text>
               </TouchableOpacity>
@@ -307,24 +420,34 @@ export default function CommunityScreen() {
           })}
         </View>
 
-        {/* Section label */}
-        <Text
-          style={{
-            fontSize: fs(12), fontWeight: "700",
-            color: C.brown, paddingHorizontal: hp,
-            paddingTop: s(12), paddingBottom: s(8),
-            letterSpacing: 0.2,
-          }}
-        >
-          Top Countries
+        {/* ── SECTION LABEL ── */}
+        <Text style={{
+          fontSize: fs(12), fontWeight: "700",
+          color: C.brown, paddingHorizontal: hp,
+          paddingTop: s(12), paddingBottom: s(8),
+          letterSpacing: 0.2,
+        }}>
+          {activeTab === "country"
+            ? `Top Countries · ${today}`
+            : "By Region · Coming Soon"}
         </Text>
 
-        {/* Country rows */}
+        {/* ── COUNTRY ROWS ── */}
         {loading ? (
           <ActivityIndicator size="large" color={C.gold} style={{ marginTop: s(40) }} />
+        ) : activeTab === "region" ? (
+          <Text style={{
+            textAlign: "center", color: C.muted,
+            fontSize: fs(13), marginTop: s(20),
+          }}>
+            Region breakdown coming soon.
+          </Text>
         ) : countries.length === 0 ? (
-          <Text style={{ textAlign: "center", color: C.muted, fontSize: fs(13), marginTop: s(20) }}>
-            No data yet
+          <Text style={{
+            textAlign: "center", color: C.muted,
+            fontSize: fs(13), marginTop: s(20),
+          }}>
+            No prayers recorded yet today.
           </Text>
         ) : (
           <View style={{ paddingHorizontal: hp, gap: sizes.rowGap }}>
@@ -336,7 +459,12 @@ export default function CommunityScreen() {
                   style={{ flexDirection: "row", alignItems: "center", gap: s(10) }}
                 >
                   {/* Rank */}
-                  <Text style={{ width: sizes.rankW, fontSize: fs(12), color: C.mutedLight, textAlign: "right" }}>
+                  <Text style={{
+                    width: sizes.rankW, fontSize: fs(12),
+                    color: index === 0 ? C.gold : C.mutedLight,
+                    textAlign: "right",
+                    fontWeight: index === 0 ? "700" : "400",
+                  }}>
                     {index + 1}
                   </Text>
 
@@ -345,40 +473,40 @@ export default function CommunityScreen() {
                     {getFlagEmoji(country)}
                   </Text>
 
-                  {/* Name + bar */}
+                  {/* Bar + name */}
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: fs(11), color: C.brown, marginBottom: s(3), fontWeight: "600" }}>
-                      {country}
-                    </Text>
-                    <View
-                      style={{
-                        height: sizes.barH,
-                        backgroundColor: C.goldLight,
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: s(3) }}>
+                      <Text style={{
+                        fontSize: fs(11), color: C.brown, fontWeight: "600",
+                      }}>
+                        {country}
+                      </Text>
+                      <Text style={{ fontSize: fs(11), color: C.mutedLight }}>
+                        {count} {count === 1 ? "person" : "people"}
+                      </Text>
+                    </View>
+                    <View style={{
+                      height: sizes.barH,
+                      backgroundColor: C.goldLight,
+                      borderRadius: sizes.barH / 2,
+                      overflow: "hidden",
+                    }}>
+                      <View style={{
+                        height: "100%",
+                        width: `${pct * 100}%`,
+                        backgroundColor: index === 0 ? C.gold : "#C49A2299",
                         borderRadius: sizes.barH / 2,
-                        overflow: "hidden",
-                      }}
-                    >
-                      <View
-                        style={{
-                          height: "100%",
-                          width: `${pct * 100}%`,
-                          backgroundColor: C.gold,
-                          borderRadius: sizes.barH / 2,
-                        }}
-                      />
+                      }} />
                     </View>
                   </View>
-
-                  {/* Count */}
-                  <Text style={{ fontSize: fs(11), color: C.mutedLight, width: sizes.countW, textAlign: "right" }}>
-                    {count.toLocaleString()}
-                  </Text>
                 </View>
               );
             })}
           </View>
         )}
+
+        <View style={{ height: s(20) }} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

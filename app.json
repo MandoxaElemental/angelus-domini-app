@@ -7,15 +7,18 @@
     "icon": "./assets/Angelus-domini.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+
     "splash": {
       "image": "./assets/angelusdominiicon.png",
       "resizeMode": "contain",
       "backgroundColor": "#1F3A6E"
     },
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.angelus-app"
     },
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/angelusdominiicon.png",
@@ -24,13 +27,24 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
+
     "web": {
       "favicon": "./assets/angelusdominiicon.png"
     },
+
     "plugins": [
       "expo-secure-store",
       "expo-splash-screen",
-      "expo-audio"
+      "expo-audio",
+
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/bell.png",
+          "color": "#2F4A7A",
+          "sounds": []
+        }
+      ]
     ]
   }
 }

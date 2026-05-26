@@ -8,6 +8,7 @@ import {
   ScrollView,
   Image,
   Animated,
+  Easing,
   Modal,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -63,6 +64,7 @@ export default function MainApp({ onLogout }: Props) {
   const [session, setSession] = useState<any>(null);
   const [count, setCount] = useState(0);
   const [userId, setUserId] = useState("");
+  const [username, setUsername] = useState("");
   const [completedPrayers, setCompletedPrayers] = useState({
     morning: false,
     noon: false,
@@ -114,6 +116,26 @@ export default function MainApp({ onLogout }: Props) {
         console.log("✅ userId:", uid);
         setUserId(uid);
 
+        // ── Fetch username: try auth metadata first, then public.users ──
+        const metaUsername =
+          authSession.user.user_metadata?.username ||
+          authSession.user.user_metadata?.name;
+
+        if (metaUsername) {
+          console.log("✅ username from metadata:", metaUsername);
+          setUsername(metaUsername);
+        } else {
+          const { data: userData, error: userError } = await supabase
+            .from("users")
+            .select("username")
+            .eq("id", uid)
+            .single();
+          console.log("👤 userData:", userData, "error:", userError);
+          if (userData?.username) {
+            setUsername(userData.username);
+          }
+        }
+
         const sess = await startPrayer(uid);
         console.log("✅ session:", sess);
         setSession(sess);
@@ -125,6 +147,39 @@ export default function MainApp({ onLogout }: Props) {
         console.error("❌ mount error:", err);
       }
     })();
+  }, []);
+
+  // ── Bell pulse loop ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(ringScale, { toValue: 1.25, duration: 900, easing: Easing.out(Easing.ease), useNativeDriver: false }),
+          Animated.timing(ringOpacity, { toValue: 0, duration: 900, useNativeDriver: false }),
+        ]),
+        Animated.parallel([
+          Animated.timing(ringScale, { toValue: 1, duration: 0, useNativeDriver: false }),
+          Animated.timing(ringOpacity, { toValue: 0.4, duration: 0, useNativeDriver: false }),
+        ]),
+      ])
+    );
+    pulse.start();
+    return () => { pulse.stop(); };
+  }, []);
+
+  // ── Bell swing loop ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const swing = () => {
+      Animated.sequence([
+        Animated.timing(bellRotate, { toValue: 1, duration: 180, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: -1, duration: 180, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: 0.5, duration: 140, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: -0.4, duration: 140, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: 0, duration: 120, easing: Easing.out(Easing.ease), useNativeDriver: false }),
+      ]).start(() => setTimeout(swing, 3000));
+    };
+    const timer = setTimeout(swing, 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   // ── Countdown timer ───────────────────────────────────────────────────────
@@ -202,7 +257,6 @@ export default function MainApp({ onLogout }: Props) {
     }
   };
 
-  // ✅ FIXED: navigates to PrayerScreen, saves to DB only after prayer finishes
   const handleComplete = async () => {
     console.log("=== Pray Now pressed ===");
     console.log("session:", session);
@@ -299,9 +353,7 @@ export default function MainApp({ onLogout }: Props) {
               source={require("../../assets/Logo.png")}
               style={styles.logo}
             />
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-              <Text style={styles.logoutText}>Log out</Text>
-            </TouchableOpacity>
+
             <View style={styles.bellContainer}>
               <Animated.Image
                 source={require("../../assets/ring.png")}
@@ -341,7 +393,9 @@ export default function MainApp({ onLogout }: Props) {
               />
             </View>
             <View>
-              <Text style={styles.greetingTitle}>Good {greeting}</Text>
+              <Text style={styles.greetingTitle}>
+                Good {greeting}{username ? `, ${username}` : ""}
+              </Text>
               <Text style={styles.greetingSubtitle}>
                 Pause with the Church for the Angelus.
               </Text>
@@ -392,12 +446,50 @@ export default function MainApp({ onLogout }: Props) {
                 style={styles.globeIcon}
               />
             </View>
-            <View style={{ flex: 1 }}>
+
+            <View style={styles.globalRight}>
               <Text style={styles.globalLabel}>GLOBAL PRAYER TODAY</Text>
-              <Text style={styles.globalCount}>{count.toLocaleString()}</Text>
+
+              <View style={styles.globalCountRow}>
+                <Text style={styles.globalCount}>{count.toLocaleString()}</Text>
+                <Text style={styles.globalPrayedToday}> prayed today</Text>
+              </View>
+
               <Text style={styles.globalText}>
                 United in prayer around the world.
               </Text>
+
+              <View style={styles.globalDivider} />
+
+              <View style={styles.nowPrayingRow}>
+                <Text style={styles.nowPrayingLabel}>Now praying:</Text>
+                <View style={styles.nowPrayingItem}>
+                  <Text style={styles.nowPrayingFlag}>🇵🇭</Text>
+                  <Text style={styles.nowPrayingCountry}> Philippines</Text>
+                  <Text style={styles.nowPrayingCount}> 8,420</Text>
+                </View>
+                <Text style={styles.nowPrayingDot}> • </Text>
+                <View style={styles.nowPrayingItem}>
+                  <Text style={styles.nowPrayingFlag}>🇺🇸</Text>
+                  <Text style={styles.nowPrayingCountry}> USA</Text>
+                  <Text style={styles.nowPrayingCount}> 3,210</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* SCRIPTURE QUOTE CARD */}
+          <View style={styles.scriptureCard}>
+            <Image
+              source={require("../../assets/bgquote.png")}
+              style={styles.scriptureImage}
+              resizeMode="cover"
+            />
+            <View style={styles.scriptureContent}>
+              <Text style={styles.scriptureQuote}>
+                {`"Behold, I am the handmaid of the Lord. May it be done to me according to your word."`}
+              </Text>
+              <Text style={styles.scriptureRef}>— Luke 1:38</Text>
             </View>
           </View>
 
@@ -655,6 +747,8 @@ const styles = StyleSheet.create({
     fontFamily: "CormorantGaramond",
   },
   progressImage: { width: 75, height: 75 },
+
+  // ── GLOBAL CARD ────────────────────────────────────────────────────────────
   globalCard: {
     marginHorizontal: 24,
     marginTop: 18,
@@ -662,20 +756,138 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 3,
     borderColor: COLORS.border,
-    padding: 5,
+    padding: 14,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     shadowColor: "#3B2E22",
     shadowOpacity: 0.08,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
-  globe: { width: 120, height: 120, justifyContent: "center", alignItems: "center", marginRight: 16 },
-  globeIcon: { width: 120, height: 120 },
-  globalLabel: { color: COLORS.navy, fontSize: 12, letterSpacing: 1.5, fontFamily: "CormorantGaramond" },
-  globalCount: { fontSize: 42, color: COLORS.navy, fontWeight: "700", fontFamily: "CormorantGaramond" },
-  globalText: { color: COLORS.textSecondary, marginTop: 2 },
+  globe: {
+    width: 110,
+    height: 110,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+    alignSelf: "center",
+  },
+  globeIcon: { width: 110, height: 110 },
+  globalRight: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  globalLabel: {
+    color: COLORS.navy,
+    fontSize: 12,
+    letterSpacing: 1.5,
+    fontFamily: "CormorantGaramond",
+    marginBottom: 2,
+  },
+  globalCountRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    flexWrap: "wrap",
+  },
+  globalCount: {
+    fontSize: 38,
+    color: COLORS.navy,
+    fontWeight: "700",
+    fontFamily: "CormorantGaramond",
+  },
+  globalPrayedToday: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontFamily: "CormorantGaramond",
+    marginLeft: 4,
+  },
+  globalText: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    fontFamily: "CormorantGaramond",
+    marginTop: 2,
+  },
+  globalDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 10,
+  },
+  nowPrayingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  nowPrayingLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontFamily: "CormorantGaramond",
+    marginRight: 4,
+  },
+  nowPrayingItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  nowPrayingFlag: {
+    fontSize: 14,
+  },
+  nowPrayingCountry: {
+    fontSize: 13,
+    color: COLORS.navy,
+    fontWeight: "600",
+    fontFamily: "CormorantGaramond",
+  },
+  nowPrayingCount: {
+    fontSize: 13,
+    color: COLORS.textPrimary,
+    fontFamily: "CormorantGaramond",
+  },
+  nowPrayingDot: {
+    fontSize: 13,
+    color: COLORS.muted,
+  },
+
+  // ── SCRIPTURE QUOTE CARD ───────────────────────────────────────────────────
+  scriptureCard: {
+    marginHorizontal: 24,
+    marginTop: 14,
+    backgroundColor: COLORS.card,
+    borderRadius: 22,
+    borderWidth: 3,
+    borderColor: COLORS.border,
+    flexDirection: "row",
+    overflow: "hidden",
+    shadowColor: "#3B2E22",
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  scriptureImage: {
+    width: 190,
+    height: 120,
+  },
+  scriptureContent: {
+    flex: 1,
+    padding: 16,
+    justifyContent: "center",
+  },
+  scriptureQuote: {
+    fontSize: 12,
+    color: COLORS.textPrimary,
+    fontStyle: "italic",
+    lineHeight: 12,
+    fontFamily: "CormorantGaramond",
+  },
+  scriptureRef: {
+    marginTop: 7,
+    fontSize: 13,
+    color: COLORS.navy,
+    fontFamily: "CormorantGaramond",
+    fontWeight: "600",
+  },
+
+  // ── BUTTON ─────────────────────────────────────────────────────────────────
   buttonWrapper: { marginHorizontal: 24, marginTop: 28 },
   button: {
     borderRadius: 36,
