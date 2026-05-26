@@ -53,11 +53,16 @@ const COLORS = {
 };
 
 const prayerImages: Record<string, any> = {
-  Morning: require("../../assets/Morning.png"),
-  Noon: require("../../assets/Noon.png"),
-  Evening: require("../../assets/Evening.png"),
+  Morning: require("../../assets/Morning.svg"),
+  Noon: require("../../assets/Noon.svg"),
+  Evening: require("../../assets/Evening.svg"),
 };
 
+const timeImages: Record<string, any> = {
+  Morning: require("../../assets/Morning_Clear.svg"),
+  Afternoon: require("../../assets/Noon_Clear.svg"),
+  Evening: require("../../assets/Evening_Clear.svg"),
+};
 const progressImages: Record<string, any> = {
   Morning: require("../../assets/Morning_Clear.svg"),
   Noon: require("../../assets/Noon_Clear.svg"),
@@ -546,7 +551,7 @@ export default function MainApp({ onLogout }: Props) {
           <View style={styles.greetingRow}>
             <View style={styles.sunIcon}>
               <Image
-                source={progressImages[greeting]}
+                source={timeImages[greeting]}
                 style={styles.progressImage}
                 resizeMode="contain"
               />
@@ -965,20 +970,16 @@ const styles = StyleSheet.create({
   sunIcon: {
     width: 52,
     height: 52,
-    borderRadius: 26,
-    backgroundColor: "#FFF7E5",
-    borderWidth: 1,
-    borderColor: "#F1D28B",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
   },
 
   greetingTitle: {
-    fontSize: 30,
+    fontSize: 28,
     color: COLORS.textPrimary,
-    fontWeight: "500",
-    fontFamily: "CormorantGaramond",
+    fontWeight: "400",
+    fontFamily: "Cormorant",
   },
 
   greetingSubtitle: {
@@ -1028,7 +1029,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     fontSize: 12,
     marginBottom: 4,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "Inter",
   },
 
   cardTitle: {
