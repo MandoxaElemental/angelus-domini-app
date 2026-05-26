@@ -7,7 +7,6 @@ export const PRAYERS = [
     icon: "Morning",
     hour: 6,
     minute: 0,
-    endHour: 12,
   },
   {
     key: "noon",
@@ -15,7 +14,6 @@ export const PRAYERS = [
     icon: "Noon",
     hour: 12,
     minute: 0,
-    endHour: 18,
   },
   {
     key: "evening",
@@ -23,8 +21,6 @@ export const PRAYERS = [
     icon: "Evening",
     hour: 18,
     minute: 0,
-    endHour: 23,
-    endMinute: 59,
   },
 ];
 
@@ -68,21 +64,24 @@ export function getPrayerStatus(key: string, completed: boolean): PrayerStatus {
 
   if (!prayer) return "upcoming";
 
+  // Prayer start time
   const start = new Date();
   start.setHours(prayer.hour, prayer.minute, 0, 0);
 
-  const end = new Date();
-  end.setHours(prayer.endHour, prayer.endMinute ?? 0, 0, 0);
+  // 5-minute grace window
+  const activeUntil = new Date(start.getTime() + 5 * 60 * 1000);
 
+  // Completed always wins
   if (completed) {
     return "completed";
   }
 
+  // Before prayer starts
   if (now < start) {
     return "upcoming";
   }
 
-  if (now >= start && now <= end) {
+  if (now >= start && now <= activeUntil) {
     return "active";
   }
 

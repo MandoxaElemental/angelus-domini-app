@@ -42,9 +42,12 @@ export const sharedStyles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 50,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 14,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
     elevation: 6,
   },
   primaryText: {

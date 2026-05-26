@@ -272,10 +272,6 @@ export default function MainApp() {
 
             <View>
               <Text style={styles.greetingTitle}>Good {greeting}</Text>
-
-              <Text style={styles.greetingSubtitle}>
-                Pause with the Church for the Angelus.
-              </Text>
             </View>
           </View>
 
@@ -307,26 +303,69 @@ export default function MainApp() {
 
           {/* PROGRESS */}
           <View style={styles.sectionHeader}>
-            <View style={styles.line} />
-
+            <Image
+              source={require("../../assets/DividerLeft.svg")}
+              style={styles.dividerHalf}
+            />
             <Text style={styles.sectionHeaderText}>DAILY PRAYER PROGRESS</Text>
-
-            <View style={styles.line} />
+            <Image
+              source={require("../../assets/DividerRight.svg")}
+              style={styles.dividerHalf}
+            />
           </View>
 
           <View style={styles.progressRow}>
-            <ProgressCard title="Morning" status={morningStatus} />
+            <ProgressCard
+              title="Morning"
+              status={morningStatus}
+              onPress={() => {
+                navigation.navigate("Prayer", {
+                  onComplete: () => {
+                    setCompletedPrayers((prev) => ({
+                      ...prev,
+                      morning: true,
+                    }));
+                  },
+                });
+              }}
+            />
 
-            <ProgressCard title="Noon" status={noonStatus} />
+            <ProgressCard
+              title="Noon"
+              status={noonStatus}
+              onPress={() => {
+                navigation.navigate("Prayer", {
+                  onComplete: () => {
+                    setCompletedPrayers((prev) => ({
+                      ...prev,
+                      noon: true,
+                    }));
+                  },
+                });
+              }}
+            />
 
-            <ProgressCard title="Evening" status={eveningStatus} />
+            <ProgressCard
+              title="Evening"
+              status={eveningStatus}
+              onPress={() => {
+                navigation.navigate("Pr ayer", {
+                  onComplete: () => {
+                    setCompletedPrayers((prev) => ({
+                      ...prev,
+                      evening: true,
+                    }));
+                  },
+                });
+              }}
+            />
           </View>
 
           {/* GLOBAL CARD */}
           <View style={styles.globalCard}>
             <View style={styles.globe}>
               <Image
-                source={require("../../assets/globe.png")}
+                source={require("../../assets/Global.svg")}
                 style={styles.globeIcon}
               />
             </View>
@@ -335,7 +374,12 @@ export default function MainApp() {
               <Text style={styles.globalLabel}>GLOBAL PRAYER TODAY</Text>
 
               <Text style={styles.globalCount}>{count.toLocaleString()}</Text>
-
+              <View style={styles.dividerBox}>
+                <Image
+                  source={require("../../assets/Divider.svg")}
+                  style={styles.divider}
+                />
+              </View>
               <Text style={styles.globalText}>
                 United in prayer around the world.
               </Text>
@@ -343,7 +387,7 @@ export default function MainApp() {
           </View>
 
           {/* BUTTON */}
-          <TouchableOpacity
+          {/* <TouchableOpacity
             activeOpacity={0.9}
             onPress={handleComplete}
             style={styles.buttonWrapper}
@@ -362,7 +406,7 @@ export default function MainApp() {
                 <Ionicons name="chevron-forward" size={24} color="#fff" />
               </View>
             </LinearGradient>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           {/* BOTTOM SPACE */}
           <View style={{ height: 30 }} />
@@ -377,60 +421,153 @@ const progressImages: Record<string, any> = {
   Noon: require("../../assets/Noon_Clear.svg"),
   Evening: require("../../assets/Evening_Clear.svg"),
 };
+const completeImages: Record<string, any> = {
+  Morning: require("../../assets/1.png"),
+  Noon: require("../../assets/2.png"),
+  Evening: require("../../assets/3.png"),
+};
 
 function ProgressCard({
   title,
   status,
+  onPress,
 }: {
   title: string;
   status: PrayerStatus;
+  onPress?: () => void;
 }) {
   const isCompleted = status === "completed";
   const isActive = status === "active";
   const isMissed = status === "missed";
 
+  const statusConfig = isCompleted
+    ? {
+        text: "Completed",
+        icon: "checkmark-circle",
+        iconColor: "#5E9B63",
+        bg: "#EEF8EE",
+        border: "#B7D9BB",
+        textColor: "#4D7C52",
+      }
+    : isActive
+      ? {
+          text: "Pray Now",
+          icon: "ellipse",
+          iconColor: COLORS.gold,
+          bg: "#FFF7E7",
+          border: "#E7C979",
+          textColor: "#8A6412",
+        }
+      : isMissed
+        ? {
+            text: "Missed",
+            icon: "close-circle",
+            iconColor: "#C86B6B",
+            bg: "#FFF1F1",
+            border: "#E4B4B4",
+            textColor: "#A44E4E",
+          }
+        : {
+            text: "Upcoming",
+            icon: "time",
+            iconColor: COLORS.navy,
+            bg: "#F3F5FA",
+            border: "#D4DBEA",
+            textColor: COLORS.navy,
+          };
+
+  // Pulse animation
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isActive) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, {
+            toValue: 1.05,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulse, {
+            toValue: 1,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+        ]),
+      ).start();
+    }
+  }, [isActive]);
+
   return (
-    <View
-      style={[
-        styles.progressCard,
-        isActive && styles.progressCardActive,
-        isMissed && styles.progressCardMissed,
-      ]}
+    <TouchableOpacity
+      activeOpacity={0.9}
+      disabled={!isActive}
+      onPress={onPress}
+      style={{ width: "31%" }}
     >
-      <View
+      <Animated.View
         style={[
-          styles.progressIcon,
-          isCompleted && {
-            backgroundColor: "#DCE8D9",
-          },
+          styles.progressCard,
+          isActive && styles.progressCardActive,
+          isMissed && styles.progressCardMissed,
           isActive && {
-            backgroundColor: "#F7E6B8",
-          },
-          isMissed && {
-            backgroundColor: "#F5D6D6",
+            transform: [{ scale: pulse }],
           },
         ]}
       >
-        <Image
-          source={progressImages[title]}
-          style={styles.progressImage}
-          resizeMode="contain"
-        />
-      </View>
+        <View
+          style={[
+            styles.progressIcon,
+            isCompleted && {
+              backgroundColor: "#DCE8D9",
+            },
+            isActive && {
+              backgroundColor: "#F7E6B8",
+            },
+            isMissed && {
+              backgroundColor: "#F5D6D6",
+            },
+          ]}
+        >
+          <Image
+            source={isCompleted ? completeImages[title] : progressImages[title]}
+            style={styles.progressImage}
+            resizeMode="contain"
+          />
+        </View>
 
-      <Text style={styles.progressTitle}>{title}</Text>
-      <View style={styles.progressBox}>
-        <Text style={styles.progressSubtitle}>
-          {isCompleted
-            ? "Completed"
-            : isActive
-              ? "Praying"
-              : isMissed
-                ? "Missed"
-                : "Upcoming"}
-        </Text>
-      </View>
-    </View>
+        <Text style={styles.progressTitle}>{title}</Text>
+        <Text style={styles.progressTitleUnder}>Angelus</Text>
+
+        <View
+          style={[
+            styles.progressBox,
+            {
+              backgroundColor: statusConfig.bg,
+              borderColor: statusConfig.border,
+            },
+          ]}
+        >
+          <Ionicons
+            name={statusConfig.icon as any}
+            size={18}
+            color={statusConfig.iconColor}
+            style={{ marginRight: 5 }}
+          />
+
+          <Text
+            style={[
+              styles.progressSubtitle,
+              {
+                color: statusConfig.textColor,
+              },
+            ]}
+          >
+            {statusConfig.text}
+          </Text>
+        </View>
+      </Animated.View>
+    </TouchableOpacity>
   );
 }
 
@@ -481,16 +618,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 24,
-    marginTop: 26,
+    marginTop: 20,
   },
 
   sunIcon: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#FFF7E5",
-    borderWidth: 3,
-    borderColor: "#F1D28B",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
@@ -512,7 +646,7 @@ const styles = StyleSheet.create({
 
   mainCard: {
     marginHorizontal: 24,
-    marginTop: 18,
+    marginTop: 20,
     backgroundColor: COLORS.card,
     borderRadius: 28,
     borderWidth: 3,
@@ -588,8 +722,9 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     marginHorizontal: 24,
-    marginTop: 28,
+    marginTop: 20,
     marginBottom: 18,
   },
 
@@ -614,13 +749,12 @@ const styles = StyleSheet.create({
   },
 
   progressCard: {
-    width: "31%",
     backgroundColor: COLORS.card,
     borderRadius: 22,
     borderWidth: 3,
     borderColor: COLORS.border,
     alignItems: "center",
-    paddingVertical: 18,
+    paddingVertical: 15,
     shadowColor: "#3B2E22",
     shadowOpacity: 0.08,
     shadowRadius: 14,
@@ -635,6 +769,10 @@ const styles = StyleSheet.create({
   progressCardActive: {
     borderColor: COLORS.gold,
     backgroundColor: "#FFF9EC",
+    shadowColor: COLORS.gold,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 10,
   },
 
   progressCardMissed: {
@@ -649,7 +787,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3EFE7",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 5,
   },
 
   progressTitle: {
@@ -658,27 +796,34 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     fontFamily: "CormorantGaramond",
   },
+  progressTitleUnder: {
+    fontSize: 12,
+    color: COLORS.textPrimary,
+    fontWeight: "400",
+    fontFamily: "CormorantGaramond",
+  },
 
   progressBox: {
-    marginTop: 4,
-    padding: 2,
-    width: 100,
+    marginTop: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 5,
+    minWidth: 100,
     borderRadius: 999,
-    borderColor: COLORS.border,
     borderWidth: 2,
-    justifyContent: "center",
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
   },
 
   progressSubtitle: {
     fontSize: 12,
-    color: COLORS.textSecondary,
     fontFamily: "CormorantGaramond",
+    fontWeight: "400",
   },
 
   globalCard: {
     marginHorizontal: 24,
-    marginTop: 18,
+    marginTop: 20,
     backgroundColor: COLORS.card,
     borderRadius: 28,
     borderWidth: 3,
@@ -686,7 +831,6 @@ const styles = StyleSheet.create({
     padding: 5,
     flexDirection: "row",
     alignItems: "center",
-
     shadowColor: "#3B2E22",
     shadowOpacity: 0.08,
     shadowRadius: 14,
@@ -720,7 +864,7 @@ const styles = StyleSheet.create({
   globalCount: {
     fontSize: 42,
     color: COLORS.navy,
-    fontWeight: "700",
+    fontWeight: "500",
     fontFamily: "CormorantGaramond",
   },
 
@@ -731,14 +875,13 @@ const styles = StyleSheet.create({
 
   buttonWrapper: {
     marginHorizontal: 24,
-    marginTop: 28,
+    marginTop: 20,
   },
 
   button: {
     borderRadius: 36,
     paddingVertical: 18,
     paddingHorizontal: 24,
-
     shadowColor: "#D4AF57",
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -804,7 +947,7 @@ const styles = StyleSheet.create({
   },
 
   modalButton: {
-    marginTop: 18,
+    marginTop: 20,
     backgroundColor: COLORS.gold,
     paddingHorizontal: 28,
     paddingVertical: 14,
@@ -819,5 +962,17 @@ const styles = StyleSheet.create({
   progressImage: {
     width: 75,
     height: 75,
+  },
+  dividerBox: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  divider: {
+    marginVertical: 5,
+    padding: 5,
+    width: "95%",
+  },
+  dividerHalf: {
+    width: "20%",
   },
 });
