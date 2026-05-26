@@ -59,6 +59,7 @@ export function getNextPrayer() {
 
 export function getPrayerStatus(key: string, completed: boolean): PrayerStatus {
   const now = new Date();
+  const h = now.getHours();
 
   const prayer = PRAYERS.find((p) => p.key === key);
 

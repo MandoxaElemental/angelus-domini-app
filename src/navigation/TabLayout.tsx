@@ -1,21 +1,23 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Platform, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback } from "react";
 
 import MainApp from "../screens/MainApp";
 import MenuScreen from "../screens/MenuScreen";
 import CommunityScreen from "../screens/CommunityScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import PrayerScreen from "../screens/PrayerScreen";
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 type Props = {
   onLogout: () => void;
 };
 
-export default function TabLayout({ onLogout }: Props) {
+function TabNavigator({ onLogout }: Props) {
   const insets = useSafeAreaInsets();
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
 
@@ -47,27 +49,25 @@ export default function TabLayout({ onLogout }: Props) {
         },
       }}
     >
-      {/* Pass onLogout as an initialParam to MainApp */}
-      <Tab.Screen
-        name="Home"
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
-        }}
-      >
-        {() => <MainApp onLogout={onLogout} />}
-      </Tab.Screen>
+  <Tab.Screen
+  name="Home"
+  component={MainApp}
+  options={{
+    tabBarIcon: ({ color, size }) => (
+      <Ionicons name="home" size={size} color={color} />
+    ),
+  }}
+/>
 
       <Tab.Screen
-        name="Menu"
-        component={MenuScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="menu" size={size} color={color} />
-          ),
-        }}
-      />
+  name="History"
+  component={MenuScreen}
+  options={{
+    tabBarIcon: ({ color, size }) => (
+      <Ionicons name="time" size={size} color={color} />
+    ),
+  }}
+/>
       <Tab.Screen
         name="Community"
         component={CommunityScreen}
@@ -77,15 +77,31 @@ export default function TabLayout({ onLogout }: Props) {
           ),
         }}
       />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings" size={size} color={color} />
-          ),
-        }}
-      />
+   <Tab.Screen
+  name="Settings"
+  options={{
+    tabBarIcon: ({ color, size }) => (
+      <Ionicons name="settings" size={size} color={color} />
+    ),
+  }}
+>
+  {() => <SettingsScreen onLogout={onLogout} />}
+</Tab.Screen>
     </Tab.Navigator>
+  );
+}
+
+export default function TabLayout({ onLogout }: Props) {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Tabs">
+        {() => <TabNavigator onLogout={onLogout} />}
+      </Stack.Screen>
+      <Stack.Screen
+        name="Prayer"
+        component={PrayerScreen}
+        options={{ animation: "slide_from_bottom" }}
+      />
+    </Stack.Navigator>
   );
 }

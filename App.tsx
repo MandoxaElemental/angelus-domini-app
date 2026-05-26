@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import "react-native-get-random-values";
+
 import * as SplashScreen from "expo-splash-screen";
+
 import {
   ActivityIndicator,
   Platform,
@@ -8,15 +11,20 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
+
 import { StatusBar } from "expo-status-bar";
+
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 import {
   SafeAreaProvider,
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
   initialWindowMetrics,
 } from "react-native-safe-area-context";
+
 import type { EdgeInsets, Rect } from "react-native-safe-area-context";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -40,8 +48,7 @@ import PrayerScreen from "./src/screens/PrayerScreen";
 
 import TabLayout from "./src/navigation/TabLayout";
 
-import { getToken } from "./src/store/auth";
-import { testNotificationNow } from "./services/notifications";
+import { supabase } from "./src/lib/supabaseClient";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -60,6 +67,10 @@ const DEFAULT_WEB_FRAME: Rect = {
   width: 0,
   height: 0,
 };
+
+async function testNotificationNow() {
+  console.log("Test notification pressed");
+}
 
 function DevNavbar() {
   const navigation = useNavigation<any>();
@@ -96,10 +107,8 @@ function AppNavigator({
 }) {
   return (
     <View style={{ flex: 1 }}>
-      {/* DEV NAVBAR */}
       <DevNavbar />
 
-      {/* APP SCREENS */}
       <View style={{ flex: 1 }}>
         <Stack.Navigator
           initialRouteName={initialRoute}
@@ -161,6 +170,7 @@ export default function App() {
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
 
   const [insets] = useState<EdgeInsets>(initialInsets);
+
   const [frame] = useState<Rect>(initialFrame);
 
   const [fontsLoaded, fontError] = useFonts({
@@ -179,13 +189,13 @@ export default function App() {
   useEffect(() => {
     async function prepareApp() {
       try {
-        // remove after testing
-        await AsyncStorage.removeItem("onboarded");
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-        const token = await getToken();
         const onboarded = await AsyncStorage.getItem("onboarded");
 
-        if (token) {
+        if (session?.user) {
           setInitialRoute("main");
         } else if (onboarded === "true") {
           setInitialRoute("login");
@@ -193,7 +203,7 @@ export default function App() {
           setInitialRoute("onboarding");
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 2500));
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       } catch (e) {
         console.warn(e);
       } finally {
@@ -202,6 +212,14 @@ export default function App() {
     }
 
     prepareApp();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {});
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

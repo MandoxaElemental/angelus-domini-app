@@ -9,19 +9,29 @@ import {
   Image,
   Animated,
   Modal,
+  Easing,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { createAudioPlayer } from "expo-audio";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+
+import { logout } from "../store/auth";
+
 import {
   getNextPrayer,
   getPrayerStatus,
   formatPrayerTime,
   PrayerStatus,
 } from "../utils/prayer";
-import { getUserId } from "../utils/user";
+
 import { completePrayer, getGlobalCount, startPrayer } from "../api/prayerApi";
+
+import { supabase } from "../lib/supabaseClient";
+
+type Props = {
+  onLogout: () => void;
+};
 
 const COLORS = {
   navy: "#2F4A7A",
@@ -42,47 +52,57 @@ const COLORS = {
   muted: "#B8AA96",
 };
 
-export default function MainApp() {
+const prayerImages: Record<string, any> = {
+  Morning: require("../../assets/Morning.png"),
+  Noon: require("../../assets/Noon.png"),
+  Evening: require("../../assets/Evening.png"),
+};
+
+const progressImages: Record<string, any> = {
+  Morning: require("../../assets/Morning_Clear.svg"),
+  Noon: require("../../assets/Noon_Clear.svg"),
+  Evening: require("../../assets/Evening_Clear.svg"),
+};
+
+const completeImages: Record<string, any> = {
+  Morning: require("../../assets/1.png"),
+  Noon: require("../../assets/2.png"),
+  Evening: require("../../assets/3.png"),
+};
+
+export default function MainApp({ onLogout }: Props) {
+  const navigation = useNavigation<any>();
+
   const ringScale = useRef(new Animated.Value(1)).current;
   const ringOpacity = useRef(new Animated.Value(0.4)).current;
   const bellRotate = useRef(new Animated.Value(0)).current;
+
   const [timeLeft, setTimeLeft] = useState("00:00:00");
+
   const [session, setSession] = useState<any>(null);
+
   const [count, setCount] = useState(0);
+
   const [userId, setUserId] = useState("");
+
+  const [username, setUsername] = useState("");
+
+  const [isPraying, setIsPraying] = useState(false);
+
+  const [showPrayerPopup, setShowPrayerPopup] = useState(false);
+
   const [completedPrayers, setCompletedPrayers] = useState({
     morning: false,
     noon: false,
     evening: false,
   });
-  const prayerImages: Record<string, any> = {
-    Morning: require("../../assets/Morning.png"),
-    Noon: require("../../assets/Noon.png"),
-    Evening: require("../../assets/Evening.png"),
-  };
+
+  const lastTriggeredPrayer = useRef<string | null>(null);
 
   const currentHour = new Date().getHours();
 
   const greeting =
     currentHour < 12 ? "Morning" : currentHour < 18 ? "Afternoon" : "Evening";
-
-  const navigation = useNavigation<any>();
-
-  const [showPrayerPopup, setShowPrayerPopup] = useState(false);
-
-  const lastTriggeredPrayer = useRef<string | null>(null);
-
-  const playTripleBell = async () => {
-    for (let i = 0; i < 3; i++) {
-      const player = createAudioPlayer(require("../../assets/audio/bell.mp3"));
-
-      player.play();
-
-      await new Promise((resolve) => setTimeout(resolve, 2200));
-
-      player.remove();
-    }
-  };
 
   const currentPrayer = useMemo(() => {
     const next = getNextPrayer();
@@ -94,6 +114,173 @@ export default function MainApp() {
     };
   }, []);
 
+  // ─────────────────────────────────────────────────────────────
+  // AUTH + SESSION
+  // ─────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    (async () => {
+      try {
+        let {
+          data: { session: authSession },
+        } = await supabase.auth.getSession();
+
+        if (!authSession?.user?.id) {
+          console.log("Waiting for session restore...");
+
+          await new Promise<void>((resolve) => {
+            const {
+              data: { subscription },
+            } = supabase.auth.onAuthStateChange((_event, s) => {
+              if (s) {
+                authSession = s;
+
+                subscription.unsubscribe();
+
+                resolve();
+              }
+            });
+
+            setTimeout(resolve, 5000);
+          });
+        }
+
+        if (!authSession?.user?.id) {
+          console.error("No authenticated user");
+          return;
+        }
+
+        const uid = authSession.user.id;
+
+        setUserId(uid);
+
+        const metaUsername =
+          authSession.user.user_metadata?.username ||
+          authSession.user.user_metadata?.name;
+
+        if (metaUsername) {
+          setUsername(metaUsername);
+        } else {
+          const { data: userData } = await supabase
+            .from("users")
+            .select("username")
+            .eq("id", uid)
+            .single();
+
+          if (userData?.username) {
+            setUsername(userData.username);
+          }
+        }
+
+        const sess = await startPrayer(uid);
+
+        setSession(sess);
+
+        const globalCount = await getGlobalCount(sess.slot);
+
+        setCount(globalCount);
+      } catch (err) {
+        console.error("Mount error:", err);
+      }
+    })();
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────
+  // BELL PULSE
+  // ─────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(ringScale, {
+            toValue: 1.25,
+            duration: 900,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: false,
+          }),
+
+          Animated.timing(ringOpacity, {
+            toValue: 0,
+            duration: 900,
+            useNativeDriver: false,
+          }),
+        ]),
+
+        Animated.parallel([
+          Animated.timing(ringScale, {
+            toValue: 1,
+            duration: 0,
+            useNativeDriver: false,
+          }),
+
+          Animated.timing(ringOpacity, {
+            toValue: 0.4,
+            duration: 0,
+            useNativeDriver: false,
+          }),
+        ]),
+      ]),
+    );
+
+    pulse.start();
+
+    return () => pulse.stop();
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────
+  // BELL SWING
+  // ─────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const swing = () => {
+      Animated.sequence([
+        Animated.timing(bellRotate, {
+          toValue: 1,
+          duration: 180,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+
+        Animated.timing(bellRotate, {
+          toValue: -1,
+          duration: 180,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+
+        Animated.timing(bellRotate, {
+          toValue: 0.5,
+          duration: 140,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+
+        Animated.timing(bellRotate, {
+          toValue: -0.4,
+          duration: 140,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+
+        Animated.timing(bellRotate, {
+          toValue: 0,
+          duration: 120,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ]).start(() => setTimeout(swing, 3000));
+    };
+
+    const timer = setTimeout(swing, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────
+  // COUNTDOWN TIMER
+  // ─────────────────────────────────────────────────────────────
+
   useEffect(() => {
     const updateCountdown = () => {
       const nextPrayer = getNextPrayer();
@@ -103,7 +290,9 @@ export default function MainApp() {
       const diff = nextPrayer.time.getTime() - now.getTime();
 
       const hrs = Math.floor(diff / 1000 / 3600);
+
       const mins = Math.floor((diff % (1000 * 3600)) / (1000 * 60));
+
       const secs = Math.floor((diff % (1000 * 60)) / 1000);
 
       setTimeLeft(
@@ -120,18 +309,21 @@ export default function MainApp() {
     return () => clearInterval(interval);
   }, []);
 
+  // ─────────────────────────────────────────────────────────────
+  // AUTO PRAYER TRIGGER
+  // ─────────────────────────────────────────────────────────────
+
   useEffect(() => {
     const checkPrayerTime = () => {
       const nextPrayer = getNextPrayer();
+
       const now = new Date();
 
       const diff = nextPrayer.time.getTime() - now.getTime();
 
-      // Trigger when within first second
       if (diff <= 1000 && diff >= 0) {
         const prayerKey = `${nextPrayer.title}-${now.toDateString()}`;
 
-        // Prevent duplicate popups
         if (lastTriggeredPrayer.current === prayerKey) return;
 
         lastTriggeredPrayer.current = prayerKey;
@@ -144,11 +336,29 @@ export default function MainApp() {
           setShowPrayerPopup(false);
 
           navigation.navigate("Prayer", {
-            onComplete: (slot: string) => {
-              setCompletedPrayers((prev) => ({
-                ...prev,
-                [slot]: true,
-              }));
+            onComplete: async () => {
+              try {
+                if (!session || !userId) return;
+
+                await completePrayer(userId, session.sessionId);
+
+                const newCount = await getGlobalCount(session.slot);
+
+                setCount(newCount);
+
+                const slotKey = session.slot.includes("_6")
+                  ? "morning"
+                  : session.slot.includes("_12")
+                    ? "noon"
+                    : "evening";
+
+                setCompletedPrayers((prev) => ({
+                  ...prev,
+                  [slotKey]: true,
+                }));
+              } catch (err) {
+                console.error("Auto-trigger completion error:", err);
+              }
             },
           });
         }, 7000);
@@ -158,32 +368,75 @@ export default function MainApp() {
     const interval = setInterval(checkPrayerTime, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [session, userId]);
 
-  useEffect(() => {
-    (async () => {
-      const uid = await getUserId();
+  // ─────────────────────────────────────────────────────────────
+  // AUDIO
+  // ─────────────────────────────────────────────────────────────
 
-      setUserId(uid);
+  const playTripleBell = async () => {
+    for (let i = 0; i < 3; i++) {
+      const player = createAudioPlayer(require("../../assets/audio/bell.mp3"));
 
-      const prayerSession = await startPrayer(uid);
+      player.play();
 
-      setSession(prayerSession);
+      await new Promise((resolve) => setTimeout(resolve, 2200));
 
-      const globalCount = await getGlobalCount(prayerSession.slot);
+      player.remove();
+    }
+  };
 
-      setCount(globalCount);
-    })();
-  }, []);
+  // ─────────────────────────────────────────────────────────────
+  // COMPLETE PRAYER
+  // ─────────────────────────────────────────────────────────────
 
   const handleComplete = async () => {
-    if (!session) return;
+    if (!session || !userId) return;
 
-    await completePrayer(userId, session.sessionId);
+    navigation.navigate("Prayer", {
+      onComplete: async () => {
+        try {
+          setIsPraying(true);
 
-    const newCount = await getGlobalCount(session.slot);
+          await completePrayer(userId, session.sessionId);
 
-    setCount(newCount);
+          const newCount = await getGlobalCount(session.slot);
+
+          setCount(newCount);
+
+          const slotKey = session.slot.includes("_6")
+            ? "morning"
+            : session.slot.includes("_12")
+              ? "noon"
+              : "evening";
+
+          setCompletedPrayers((prev) => ({
+            ...prev,
+            [slotKey]: true,
+          }));
+        } catch (err) {
+          console.error("Prayer completion error:", err);
+        } finally {
+          setIsPraying(false);
+        }
+      },
+    });
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // LOGOUT
+  // ─────────────────────────────────────────────────────────────
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+
+      await logout();
+
+      onLogout();
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
   };
 
   const morningStatus = getPrayerStatus("morning", completedPrayers.morning);
@@ -194,6 +447,8 @@ export default function MainApp() {
 
   return (
     <>
+      {/* PRAYER POPUP */}
+
       <Modal visible={showPrayerPopup} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -209,7 +464,33 @@ export default function MainApp() {
               style={styles.modalButton}
               onPress={() => {
                 setShowPrayerPopup(false);
-                navigation.navigate("Prayer");
+
+                navigation.navigate("Prayer", {
+                  onComplete: async () => {
+                    try {
+                      if (!session || !userId) return;
+
+                      await completePrayer(userId, session.sessionId);
+
+                      const newCount = await getGlobalCount(session.slot);
+
+                      setCount(newCount);
+
+                      const slotKey = session.slot.includes("_6")
+                        ? "morning"
+                        : session.slot.includes("_12")
+                          ? "noon"
+                          : "evening";
+
+                      setCompletedPrayers((prev) => ({
+                        ...prev,
+                        [slotKey]: true,
+                      }));
+                    } catch (err) {
+                      console.error("Modal completion error:", err);
+                    }
+                  },
+                });
               }}
             >
               <Text style={styles.modalButtonText}>Pray Now</Text>
@@ -217,9 +498,11 @@ export default function MainApp() {
           </View>
         </View>
       </Modal>
+
       <SafeAreaView style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* HEADER */}
+
           <View style={styles.header}>
             <Image
               source={require("../../assets/Logo.png")}
@@ -227,7 +510,6 @@ export default function MainApp() {
             />
 
             <View style={styles.bellContainer}>
-              {/* Ringing effect */}
               <Animated.Image
                 source={require("../../assets/ring.png")}
                 style={[
@@ -240,7 +522,6 @@ export default function MainApp() {
                 resizeMode="contain"
               />
 
-              {/* Bell */}
               <Animated.Image
                 source={require("../../assets/bell.png")}
                 resizeMode="contain"
@@ -260,7 +541,9 @@ export default function MainApp() {
               />
             </View>
           </View>
+
           {/* GREETING */}
+
           <View style={styles.greetingRow}>
             <View style={styles.sunIcon}>
               <Image
@@ -271,11 +554,19 @@ export default function MainApp() {
             </View>
 
             <View>
-              <Text style={styles.greetingTitle}>Good {greeting}</Text>
+              <Text style={styles.greetingTitle}>
+                Good {greeting}
+                {username ? `, ${username}` : ""}
+              </Text>
+
+              <Text style={styles.greetingSubtitle}>
+                Pause with the Church for the Angelus.
+              </Text>
             </View>
           </View>
 
-          {/* NEXT PRAYER CARD */}
+          {/* NEXT PRAYER */}
+
           <View style={styles.mainCard}>
             <View style={styles.cardImage}>
               <Image
@@ -287,27 +578,33 @@ export default function MainApp() {
 
             <View style={styles.cardContent}>
               <Text style={styles.cardLabel}>NEXT PRAYER</Text>
+
               <Text style={styles.cardTitle}>
                 {formatPrayerTime(currentPrayer.time)}
               </Text>
+
               <Text style={styles.cardTime}>{currentPrayer.title}</Text>
+
               <View style={styles.cardDivider} />
+
               <View style={styles.timeRow}>
                 <Ionicons name="time-outline" size={30} color={COLORS.gold} />
 
                 <Text style={styles.timeText}>in {timeLeft}</Text>
               </View>
-              {/* <Text style={styles.cardTitle}>{currentPrayer.title}</Text> */}{" "}
             </View>
           </View>
 
-          {/* PROGRESS */}
+          {/* DAILY PROGRESS */}
+
           <View style={styles.sectionHeader}>
             <Image
               source={require("../../assets/DividerLeft.svg")}
               style={styles.dividerHalf}
             />
+
             <Text style={styles.sectionHeaderText}>DAILY PRAYER PROGRESS</Text>
+
             <Image
               source={require("../../assets/DividerRight.svg")}
               style={styles.dividerHalf}
@@ -318,114 +615,133 @@ export default function MainApp() {
             <ProgressCard
               title="Morning"
               status={morningStatus}
-              onPress={() => {
-                navigation.navigate("Prayer", {
-                  onComplete: () => {
-                    setCompletedPrayers((prev) => ({
-                      ...prev,
-                      morning: true,
-                    }));
-                  },
-                });
-              }}
+              onPress={handleComplete}
             />
 
             <ProgressCard
               title="Noon"
               status={noonStatus}
-              onPress={() => {
-                navigation.navigate("Prayer", {
-                  onComplete: () => {
-                    setCompletedPrayers((prev) => ({
-                      ...prev,
-                      noon: true,
-                    }));
-                  },
-                });
-              }}
+              onPress={handleComplete}
             />
 
             <ProgressCard
               title="Evening"
               status={eveningStatus}
-              onPress={() => {
-                navigation.navigate("Pr ayer", {
-                  onComplete: () => {
-                    setCompletedPrayers((prev) => ({
-                      ...prev,
-                      evening: true,
-                    }));
-                  },
-                });
-              }}
+              onPress={handleComplete}
             />
           </View>
 
           {/* GLOBAL CARD */}
+
           <View style={styles.globalCard}>
             <View style={styles.globe}>
               <Image
-                source={require("../../assets/Global.svg")}
+                source={require("../../assets/globe.png")}
                 style={styles.globeIcon}
               />
             </View>
 
-            <View style={{ flex: 1 }}>
+            <View style={styles.globalRight}>
               <Text style={styles.globalLabel}>GLOBAL PRAYER TODAY</Text>
 
-              <Text style={styles.globalCount}>{count.toLocaleString()}</Text>
-              <View style={styles.dividerBox}>
-                <Image
-                  source={require("../../assets/Divider.svg")}
-                  style={styles.divider}
-                />
+              <View style={styles.globalCountRow}>
+                <Text style={styles.globalCount}>{count.toLocaleString()}</Text>
+
+                <Text style={styles.globalPrayedToday}>prayed today</Text>
               </View>
+
               <Text style={styles.globalText}>
                 United in prayer around the world.
               </Text>
+
+              <View style={styles.globalDivider} />
+
+              <View style={styles.nowPrayingRow}>
+                <Text style={styles.nowPrayingLabel}>Now praying:</Text>
+
+                <View style={styles.nowPrayingItem}>
+                  <Text style={styles.nowPrayingFlag}>🇵🇭</Text>
+
+                  <Text style={styles.nowPrayingCountry}>Philippines</Text>
+
+                  <Text style={styles.nowPrayingCount}>8,420</Text>
+                </View>
+
+                <Text style={styles.nowPrayingDot}> • </Text>
+
+                <View style={styles.nowPrayingItem}>
+                  <Text style={styles.nowPrayingFlag}>🇺🇸</Text>
+
+                  <Text style={styles.nowPrayingCountry}>USA</Text>
+
+                  <Text style={styles.nowPrayingCount}>3,210</Text>
+                </View>
+              </View>
             </View>
           </View>
 
-          {/* BUTTON */}
-          {/* <TouchableOpacity
+          {/* SCRIPTURE */}
+
+          <View style={styles.scriptureCard}>
+            <Image
+              source={require("../../assets/bgquote.png")}
+              style={styles.scriptureImage}
+              resizeMode="cover"
+            />
+
+            <View style={styles.scriptureContent}>
+              <Text style={styles.scriptureQuote}>
+                {
+                  "Behold, I am the handmaid of the Lord. May it be done to me according to your word."
+                }
+              </Text>
+
+              <Text style={styles.scriptureRef}>— Luke 1:38</Text>
+            </View>
+          </View>
+
+          {/* PRAY BUTTON */}
+
+          <TouchableOpacity
             activeOpacity={0.9}
             onPress={handleComplete}
+            disabled={isPraying}
             style={styles.buttonWrapper}
           >
             <LinearGradient
               colors={[COLORS.goldBright, COLORS.gold]}
-              style={styles.button}
+              style={[styles.button, isPraying && { opacity: 0.7 }]}
             >
               <View style={styles.buttonInner}>
                 <View style={styles.prayIcon}>
                   <Ionicons name="heart" size={18} color="#fff" />
                 </View>
 
-                <Text style={styles.buttonText}>Pray Now</Text>
+                <Text style={styles.buttonText}>
+                  {isPraying ? "Praying..." : "Pray Now"}
+                </Text>
 
                 <Ionicons name="chevron-forward" size={24} color="#fff" />
               </View>
             </LinearGradient>
-          </TouchableOpacity> */}
+          </TouchableOpacity>
 
-          {/* BOTTOM SPACE */}
-          <View style={{ height: 30 }} />
+          {/* LOGOUT */}
+
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+
+          <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
     </>
   );
 }
 
-const progressImages: Record<string, any> = {
-  Morning: require("../../assets/Morning_Clear.svg"),
-  Noon: require("../../assets/Noon_Clear.svg"),
-  Evening: require("../../assets/Evening_Clear.svg"),
-};
-const completeImages: Record<string, any> = {
-  Morning: require("../../assets/1.png"),
-  Noon: require("../../assets/2.png"),
-  Evening: require("../../assets/3.png"),
-};
+// ─────────────────────────────────────────────────────────────
+// PROGRESS CARD
+// ─────────────────────────────────────────────────────────────
 
 function ProgressCard({
   title,
@@ -437,7 +753,9 @@ function ProgressCard({
   onPress?: () => void;
 }) {
   const isCompleted = status === "completed";
+
   const isActive = status === "active";
+
   const isMissed = status === "missed";
 
   const statusConfig = isCompleted
@@ -476,7 +794,6 @@ function ProgressCard({
             textColor: COLORS.navy,
           };
 
-  // Pulse animation
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -488,6 +805,7 @@ function ProgressCard({
             duration: 900,
             useNativeDriver: true,
           }),
+
           Animated.timing(pulse, {
             toValue: 1,
             duration: 900,
@@ -521,9 +839,11 @@ function ProgressCard({
             isCompleted && {
               backgroundColor: "#DCE8D9",
             },
+
             isActive && {
               backgroundColor: "#F7E6B8",
             },
+
             isMissed && {
               backgroundColor: "#F5D6D6",
             },
@@ -537,6 +857,7 @@ function ProgressCard({
         </View>
 
         <Text style={styles.progressTitle}>{title}</Text>
+
         <Text style={styles.progressTitleUnder}>Angelus</Text>
 
         <View
@@ -571,6 +892,10 @@ function ProgressCard({
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// STYLES
+// ─────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -588,6 +913,28 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+
+  logo: {
+    width: 180,
+    height: 60,
+    resizeMode: "contain",
+  },
+
+  logoutBtn: {
+    marginTop: 20,
+    alignSelf: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.gold,
+  },
+
+  logoutText: {
+    color: COLORS.gold,
+    fontWeight: "600",
+  },
+
   bellContainer: {
     width: 85,
     height: 85,
@@ -608,11 +955,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     zIndex: 1,
   },
-  logo: {
-    width: 180,
-    height: 60,
-    resizeMode: "contain",
-  },
 
   greetingRow: {
     flexDirection: "row",
@@ -625,6 +967,9 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
+    backgroundColor: "#FFF7E5",
+    borderWidth: 3,
+    borderColor: "#F1D28B",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
@@ -657,6 +1002,7 @@ const styles = StyleSheet.create({
     shadowColor: "#3B2E22",
     shadowOpacity: 0.08,
     shadowRadius: 14,
+
     shadowOffset: {
       width: 0,
       height: 6,
@@ -715,7 +1061,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     color: "#6F440A",
     fontSize: 20,
-    fontWeight: "semibold",
     fontFamily: "CormorantGaramond",
   },
 
@@ -736,10 +1081,8 @@ const styles = StyleSheet.create({
     fontFamily: "CormorantGaramond",
   },
 
-  line: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.border,
+  dividerHalf: {
+    width: "20%",
   },
 
   progressRow: {
@@ -755,9 +1098,11 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     alignItems: "center",
     paddingVertical: 15,
+
     shadowColor: "#3B2E22",
     shadowOpacity: 0.08,
     shadowRadius: 14,
+
     shadowOffset: {
       width: 0,
       height: 6,
@@ -790,12 +1135,18 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
 
+  progressImage: {
+    width: 75,
+    height: 75,
+  },
+
   progressTitle: {
     fontSize: 17,
     color: COLORS.textPrimary,
     fontWeight: "500",
     fontFamily: "CormorantGaramond",
   },
+
   progressTitleUnder: {
     fontSize: 12,
     color: COLORS.textPrimary,
@@ -818,7 +1169,6 @@ const styles = StyleSheet.create({
   progressSubtitle: {
     fontSize: 12,
     fontFamily: "CormorantGaramond",
-    fontWeight: "400",
   },
 
   globalCard: {
@@ -828,12 +1178,14 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 3,
     borderColor: COLORS.border,
-    padding: 5,
+    padding: 14,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+
     shadowColor: "#3B2E22",
     shadowOpacity: 0.08,
     shadowRadius: 14,
+
     shadowOffset: {
       width: 0,
       height: 6,
@@ -843,15 +1195,22 @@ const styles = StyleSheet.create({
   },
 
   globe: {
-    width: 120,
-    height: 120,
+    width: 110,
+    height: 110,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 14,
+    alignSelf: "center",
   },
+
   globeIcon: {
-    width: 120,
-    height: 120,
+    width: 110,
+    height: 110,
+  },
+
+  globalRight: {
+    flex: 1,
+    justifyContent: "center",
   },
 
   globalLabel: {
@@ -859,32 +1218,146 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 1.5,
     fontFamily: "CormorantGaramond",
+    marginBottom: 2,
+  },
+
+  globalCountRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    flexWrap: "wrap",
   },
 
   globalCount: {
-    fontSize: 42,
+    fontSize: 38,
     color: COLORS.navy,
-    fontWeight: "500",
+    fontWeight: "700",
     fontFamily: "CormorantGaramond",
+  },
+
+  globalPrayedToday: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontFamily: "CormorantGaramond",
+    marginLeft: 4,
   },
 
   globalText: {
     color: COLORS.textSecondary,
+    fontSize: 13,
+    fontFamily: "CormorantGaramond",
     marginTop: 2,
+  },
+
+  globalDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 10,
+  },
+
+  nowPrayingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+
+  nowPrayingLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontFamily: "CormorantGaramond",
+    marginRight: 4,
+  },
+
+  nowPrayingItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  nowPrayingFlag: {
+    fontSize: 14,
+  },
+
+  nowPrayingCountry: {
+    fontSize: 13,
+    color: COLORS.navy,
+    fontWeight: "600",
+    fontFamily: "CormorantGaramond",
+  },
+
+  nowPrayingCount: {
+    fontSize: 13,
+    color: COLORS.textPrimary,
+    fontFamily: "CormorantGaramond",
+    marginLeft: 3,
+  },
+
+  nowPrayingDot: {
+    fontSize: 13,
+    color: COLORS.muted,
+  },
+
+  scriptureCard: {
+    marginHorizontal: 24,
+    marginTop: 14,
+    backgroundColor: COLORS.card,
+    borderRadius: 22,
+    borderWidth: 3,
+    borderColor: COLORS.border,
+    flexDirection: "row",
+    overflow: "hidden",
+
+    shadowColor: "#3B2E22",
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+
+    elevation: 6,
+  },
+
+  scriptureImage: {
+    width: 190,
+    height: 120,
+  },
+
+  scriptureContent: {
+    flex: 1,
+    padding: 16,
+    justifyContent: "center",
+  },
+
+  scriptureQuote: {
+    fontSize: 12,
+    color: COLORS.textPrimary,
+    fontStyle: "italic",
+    lineHeight: 16,
+    fontFamily: "CormorantGaramond",
+  },
+
+  scriptureRef: {
+    marginTop: 7,
+    fontSize: 13,
+    color: COLORS.navy,
+    fontWeight: "600",
+    fontFamily: "CormorantGaramond",
   },
 
   buttonWrapper: {
     marginHorizontal: 24,
-    marginTop: 20,
+    marginTop: 28,
   },
 
   button: {
     borderRadius: 36,
     paddingVertical: 18,
     paddingHorizontal: 24,
+
     shadowColor: "#D4AF57",
     shadowOpacity: 0.3,
     shadowRadius: 12,
+
     shadowOffset: {
       width: 0,
       height: 5,
@@ -913,6 +1386,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "600",
   },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
@@ -947,7 +1421,7 @@ const styles = StyleSheet.create({
   },
 
   modalButton: {
-    marginTop: 20,
+    marginTop: 18,
     backgroundColor: COLORS.gold,
     paddingHorizontal: 28,
     paddingVertical: 14,
@@ -958,21 +1432,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "600",
-  },
-  progressImage: {
-    width: 75,
-    height: 75,
-  },
-  dividerBox: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  divider: {
-    marginVertical: 5,
-    padding: 5,
-    width: "95%",
-  },
-  dividerHalf: {
-    width: "20%",
   },
 });
