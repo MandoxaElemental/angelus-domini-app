@@ -500,47 +500,46 @@ export default function MainApp({ onLogout }: Props) {
       </Modal>
 
       <SafeAreaView style={styles.container}>
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* HEADER */}
+        <View style={styles.header}>
+          <Image
+            source={require("../../assets/Logo.png")}
+            style={styles.logo}
+          />
 
-          <View style={styles.header}>
-            <Image
-              source={require("../../assets/Logo.png")}
-              style={styles.logo}
+          <View style={styles.bellContainer}>
+            <Animated.Image
+              source={require("../../assets/ring.png")}
+              style={[
+                styles.bellEffect,
+                {
+                  opacity: ringOpacity,
+                  transform: [{ scale: ringScale }],
+                },
+              ]}
+              resizeMode="contain"
             />
 
-            <View style={styles.bellContainer}>
-              <Animated.Image
-                source={require("../../assets/ring.png")}
-                style={[
-                  styles.bellEffect,
-                  {
-                    opacity: ringOpacity,
-                    transform: [{ scale: ringScale }],
-                  },
-                ]}
-                resizeMode="contain"
-              />
-
-              <Animated.Image
-                source={require("../../assets/bell.png")}
-                resizeMode="contain"
-                style={[
-                  styles.bellImage,
-                  {
-                    transform: [
-                      {
-                        rotate: bellRotate.interpolate({
-                          inputRange: [-1, 1],
-                          outputRange: ["-12deg", "12deg"],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-            </View>
+            <Animated.Image
+              source={require("../../assets/bell.png")}
+              resizeMode="contain"
+              style={[
+                styles.bellImage,
+                {
+                  transform: [
+                    {
+                      rotate: bellRotate.interpolate({
+                        inputRange: [-1, 1],
+                        outputRange: ["-12deg", "12deg"],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
           </View>
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* HEADER */}
 
           {/* GREETING */}
 
@@ -557,10 +556,6 @@ export default function MainApp({ onLogout }: Props) {
               <Text style={styles.greetingTitle}>
                 Good {greeting}
                 {username ? `, ${username}` : ""}
-              </Text>
-
-              <Text style={styles.greetingSubtitle}>
-                Pause with the Church for the Angelus.
               </Text>
             </View>
           </View>
@@ -585,8 +580,11 @@ export default function MainApp({ onLogout }: Props) {
 
               <Text style={styles.cardTime}>{currentPrayer.title}</Text>
 
-              <View style={styles.cardDivider} />
-
+              <Image
+                source={require("../../assets/Divider.svg")}
+                style={styles.cardDivider}
+                resizeMode="contain"
+              />
               <View style={styles.timeRow}>
                 <Ionicons name="time-outline" size={30} color={COLORS.gold} />
 
@@ -601,6 +599,7 @@ export default function MainApp({ onLogout }: Props) {
             <Image
               source={require("../../assets/DividerLeft.svg")}
               style={styles.dividerHalf}
+              resizeMode="contain"
             />
 
             <Text style={styles.sectionHeaderText}>DAILY PRAYER PROGRESS</Text>
@@ -608,6 +607,7 @@ export default function MainApp({ onLogout }: Props) {
             <Image
               source={require("../../assets/DividerRight.svg")}
               style={styles.dividerHalf}
+              resizeMode="contain"
             />
           </View>
 
@@ -636,7 +636,7 @@ export default function MainApp({ onLogout }: Props) {
           <View style={styles.globalCard}>
             <View style={styles.globe}>
               <Image
-                source={require("../../assets/globe.png")}
+                source={require("../../assets/Global.svg")}
                 style={styles.globeIcon}
               />
             </View>
@@ -654,8 +654,11 @@ export default function MainApp({ onLogout }: Props) {
                 United in prayer around the world.
               </Text>
 
-              <View style={styles.globalDivider} />
-
+              <Image
+                source={require("../../assets/Divider.svg")}
+                style={styles.globalDivider}
+                resizeMode="contain"
+              />
               <View style={styles.nowPrayingRow}>
                 <Text style={styles.nowPrayingLabel}>Now praying:</Text>
 
@@ -700,7 +703,7 @@ export default function MainApp({ onLogout }: Props) {
             </View>
           </View>
 
-          {/* PRAY BUTTON */}
+          {/* PRAY BUTTON
 
           <TouchableOpacity
             activeOpacity={0.9}
@@ -724,7 +727,7 @@ export default function MainApp({ onLogout }: Props) {
                 <Ionicons name="chevron-forward" size={24} color="#fff" />
               </View>
             </LinearGradient>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           {/* LOGOUT */}
 
@@ -842,10 +845,6 @@ function ProgressCard({
 
             isActive && {
               backgroundColor: "#F7E6B8",
-            },
-
-            isMissed && {
-              backgroundColor: "#F5D6D6",
             },
           ]}
         >
@@ -968,7 +967,7 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     backgroundColor: "#FFF7E5",
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: "#F1D28B",
     justifyContent: "center",
     alignItems: "center",
@@ -978,7 +977,7 @@ const styles = StyleSheet.create({
   greetingTitle: {
     fontSize: 30,
     color: COLORS.textPrimary,
-    fontWeight: "600",
+    fontWeight: "500",
     fontFamily: "CormorantGaramond",
   },
 
@@ -994,7 +993,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     backgroundColor: COLORS.card,
     borderRadius: 28,
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: COLORS.border,
     padding: 10,
     flexDirection: "row",
@@ -1040,8 +1039,8 @@ const styles = StyleSheet.create({
   },
 
   cardDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
+    width: "100%",
+    height: 14,
     marginVertical: 12,
   },
 
@@ -1094,7 +1093,7 @@ const styles = StyleSheet.create({
   progressCard: {
     backgroundColor: COLORS.card,
     borderRadius: 22,
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: COLORS.border,
     alignItems: "center",
     paddingVertical: 15,
@@ -1156,11 +1155,11 @@ const styles = StyleSheet.create({
 
   progressBox: {
     marginTop: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 5,
+    paddingVertical: 2,
+    paddingHorizontal: 2,
     minWidth: 100,
     borderRadius: 999,
-    borderWidth: 2,
+    borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1176,9 +1175,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
     backgroundColor: COLORS.card,
     borderRadius: 28,
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 14,
+    padding: 10,
     flexDirection: "row",
     alignItems: "flex-start",
 
@@ -1195,17 +1194,17 @@ const styles = StyleSheet.create({
   },
 
   globe: {
-    width: 110,
-    height: 110,
+    width: 150,
+    height: 150,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 14,
+    marginRight: 5,
     alignSelf: "center",
   },
 
   globeIcon: {
-    width: 110,
-    height: 110,
+    width: 150,
+    height: 150,
   },
 
   globalRight: {
@@ -1249,8 +1248,8 @@ const styles = StyleSheet.create({
   },
 
   globalDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
+    width: "100%",
+    height: 14,
     marginVertical: 10,
   },
 
@@ -1300,7 +1299,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     backgroundColor: COLORS.card,
     borderRadius: 22,
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: COLORS.border,
     flexDirection: "row",
     overflow: "hidden",
@@ -1401,7 +1400,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     padding: 28,
     alignItems: "center",
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: COLORS.border,
   },
 
