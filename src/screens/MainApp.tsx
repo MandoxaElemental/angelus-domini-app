@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   Easing,
   Modal,
   StatusBar,
-  Platform,
 } from "react-native";
 
 import { useNavigation } from "@react-navigation/native";
@@ -22,7 +21,6 @@ import { logout } from "../store/auth";
 import {
   getNextPrayer,
   getPrayerStatus,
-  formatPrayerTime,
   PrayerStatus,
 } from "../utils/prayer";
 import { completePrayer, getGlobalCount, startPrayer } from "../api/prayerApi";
@@ -58,8 +56,15 @@ const progressImages: Record<string, any> = {
   Evening: require("../../assets/Evening1.png"),
 };
 
-// ─── Daily Scripture Verses ───────────────────────────────────────────────────
-// Rotates by day-of-year so every day shows a different verse
+function format12Hour(date: Date): string {
+  let hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  return `${hours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+}
+
 const DAILY_VERSES = [
   { quote: "Be it done unto me according to your word.", ref: "Luke 1:38" },
   { quote: "The Lord is my shepherd; I shall not want.", ref: "Psalm 23:1" },
@@ -91,42 +96,6 @@ const DAILY_VERSES = [
   { quote: "The Lord is my light and my salvation.", ref: "Psalm 27:1" },
   { quote: "He who abides in love abides in God.", ref: "1 John 4:16" },
   { quote: "I am with you always, to the end of the age.", ref: "Matt 28:20" },
-  { quote: "Pray for one another, that you may be healed.", ref: "James 5:16" },
-  { quote: "Give thanks to the Lord, for He is good.", ref: "Psalm 107:1" },
-  { quote: "God is love.", ref: "1 John 4:8" },
-  { quote: "The Word became flesh and dwelt among us.", ref: "John 1:14" },
-  { quote: "Blessed are the merciful, for they shall receive mercy.", ref: "Matt 5:7" },
-  { quote: "Hail, full of grace, the Lord is with you.", ref: "Luke 1:28" },
-  { quote: "Hope does not put us to shame.", ref: "Rom 5:5" },
-  { quote: "Whatever you do, do it for the glory of God.", ref: "1 Cor 10:31" },
-  { quote: "Draw near to God and He will draw near to you.", ref: "James 4:8" },
-  { quote: "Light shines in the darkness, and the darkness did not overcome it.", ref: "John 1:5" },
-  { quote: "Lord, teach us to pray.", ref: "Luke 11:1" },
-  { quote: "My soul magnifies the Lord.", ref: "Luke 1:46" },
-  { quote: "The fruit of the Spirit is love, joy, peace.", ref: "Gal 5:22" },
-  { quote: "Blessed are those who hunger for righteousness.", ref: "Matt 5:6" },
-  { quote: "You are the light of the world.", ref: "Matt 5:14" },
-  { quote: "Lord, to whom shall we go? You have the words of eternal life.", ref: "John 6:68" },
-  { quote: "I have come that they may have life, and have it abundantly.", ref: "John 10:10" },
-  { quote: "We love because He first loved us.", ref: "1 John 4:19" },
-  { quote: "Do not let your hearts be troubled; trust in God.", ref: "John 14:1" },
-  { quote: "Blessed are the peacemakers, for they shall be called children of God.", ref: "Matt 5:9" },
-  { quote: "His mercy endures forever.", ref: "Psalm 136:1" },
-  { quote: "In the beginning was the Word.", ref: "John 1:1" },
-  { quote: "You shall love the Lord your God with all your heart.", ref: "Matt 22:37" },
-  { quote: "Thy will be done on earth as it is in heaven.", ref: "Matt 6:10" },
-  { quote: "He is risen!", ref: "Luke 24:6" },
-  { quote: "For where two or three gather in my name, I am there.", ref: "Matt 18:20" },
-  { quote: "Blessed are those who have not seen and yet believed.", ref: "John 20:29" },
-  { quote: "The Lord upholds all who fall.", ref: "Psalm 145:14" },
-  { quote: "Return to me, and I will return to you.", ref: "Mal 3:7" },
-  { quote: "Be merciful, just as your Father is merciful.", ref: "Luke 6:36" },
-  { quote: "I am the resurrection and the life.", ref: "John 11:25" },
-  { quote: "All shall be well, and all manner of things shall be well.", ref: "Julian of Norwich" },
-  { quote: "Have I not commanded you? Be strong and courageous.", ref: "Josh 1:9" },
-  { quote: "Hallowed be your name.", ref: "Matt 6:9" },
-  { quote: "She kept all these things, pondering them in her heart.", ref: "Luke 2:19" },
-  { quote: "Whoever humbles himself will be exalted.", ref: "Matt 23:12" },
 ];
 
 function getDailyVerse() {
@@ -136,6 +105,15 @@ function getDailyVerse() {
   const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
   return DAILY_VERSES[dayOfYear % DAILY_VERSES.length];
 }
+
+// Maps Slot string → prayer key
+const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
+  if (!slot) return null;
+  if (slot.includes("_6") && !slot.includes("_18")) return "morning";
+  if (slot.includes("_12")) return "noon";
+  if (slot.includes("_18") || slot.includes("_6p")) return "evening";
+  return null;
+};
 
 export default function MainApp({ onLogout }: Props) {
   const ringScale = useRef(new Animated.Value(1)).current;
@@ -157,7 +135,6 @@ export default function MainApp({ onLogout }: Props) {
 
   const lastTriggeredPrayer = useRef<string | null>(null);
   const navigation = useNavigation<any>();
-
   const dailyVerse = useMemo(() => getDailyVerse(), []);
 
   const currentHour = new Date().getHours();
@@ -169,35 +146,55 @@ export default function MainApp({ onLogout }: Props) {
     return { title: next.title, icon: next.icon, time: next.time };
   }, []);
 
+  // ── Fetch today's completed prayers from DB ───────────────────────────────
+  const fetchTodayPrayers = useCallback(async (uid: string) => {
+    try {
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+
+      const { data: todaySessions } = await supabase
+        .from("PrayerSessions")
+        .select("Slot, Completed")
+        .eq("UserId", uid)
+        .gte("ScheduledTime", `${todayStr}T00:00:00+00:00`)
+        .lte("ScheduledTime", `${todayStr}T23:59:59+00:00`);
+
+      if (todaySessions) {
+        const updated = { morning: false, noon: false, evening: false };
+        todaySessions.forEach((s: any) => {
+          if (!s.Completed) return;
+          const key = slotToKey(s.Slot);
+          if (key) updated[key] = true;
+        });
+        setCompletedPrayers(updated);
+      }
+    } catch (err) {
+      console.error("❌ fetchTodayPrayers error:", err);
+    }
+  }, []);
+
   // ── On mount ──────────────────────────────────────────────────────────────
   useEffect(() => {
+    let channel: any = null;
+
     (async () => {
       try {
         let { data: { session: authSession } } = await supabase.auth.getSession();
 
         if (!authSession?.user?.id) {
-          console.log("⏳ Waiting for session to restore...");
           await new Promise<void>((resolve) => {
             const { data: { subscription } } = supabase.auth.onAuthStateChange(
               (_event, s) => {
-                if (s) {
-                  authSession = s;
-                  subscription.unsubscribe();
-                  resolve();
-                }
+                if (s) { authSession = s; subscription.unsubscribe(); resolve(); }
               }
             );
             setTimeout(resolve, 5000);
           });
         }
 
-        if (!authSession?.user?.id) {
-          console.error("❌ No authenticated user after waiting");
-          return;
-        }
+        if (!authSession?.user?.id) return;
 
         const uid = authSession.user.id;
-        console.log("✅ userId:", uid);
         setUserId(uid);
 
         const metaUsername =
@@ -205,32 +202,54 @@ export default function MainApp({ onLogout }: Props) {
           authSession.user.user_metadata?.name;
 
         if (metaUsername) {
-          console.log("✅ username from metadata:", metaUsername);
           setUsername(metaUsername);
         } else {
-          const { data: userData, error: userError } = await supabase
+          const { data: userData } = await supabase
             .from("users")
             .select("username")
             .eq("id", uid)
             .single();
-          console.log("👤 userData:", userData, "error:", userError);
-          if (userData?.username) {
-            setUsername(userData.username);
-          }
+          if (userData?.username) setUsername(userData.username);
         }
 
         const sess = await startPrayer(uid);
-        console.log("✅ session:", sess);
         setSession(sess);
 
         const globalCount = await getGlobalCount(sess.slot);
-        console.log("✅ globalCount:", globalCount);
         setCount(globalCount);
+
+        // Initial fetch of today's prayers
+        await fetchTodayPrayers(uid);
+
+        // ── Real-time subscription ──────────────────────────────────────────
+        channel = supabase
+          .channel(`main-prayer-sessions-${uid}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "PrayerSessions",
+              filter: `UserId=eq.${uid}`,
+            },
+            async () => {
+              await fetchTodayPrayers(uid);
+              try {
+                const newCount = await getGlobalCount(sess.slot);
+                setCount(newCount);
+              } catch {}
+            }
+          )
+          .subscribe();
       } catch (err) {
         console.error("❌ mount error:", err);
       }
     })();
-  }, []);
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [fetchTodayPrayers]);
 
   // ── Bell pulse loop ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -275,9 +294,7 @@ export default function MainApp({ onLogout }: Props) {
       const mins = Math.floor((diff % (1000 * 3600)) / (1000 * 60));
       const secs = Math.floor((diff % (1000 * 60)) / 1000);
       setTimeLeft(
-        `${hrs.toString().padStart(2, "0")}:${mins
-          .toString()
-          .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+        `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
       );
     };
     updateCountdown();
@@ -309,12 +326,7 @@ export default function MainApp({ onLogout }: Props) {
                 await completePrayer(userId, session.sessionId);
                 const newCount = await getGlobalCount(session.slot);
                 setCount(newCount);
-                const slotKey = session.slot.includes("_6")
-                  ? "morning"
-                  : session.slot.includes("_12")
-                  ? "noon"
-                  : "evening";
-                setCompletedPrayers((prev) => ({ ...prev, [slotKey]: true }));
+                // Real-time will update completedPrayers automatically
               } catch (err) {
                 console.error("❌ auto-trigger complete error:", err);
               }
@@ -328,7 +340,6 @@ export default function MainApp({ onLogout }: Props) {
   }, [session, userId]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-
   const playTripleBell = async () => {
     for (let i = 0; i < 3; i++) {
       const { sound } = await Audio.Sound.createAsync(
@@ -341,31 +352,15 @@ export default function MainApp({ onLogout }: Props) {
   };
 
   const handleComplete = async () => {
-    console.log("=== Pray Now pressed ===");
-    console.log("session:", session);
-    console.log("userId:", userId);
-
-    if (!session || !userId) {
-      console.error("❌ No session or userId found");
-      return;
-    }
+    if (!session || !userId) return;
 
     navigation.navigate("Prayer", {
       onComplete: async () => {
         try {
           await completePrayer(userId, session.sessionId);
-          console.log("✅ Prayer completed in DB");
-
           const newCount = await getGlobalCount(session.slot);
-          console.log("✅ New global count:", newCount);
           setCount(newCount);
-
-          const slotKey = session.slot.includes("_6")
-            ? "morning"
-            : session.slot.includes("_12")
-            ? "noon"
-            : "evening";
-          setCompletedPrayers((prev) => ({ ...prev, [slotKey]: true }));
+          // Real-time listener will update completedPrayers
         } catch (err) {
           console.error("❌ onComplete error:", err);
         }
@@ -397,9 +392,7 @@ export default function MainApp({ onLogout }: Props) {
           <View style={styles.modalCard}>
             <Ionicons name="notifications" size={42} color={COLORS.gold} />
             <Text style={styles.modalTitle}>Angelus Time</Text>
-            <Text style={styles.modalText}>
-              The bells are calling you to prayer.
-            </Text>
+            <Text style={styles.modalText}>The bells are calling you to prayer.</Text>
             <TouchableOpacity
               style={styles.modalButton}
               onPress={() => {
@@ -411,12 +404,6 @@ export default function MainApp({ onLogout }: Props) {
                       await completePrayer(userId, session.sessionId);
                       const newCount = await getGlobalCount(session.slot);
                       setCount(newCount);
-                      const slotKey = session.slot.includes("_6")
-                        ? "morning"
-                        : session.slot.includes("_12")
-                        ? "noon"
-                        : "evening";
-                      setCompletedPrayers((prev) => ({ ...prev, [slotKey]: true }));
                     } catch (err) {
                       console.error("❌ modal onComplete error:", err);
                     }
@@ -434,36 +421,21 @@ export default function MainApp({ onLogout }: Props) {
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* HEADER */}
           <View style={styles.header}>
-            <Image
-              source={require("../../assets/Logo.png")}
-              style={styles.logo}
-            />
-
+            <Image source={require("../../assets/Logo.png")} style={styles.logo} />
             <View style={styles.bellContainer}>
               <Animated.Image
                 source={require("../../assets/ring.png")}
-                style={[
-                  styles.bellEffect,
-                  { opacity: ringOpacity, transform: [{ scale: ringScale }] },
-                ]}
+                style={[styles.bellEffect, { opacity: ringOpacity, transform: [{ scale: ringScale }] }]}
                 resizeMode="contain"
               />
               <Animated.Image
                 source={require("../../assets/bell.png")}
                 resizeMode="contain"
-                style={[
-                  styles.bellImage,
-                  {
-                    transform: [
-                      {
-                        rotate: bellRotate.interpolate({
-                          inputRange: [-1, 1],
-                          outputRange: ["-12deg", "12deg"],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
+                style={[styles.bellImage, {
+                  transform: [{
+                    rotate: bellRotate.interpolate({ inputRange: [-1, 1], outputRange: ["-12deg", "12deg"] }),
+                  }],
+                }]}
               />
             </View>
           </View>
@@ -471,36 +443,22 @@ export default function MainApp({ onLogout }: Props) {
           {/* GREETING */}
           <View style={styles.greetingRow}>
             <View style={styles.sunIcon}>
-              <Image
-               source={require("../../assets/usericons1.png")}
-                style={styles.progressImageU}
-                resizeMode="contain"
-              />
+              <Image source={require("../../assets/usericons1.png")} style={styles.progressImageU} resizeMode="contain" />
             </View>
             <View>
-              <Text style={styles.greetingTitle}>
-                Good {greeting}{username ? `, ${username}` : ""}
-              </Text>
-              <Text style={styles.greetingSubtitle}>
-                Pause with the Church for the Angelus.
-              </Text>
+              <Text style={styles.greetingTitle}>Good {greeting}{username ? `, ${username}` : ""}</Text>
+              <Text style={styles.greetingSubtitle}>Pause with the Church for the Angelus.</Text>
             </View>
           </View>
 
           {/* NEXT PRAYER CARD */}
           <View style={styles.mainCard}>
             <View style={styles.cardImage}>
-              <Image
-                source={prayerImages[currentPrayer.icon]}
-                style={{ width: 140, height: 180 }}
-                resizeMode="contain"
-              />
+              <Image source={prayerImages[currentPrayer.icon]} style={{ width: 140, height: 180 }} resizeMode="contain" />
             </View>
             <View style={styles.cardContent}>
               <Text style={styles.cardLabel}>NEXT PRAYER</Text>
-              <Text style={styles.cardTitle}>
-                {formatPrayerTime(currentPrayer.time)}
-              </Text>
+              <Text style={styles.cardTitle}>{format12Hour(currentPrayer.time)}</Text>
               <Text style={styles.cardTime}>{currentPrayer.title}</Text>
               <View style={styles.cardDivider} />
               <View style={styles.timeRow}>
@@ -526,76 +484,50 @@ export default function MainApp({ onLogout }: Props) {
           {/* GLOBAL COUNT */}
           <View style={styles.globalCard}>
             <View style={styles.globe}>
-              <Image
-                source={require("../../assets/globe.png")}
-                style={styles.globeIcon}
-              />
+              <Image source={require("../../assets/globe.png")} style={styles.globeIcon} />
             </View>
-
             <View style={styles.globalRight}>
               <Text style={styles.globalLabel}>GLOBAL PRAYER TODAY</Text>
-
               <View style={styles.globalCountRow}>
                 <Text style={styles.globalCount}>{count.toLocaleString()}</Text>
                 <Text style={styles.globalPrayedToday}> prayed today</Text>
               </View>
-
-              <Text style={styles.globalText}>
-                United in prayer around the world.
-              </Text>
-
+              <Text style={styles.globalText}>United in prayer around the world.</Text>
               <View style={styles.globalDivider} />
-
               <View style={styles.nowPrayingRow}>
                 <Text style={styles.nowPrayingLabel}>Now praying:</Text>
                 <View style={styles.nowPrayingItem}>
-                  <Text style={styles.nowPrayingFlag}>🇵🇭</Text>
-                  <Text style={styles.nowPrayingCountry}> Philippines</Text>
-                  <Text style={styles.nowPrayingCount}> 8,420</Text>
+                  <Text style={styles.nowPrayingFlag}></Text>
+                  <Text style={styles.nowPrayingCountry}> </Text>
+                  <Text style={styles.nowPrayingCount}></Text>
                 </View>
-                <Text style={styles.nowPrayingDot}> • </Text>
+                <Text style={styles.nowPrayingDot}> </Text>
                 <View style={styles.nowPrayingItem}>
-                  <Text style={styles.nowPrayingFlag}>🇺🇸</Text>
-                  <Text style={styles.nowPrayingCountry}> USA</Text>
-                  <Text style={styles.nowPrayingCount}> 3,210</Text>
+                  <Text style={styles.nowPrayingFlag}></Text>
+                  <Text style={styles.nowPrayingCountry}> </Text>
+                  <Text style={styles.nowPrayingCount}> </Text>
                 </View>
               </View>
             </View>
           </View>
 
-          {/* SCRIPTURE QUOTE CARD — daily rotating verse */}
+          {/* SCRIPTURE QUOTE CARD */}
           <View style={styles.scriptureCard}>
-            <Image
-              source={require("../../assets/bgquote.png")}
-              style={styles.scriptureImage}
-              resizeMode="cover"
-            />
+            <Image source={require("../../assets/bgquote.png")} style={styles.scriptureImage} resizeMode="cover" />
             <View style={styles.scriptureContent}>
-              <Text style={styles.scriptureQuote}>
-                {`"${dailyVerse.quote}"`}
-              </Text>
+              <Text style={styles.scriptureQuote}>{`"${dailyVerse.quote}"`}</Text>
               <Text style={styles.scriptureRef}>— {dailyVerse.ref}</Text>
             </View>
           </View>
 
           {/* PRAY NOW BUTTON */}
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={handleComplete}
-            disabled={isPraying}
-            style={styles.buttonWrapper}
-          >
-            <LinearGradient
-              colors={[COLORS.goldBright, COLORS.gold]}
-              style={[styles.button, isPraying && { opacity: 0.7 }]}
-            >
+          <TouchableOpacity activeOpacity={0.9} onPress={handleComplete} disabled={isPraying} style={styles.buttonWrapper}>
+            <LinearGradient colors={[COLORS.goldBright, COLORS.gold]} style={[styles.button, isPraying && { opacity: 0.7 }]}>
               <View style={styles.buttonInner}>
                 <View style={styles.prayIcon}>
                   <Ionicons name="heart" size={18} color="#fff" />
                 </View>
-                <Text style={styles.buttonText}>
-                  {isPraying ? "Praying..." : "Pray Now"}
-                </Text>
+                <Text style={styles.buttonText}>{isPraying ? "Praying..." : "Pray Now"}</Text>
                 <Ionicons name="chevron-forward" size={24} color="#fff" />
               </View>
             </LinearGradient>
@@ -609,50 +541,59 @@ export default function MainApp({ onLogout }: Props) {
 }
 
 // ─── ProgressCard ─────────────────────────────────────────────────────────────
-
-function ProgressCard({
-  title,
-  status,
-}: {
-  title: string;
-  status: PrayerStatus;
-}) {
+function ProgressCard({ title, status }: { title: string; status: PrayerStatus }) {
   const isCompleted = status === "completed";
   const isActive = status === "active";
   const isMissed = status === "missed";
+  const isUpcoming = !isCompleted && !isActive && !isMissed;
 
   return (
-    <View
-      style={[
-        styles.progressCard,
-        isActive && styles.progressCardActive,
-        isMissed && styles.progressCardMissed,
-      ]}
-    >
-      <View
-        style={[
-          styles.progressIcon,
-          isCompleted && { backgroundColor: "#DCE8D9" },
-          isActive && { backgroundColor: "#F7E6B8" },
-          isMissed && { backgroundColor: "#F5D6D6" },
-        ]}
-      >
-        <Image
-          source={progressImages[title]}
-          style={styles.progressImage}
-          resizeMode="contain"
-        />
+    <View style={[
+      styles.progressCard,
+      isCompleted && styles.progressCardCompleted,
+      isActive && styles.progressCardActive,
+      isMissed && styles.progressCardMissed,
+    ]}>
+      <View style={[
+        styles.statusDot,
+        isCompleted && styles.statusDotCompleted,
+        isActive && styles.statusDotActive,
+        isMissed && styles.statusDotMissed,
+        isUpcoming && styles.statusDotUpcoming,
+      ]}>
+        {isCompleted && <Ionicons name="checkmark" size={10} color="#fff" />}
+        {isActive && <View style={styles.statusDotInner} />}
       </View>
+
+      <View style={[
+        styles.progressIcon,
+        isCompleted && { backgroundColor: "#DCE8D9" },
+        isActive && { backgroundColor: "#F7E6B8" },
+        isMissed && { backgroundColor: "#F5D6D6" },
+      ]}>
+        <Image source={progressImages[title]} style={styles.progressImage} resizeMode="contain" />
+      </View>
+
       <Text style={styles.progressTitle}>{title}</Text>
-      <View style={styles.progressBox}>
-        <Text style={styles.progressSubtitle}>
-          {isCompleted
-            ? "Completed"
-            : isActive
-            ? "Praying"
-            : isMissed
-            ? "Missed"
-            : "Upcoming"}
+      <Text style={styles.progressAngelus}>Angelus</Text>
+
+      <View style={[
+        styles.progressBox,
+        isCompleted && styles.progressBoxCompleted,
+        isActive && styles.progressBoxActive,
+        isMissed && styles.progressBoxMissed,
+      ]}>
+        {isCompleted && <Ionicons name="checkmark-circle" size={13} color="#4A7A48" style={{ marginRight: 3 }} />}
+        {isActive && <View style={styles.activeDot} />}
+        {isMissed && <Ionicons name="close-circle-outline" size={13} color="#A04040" style={{ marginRight: 3 }} />}
+        {isUpcoming && <Ionicons name="time-outline" size={13} color={COLORS.muted} style={{ marginRight: 3 }} />}
+        <Text style={[
+          styles.progressSubtitle,
+          isCompleted && { color: "#4A7A48" },
+          isActive && { color: "#8A6018" },
+          isMissed && { color: "#A04040" },
+        ]}>
+          {isCompleted ? "Completed" : isActive ? "Prayed" : isMissed ? "Missed" : "Upcoming"}
         </Text>
       </View>
     </View>
@@ -660,349 +601,122 @@ function ProgressCard({
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.cream },
   header: {
-    height: 100,
-    backgroundColor: "#2F4A7A",
-    paddingRight: 24,
-    paddingLeft: 12,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    height: 100, backgroundColor: "#2F4A7A", paddingRight: 24, paddingLeft: 12,
+    borderBottomLeftRadius: 25, borderBottomRightRadius: 25,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
   logo: { width: 140, height: 40, resizeMode: "contain" },
-  logoutBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#D4A017",
-  },
-  logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A" },
   bellContainer: { width: 85, height: 85, justifyContent: "center", alignItems: "center" },
   bellImage: { width: 85, height: 85, position: "absolute", zIndex: 2 },
   bellEffect: { width: 85, height: 85, position: "absolute", zIndex: 1 },
-  greetingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    marginTop: 26,
-  },
-
-  greetingTitle: {
-    fontSize: 30,
-    color: COLORS.textPrimary,
-    fontWeight: "600",
-    fontFamily: "CormorantGaramond",
-  },
-  greetingSubtitle: {
-    marginTop: 2,
-    fontSize: 15,
-    color: COLORS.navy,
-    fontFamily: "CormorantGaramond",
-  },
+  greetingRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 24, marginTop: 26 },
+  greetingTitle: { fontSize: 30, color: COLORS.textPrimary, fontWeight: "600", fontFamily: "CormorantGaramond" },
+  greetingSubtitle: { marginTop: 2, fontSize: 15, color: COLORS.navy, fontFamily: "CormorantGaramond" },
   mainCard: {
-    marginHorizontal: 24,
-    marginTop: 18,
-    backgroundColor: COLORS.card,
-    borderRadius: 28,
-    borderWidth: 3,
-    borderColor: COLORS.border,
-    padding: 10,
-    flexDirection: "row",
-    shadowColor: "#3B2E22",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    marginHorizontal: 24, marginTop: 18, backgroundColor: COLORS.card,
+    borderRadius: 28, borderWidth: 3, borderColor: COLORS.border, padding: 10,
+    flexDirection: "row", shadowColor: "#3B2E22", shadowOpacity: 0.08,
+    shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
-  cardImage: {
-    width: 140,
-    height: 180,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-  },
+  cardImage: { width: 140, height: 180, justifyContent: "center", alignItems: "center", marginRight: 10 },
   cardContent: { flex: 1, justifyContent: "center" },
-  cardLabel: {
-    color: COLORS.gold,
-    letterSpacing: 2,
-    fontSize: 12,
-    marginBottom: 4,
-    fontFamily: "CormorantGaramond",
-  },
-  cardTitle: {
-    fontSize: 34,
-    color: COLORS.navy,
-    fontWeight: "300",
-    fontFamily: "CormorantGaramond",
-  },
+  cardLabel: { color: COLORS.gold, letterSpacing: 2, fontSize: 12, marginBottom: 4, fontFamily: "CormorantGaramond" },
+  cardTitle: { fontSize: 34, color: COLORS.navy, fontWeight: "300", fontFamily: "CormorantGaramond" },
   cardDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 12 },
   timeRow: { flexDirection: "row", alignItems: "center" },
-  timeText: {
-    marginLeft: 6,
-    fontSize: 22,
-    color: COLORS.navy,
-    fontFamily: "CormorantGaramond",
-  },
-  cardTime: {
-    marginTop: 6,
-    color: "#6F440A",
-    fontSize: 20,
-    fontFamily: "CormorantGaramond",
-  },
+  timeText: { marginLeft: 6, fontSize: 22, color: COLORS.navy, fontFamily: "CormorantGaramond" },
+  cardTime: { marginTop: 6, color: "#6F440A", fontSize: 20, fontFamily: "CormorantGaramond" },
   sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 24,
-    marginTop: 28,
-    marginBottom: 18,
+    flexDirection: "row", alignItems: "center",
+    marginHorizontal: 24, marginTop: 28, marginBottom: 18,
   },
-  sectionHeaderText: {
-    color: COLORS.navy,
-    fontSize: 13,
-    letterSpacing: 1.5,
-    marginHorizontal: 12,
-    fontFamily: "CormorantGaramond",
-  },
+  sectionHeaderText: { color: COLORS.navy, fontSize: 13, letterSpacing: 1.5, marginHorizontal: 12, fontFamily: "CormorantGaramond" },
   line: { flex: 1, height: 1, backgroundColor: COLORS.border },
-  progressRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 24,
-  },
+  progressRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24 },
   progressCard: {
-    width: "31%",
-    backgroundColor: COLORS.card,
-    borderRadius: 22,
-    borderWidth: 3,
-    borderColor: COLORS.border,
-    alignItems: "center",
-    paddingVertical: 18,
-    shadowColor: "#3B2E22",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    width: "31%", backgroundColor: COLORS.card, borderRadius: 22, borderWidth: 3,
+    borderColor: COLORS.border, alignItems: "center", paddingVertical: 18,
+    paddingHorizontal: 6, position: "relative",
+    shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
+  progressCardCompleted: { borderColor: "#B8CFB5", backgroundColor: "#F6FBF5" },
   progressCardActive: { borderColor: COLORS.gold, backgroundColor: "#FFF9EC" },
   progressCardMissed: { borderColor: "#D8A3A0", backgroundColor: "#FFF3F2" },
+  statusDot: {
+    position: "absolute", top: 6, right: 10, width: 15, height: 15,
+    borderRadius: 9, justifyContent: "center", alignItems: "center",
+    borderWidth: 2, borderColor: COLORS.border, backgroundColor: COLORS.card,
+  },
+  statusDotCompleted: { backgroundColor: "#7BA87A", borderColor: "#7BA87A" },
+  statusDotActive: { backgroundColor: COLORS.gold, borderColor: COLORS.gold },
+  statusDotMissed: { backgroundColor: "transparent", borderColor: "#D8A3A0" },
+  statusDotUpcoming: { backgroundColor: "transparent", borderColor: COLORS.muted },
+  statusDotInner: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#fff" },
   progressIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: "#F3EFE7",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
+    width: 58, height: 58, borderRadius: 29, backgroundColor: "#F3EFE7",
+    justifyContent: "center", alignItems: "center", marginBottom: 8,
   },
-  progressTitle: {
-    fontSize: 17,
-    color: COLORS.textPrimary,
-    fontWeight: "500",
-    fontFamily: "CormorantGaramond",
-  },
+  progressTitle: { fontSize: 17, color: COLORS.textPrimary, fontWeight: "500", fontFamily: "CormorantGaramond" },
+  progressAngelus: { fontSize: 13, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginTop: 1, marginBottom: 10 },
   progressBox: {
-    marginTop: 4,
-    padding: 2,
-    width: 100,
-    borderRadius: 999,
-    borderColor: COLORS.border,
-    borderWidth: 2,
-    justifyContent: "center",
-    alignItems: "center",
+    flexDirection: "row", alignItems: "center", paddingVertical: 3,
+    paddingHorizontal: 10, borderRadius: 999, borderWidth: 2,
+    borderColor: COLORS.border, backgroundColor: "transparent",
   },
-  progressSubtitle: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontFamily: "CormorantGaramond",
-  },
+  progressBoxCompleted: { borderColor: "#7BA87A", backgroundColor: "#F2FAF1" },
+  progressBoxActive: { borderColor: COLORS.gold, backgroundColor: "#FFF6E0" },
+  progressBoxMissed: { borderColor: "#D8A3A0", backgroundColor: "#FFF0EF" },
+  activeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.gold, marginRight: 5 },
+  progressSubtitle: { fontSize: 12, color: COLORS.textSecondary, fontFamily: "CormorantGaramond" },
   progressImage: { width: 75, height: 75 },
   progressImageU: { width: 60, height: 75 },
-
-  // ── GLOBAL CARD ────────────────────────────────────────────────────────────
   globalCard: {
-    marginHorizontal: 24,
-    marginTop: 18,
-    backgroundColor: COLORS.card,
-    borderRadius: 28,
-    borderWidth: 3,
-    borderColor: COLORS.border,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    shadowColor: "#3B2E22",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    marginHorizontal: 24, marginTop: 18, backgroundColor: COLORS.card,
+    borderRadius: 28, borderWidth: 3, borderColor: COLORS.border, padding: 14,
+    flexDirection: "row", alignItems: "flex-start",
+    shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
-  globe: {
-    width: 110,
-    height: 110,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-    alignSelf: "center",
-  },
+  globe: { width: 110, height: 110, justifyContent: "center", alignItems: "center", marginRight: 14, alignSelf: "center" },
   globeIcon: { width: 110, height: 110 },
-  globalRight: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  globalLabel: {
-    color: COLORS.navy,
-    fontSize: 12,
-    letterSpacing: 1.5,
-    fontFamily: "CormorantGaramond",
-    marginBottom: 2,
-  },
-  globalCountRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    flexWrap: "wrap",
-  },
-  globalCount: {
-    fontSize: 38,
-    color: COLORS.navy,
-    fontWeight: "700",
-    fontFamily: "CormorantGaramond",
-  },
-  globalPrayedToday: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    fontFamily: "CormorantGaramond",
-    marginLeft: 4,
-  },
-  globalText: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    fontFamily: "CormorantGaramond",
-    marginTop: 2,
-  },
-  globalDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: 10,
-  },
-  nowPrayingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-  },
-  nowPrayingLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontFamily: "CormorantGaramond",
-    marginRight: 4,
-  },
-  nowPrayingItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  nowPrayingFlag: {
-    fontSize: 14,
-  },
-  nowPrayingCountry: {
-    fontSize: 13,
-    color: COLORS.navy,
-    fontWeight: "600",
-    fontFamily: "CormorantGaramond",
-  },
-  nowPrayingCount: {
-    fontSize: 13,
-    color: COLORS.textPrimary,
-    fontFamily: "CormorantGaramond",
-  },
-  nowPrayingDot: {
-    fontSize: 13,
-    color: COLORS.muted,
-  },
-
-  // ── SCRIPTURE QUOTE CARD ───────────────────────────────────────────────────
+  globalRight: { flex: 1, justifyContent: "center" },
+  globalLabel: { color: COLORS.navy, fontSize: 12, letterSpacing: 1.5, fontFamily: "CormorantGaramond", marginBottom: 2 },
+  globalCountRow: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap" },
+  globalCount: { fontSize: 38, color: COLORS.navy, fontWeight: "700", fontFamily: "CormorantGaramond" },
+  globalPrayedToday: { fontSize: 14, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginLeft: 4 },
+  globalText: { color: COLORS.textSecondary, fontSize: 13, fontFamily: "CormorantGaramond", marginTop: 2 },
+  globalDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 10 },
+  nowPrayingRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  nowPrayingLabel: { fontSize: 12, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginRight: 4 },
+  nowPrayingItem: { flexDirection: "row", alignItems: "center" },
+  nowPrayingFlag: { fontSize: 14 },
+  nowPrayingCountry: { fontSize: 13, color: COLORS.navy, fontWeight: "600", fontFamily: "CormorantGaramond" },
+  nowPrayingCount: { fontSize: 13, color: COLORS.textPrimary, fontFamily: "CormorantGaramond" },
+  nowPrayingDot: { fontSize: 13, color: COLORS.muted },
   scriptureCard: {
-    marginHorizontal: 24,
-    marginTop: 14,
-    backgroundColor: COLORS.card,
-    borderRadius: 22,
-    borderWidth: 3,
-    borderColor: COLORS.border,
-    flexDirection: "row",
-    overflow: "hidden",
-    shadowColor: "#3B2E22",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    marginHorizontal: 24, marginTop: 14, backgroundColor: COLORS.card,
+    borderRadius: 22, borderWidth: 3, borderColor: COLORS.border,
+    flexDirection: "row", overflow: "hidden",
+    shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
-  scriptureImage: {
-    width: 190,
-    height: 120,
-  },
-  scriptureContent: {
-    flex: 1,
-    padding: 16,
-    justifyContent: "center",
-  },
-  scriptureQuote: {
-    fontSize: 12,
-    color: COLORS.textPrimary,
-    fontStyle: "italic",
-    lineHeight: 12,
-    fontFamily: "CormorantGaramond",
-  },
-  scriptureRef: {
-    marginTop: 7,
-    fontSize: 13,
-    color: COLORS.navy,
-    fontFamily: "CormorantGaramond",
-    fontWeight: "600",
-  },
-
-  // ── BUTTON ─────────────────────────────────────────────────────────────────
+  scriptureImage: { width: 190, height: 120 },
+  scriptureContent: { flex: 1, padding: 16, justifyContent: "center" },
+  scriptureQuote: { fontSize: 12, color: COLORS.textPrimary, fontStyle: "italic", lineHeight: 12, fontFamily: "CormorantGaramond" },
+  scriptureRef: { marginTop: 7, fontSize: 13, color: COLORS.navy, fontFamily: "CormorantGaramond", fontWeight: "600" },
   buttonWrapper: { marginHorizontal: 24, marginTop: 28 },
-  button: {
-    borderRadius: 36,
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    shadowColor: "#D4AF57",
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 6,
-  },
+  button: { borderRadius: 36, paddingVertical: 18, paddingHorizontal: 24, shadowColor: "#D4AF57", shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 6 },
   buttonInner: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  prayIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  prayIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.18)", justifyContent: "center", alignItems: "center" },
   buttonText: { color: "#fff", fontSize: 24, fontWeight: "600" },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  modalCard: {
-    width: "100%",
-    backgroundColor: COLORS.card,
-    borderRadius: 28,
-    padding: 28,
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: COLORS.border,
-  },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
+  modalCard: { width: "100%", backgroundColor: COLORS.card, borderRadius: 28, padding: 28, alignItems: "center", borderWidth: 3, borderColor: COLORS.border },
   modalTitle: { marginTop: 16, fontSize: 32, color: COLORS.navy, fontFamily: "CormorantGaramond" },
   modalText: { marginTop: 10, textAlign: "center", color: COLORS.textSecondary, fontSize: 18, lineHeight: 26 },
   modalButton: { marginTop: 18, backgroundColor: COLORS.gold, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 30 },
   modalButtonText: { color: "#fff", fontSize: 18, fontWeight: "600" },
+  sunIcon: { marginRight: 12 },
+  logoutBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#D4A017" },
+  logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A" },
 });
