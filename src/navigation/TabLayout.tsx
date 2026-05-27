@@ -25,7 +25,7 @@ function TabNavigator({ onLogout }: Props) {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#C8922A",
+        tabBarActiveTintColor: "#1F3A6E",
         tabBarInactiveTintColor: "#888",
         tabBarLabel: ({ color, children }) => (
           <Text

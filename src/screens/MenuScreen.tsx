@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   SafeAreaView,
   ScrollView,
   Image,
@@ -29,21 +28,68 @@ const COLORS = {
   textSecondary: "#6B5E52",
   border: "#E7DCCB",
   muted: "#B8AA96",
+  missed: "#D8A3A0",
 };
 
 const progressImages: Record<string, any> = {
-  Morning: require("../../assets/Morning_Clear.svg"),
-  Noon: require("../../assets/Noon_Clear.svg"),
-  Evening: require("../../assets/Evening_Clear.svg"),
+  Morning: require("../../assets/1.png"),
+  Noon: require("../../assets/2.png"),
+  Evening: require("../../assets/3.png"),
 };
 
-// Slot string → prayer key
+const weekImages: Record<string, any> = {
+  Morning: require("../../assets/11.png"),
+  Noon: require("../../assets/22.png"),
+  Evening: require("../../assets/33.png"),
+};
+
 const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
+  if (!slot) return null;
   if (slot.includes("_6") && !slot.includes("_18")) return "morning";
   if (slot.includes("_12")) return "noon";
   if (slot.includes("_18") || slot.includes("_6p")) return "evening";
   return null;
 };
+
+// Returns the Monday of the current week
+function getWeekMonday(now: Date): Date {
+  const d = new Date(now);
+  const day = d.getDay(); // 0=Sun
+  const diff = (day + 6) % 7; // Mon=0
+  d.setDate(d.getDate() - diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+// For a given prayer (morning/noon/evening) and a day index (0=Mon … 6=Sun),
+// determine if that day slot has passed without being prayed (missed), was prayed,
+// or is still upcoming.
+type DotStatus = "completed" | "missed" | "upcoming";
+
+function getDotStatus(
+  dayIndex: number, // 0 = Monday
+  prayerHour: number, // 6, 12, or 18
+  monday: Date,
+  now: Date,
+  completedDays: Set<string>
+): DotStatus {
+  const slotDate = new Date(monday);
+  slotDate.setDate(monday.getDate() + dayIndex);
+  const dateStr = `${slotDate.getFullYear()}-${String(
+  slotDate.getMonth() + 1
+).padStart(2, "0")}-${String(slotDate.getDate()).padStart(2, "0")}`;
+
+  if (completedDays.has(dateStr)) return "completed";
+
+  // Slot cutoff: e.g. morning ends at 12:00, noon ends at 18:00, evening ends at 23:59
+  const slotEnd = new Date(slotDate);
+  if (prayerHour === 6) slotEnd.setHours(12, 0, 0, 0);
+  else if (prayerHour === 12) slotEnd.setHours(18, 0, 0, 0);
+  else slotEnd.setHours(23, 59, 59, 999);
+
+  if (now > slotEnd) return "missed";
+  return "upcoming";
+}
 
 export default function MenuScreen({ onLogout }: Props) {
   const ringScale = useRef(new Animated.Value(1)).current;
@@ -58,25 +104,20 @@ export default function MenuScreen({ onLogout }: Props) {
     evening: false,
   });
 
-  // Weekly counts: how many days this week each slot was completed
-  const [weeklyData, setWeeklyData] = useState({
-    morning: 0,
-    noon: 0,
-    evening: 0,
-    total: 7,
-  });
+  // week: Set of ISO date strings per prayer type
+  const [weekMorning, setWeekMorning] = useState<Set<string>>(new Set());
+  const [weekNoon, setWeekNoon] = useState<Set<string>>(new Set());
+  const [weekEvening, setWeekEvening] = useState<Set<string>>(new Set());
 
-  // Total completed prayers all-time and this month
   const [totalMonth, setTotalMonth] = useState(0);
   const [totalYear, setTotalYear] = useState(0);
 
-  // ── Fetch all real data ───────────────────────────────────────────────────
-  const fetchData = async (uid: string) => {
+  const fetchData = useCallback(async (uid: string) => {
     try {
       const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10); // "2026-05-26"
+      const todayStr = now.toISOString().slice(0, 10);
 
-      // ── 1. Today's completed prayers ──────────────────────────────────────
+      // ── Today's completed prayers ─────────────────────────────────────────
       const { data: todaySessions } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
@@ -94,11 +135,8 @@ export default function MenuScreen({ onLogout }: Props) {
         setCompletedPrayers(updated);
       }
 
-      // ── 2. This week's data (Mon–Sun) ─────────────────────────────────────
-      const dayOfWeek = now.getDay(); // 0=Sun
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7));
-      monday.setHours(0, 0, 0, 0);
+      // ── This week's completed prayers ─────────────────────────────────────
+      const monday = getWeekMonday(now);
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
       sunday.setHours(23, 59, 59, 999);
@@ -112,7 +150,6 @@ export default function MenuScreen({ onLogout }: Props) {
         .lte("ScheduledTime", sunday.toISOString());
 
       if (weekSessions) {
-        // Count unique days per slot
         const morningDays = new Set<string>();
         const noonDays = new Set<string>();
         const eveningDays = new Set<string>();
@@ -126,15 +163,12 @@ export default function MenuScreen({ onLogout }: Props) {
           if (key === "evening") eveningDays.add(day);
         });
 
-        setWeeklyData({
-          morning: morningDays.size,
-          noon: noonDays.size,
-          evening: eveningDays.size,
-          total: 7,
-        });
+        setWeekMorning(morningDays);
+        setWeekNoon(noonDays);
+        setWeekEvening(eveningDays);
       }
 
-      // ── 3. This month total ───────────────────────────────────────────────
+      // ── Month & Year totals ───────────────────────────────────────────────
       const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
       const { count: monthCount } = await supabase
         .from("PrayerSessions")
@@ -142,10 +176,8 @@ export default function MenuScreen({ onLogout }: Props) {
         .eq("UserId", uid)
         .eq("Completed", true)
         .gte("ScheduledTime", firstOfMonth);
-
       setTotalMonth(monthCount ?? 0);
 
-      // ── 4. This year total ────────────────────────────────────────────────
       const firstOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
       const { count: yearCount } = await supabase
         .from("PrayerSessions")
@@ -153,112 +185,70 @@ export default function MenuScreen({ onLogout }: Props) {
         .eq("UserId", uid)
         .eq("Completed", true)
         .gte("ScheduledTime", firstOfYear);
-
       setTotalYear(yearCount ?? 0);
 
     } catch (err) {
       console.error("❌ MenuScreen fetchData error:", err);
     }
-  };
+  }, []);
 
-  // ── On mount ──────────────────────────────────────────────────────────────
   useEffect(() => {
-  let channel: any = null;
+    let channel: any = null;
 
-  const setupRealtime = async () => {
-    try {
-      let {
-        data: { session: authSession },
-      } = await supabase.auth.getSession();
+    const setup = async () => {
+      try {
+        let { data: { session: authSession } } = await supabase.auth.getSession();
 
-      // Wait for auth session if not immediately available
-      if (!authSession?.user?.id) {
-        await new Promise<void>((resolve) => {
-          const {
-            data: { subscription },
-          } = supabase.auth.onAuthStateChange((_event, s) => {
-            if (s) {
-              authSession = s;
-              subscription.unsubscribe();
-              resolve();
-            }
+        if (!authSession?.user?.id) {
+          await new Promise<void>((resolve) => {
+            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+              if (s) { authSession = s; subscription.unsubscribe(); resolve(); }
+            });
+            setTimeout(resolve, 5000);
           });
-
-          setTimeout(resolve, 5000);
-        });
-      }
-
-      // Stop if still no session
-      if (!authSession?.user?.id) return;
-
-      const uid = authSession.user.id;
-
-      setUserId(uid);
-
-      // ── Global count ───────────────────────────────
-      const sess = await startPrayer(uid);
-
-      const globalCount = await getGlobalCount(sess.slot);
-
-      setCount(globalCount);
-
-      // ── Fetch all data ─────────────────────────────
-      await fetchData(uid);
-
-      // ── Remove old duplicate channels ─────────────
-      const existingChannels = supabase.getChannels();
-
-      existingChannels.forEach((c) => {
-        if (c.topic.includes("prayer-sessions-menu")) {
-          supabase.removeChannel(c);
         }
-      });
 
-      // ── Create fresh realtime subscription ────────
-      channel = supabase
-        .channel(`prayer-sessions-menu-${uid}-${Date.now()}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "PrayerSessions",
-            filter: `UserId=eq.${uid}`,
-          },
-          async () => {
-            try {
-              // Refresh prayer data
-              await fetchData(uid);
+        if (!authSession?.user?.id) return;
 
-              // Refresh global count
-              const newCount = await getGlobalCount(sess.slot);
+        const uid = authSession.user.id;
+        setUserId(uid);
 
-              setCount(newCount);
-            } catch (err) {
-              console.error("Realtime refresh error:", err);
-            }
-          }
-        )
-        .subscribe((status) => {
-          console.log("Realtime status:", status);
+        const sess = await startPrayer(uid);
+        const globalCount = await getGlobalCount(sess.slot);
+        setCount(globalCount);
+
+        await fetchData(uid);
+
+        // Clean up any stale channels
+        supabase.getChannels().forEach((c) => {
+          if (c.topic.includes("menu-prayer-sessions")) supabase.removeChannel(c);
         });
 
-    } catch (err) {
-      console.error("❌ MenuScreen mount error:", err);
-    }
-  };
+        channel = supabase
+          .channel(`menu-prayer-sessions-${uid}-${Date.now()}`)
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "PrayerSessions", filter: `UserId=eq.${uid}` },
+            async () => {
+              await fetchData(uid);
+              try {
+                const newCount = await getGlobalCount(sess.slot);
+                setCount(newCount);
+              } catch {}
+            }
+          )
+          .subscribe();
 
-  setupRealtime();
+      } catch (err) {
+        console.error("❌ MenuScreen mount error:", err);
+      }
+    };
 
-  // ── Cleanup on unmount ───────────────────────────
-  return () => {
-    if (channel) {
-      supabase.removeChannel(channel);
-    }
-  };
-}, []);
+    setup();
+    return () => { if (channel) supabase.removeChannel(channel); };
+  }, [fetchData]);
 
-  // ── Bell pulse loop ───────────────────────────────────────────────────────
+  // ── Animations ────────────────────────────────────────────────────────────
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
@@ -276,7 +266,6 @@ export default function MenuScreen({ onLogout }: Props) {
     return () => { pulse.stop(); };
   }, []);
 
-  // ── Bell swing loop ───────────────────────────────────────────────────────
   useEffect(() => {
     const swing = () => {
       Animated.sequence([
@@ -291,16 +280,6 @@ export default function MenuScreen({ onLogout }: Props) {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      await logout();
-      onLogout();
-    } catch (err) {
-      console.error("Logout error:", err);
-    }
-  };
-
   const morningStatus = getPrayerStatus("morning", completedPrayers.morning);
   const noonStatus = getPrayerStatus("noon", completedPrayers.noon);
   const eveningStatus = getPrayerStatus("evening", completedPrayers.evening);
@@ -310,6 +289,24 @@ export default function MenuScreen({ onLogout }: Props) {
     status === "active" ? "Active" :
     status === "missed" ? "Missed" : "Awaiting";
 
+  // Week dots: compute dot statuses for Mon–Sun for each prayer
+  const now = new Date();
+  const monday = getWeekMonday(now);
+
+  const morningDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
+    getDotStatus(i, 6, monday, now, weekMorning)
+  );
+  const noonDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
+    getDotStatus(i, 12, monday, now, weekNoon)
+  );
+  const eveningDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
+    getDotStatus(i, 18, monday, now, weekEvening)
+  );
+
+  const morningCount = morningDots.filter((d) => d === "completed").length;
+  const noonCount = noonDots.filter((d) => d === "completed").length;
+  const eveningCount = eveningDots.filter((d) => d === "completed").length;
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -317,7 +314,6 @@ export default function MenuScreen({ onLogout }: Props) {
         {/* ── HEADER ── */}
         <View style={styles.header}>
           <Image source={require("../../assets/Logo.png")} style={styles.logo} />
-
           <View style={styles.bellContainer}>
             <Animated.Image
               source={require("../../assets/ring.png")}
@@ -328,9 +324,7 @@ export default function MenuScreen({ onLogout }: Props) {
               source={require("../../assets/bell.png")}
               resizeMode="contain"
               style={[styles.bellImage, {
-                transform: [{
-                  rotate: bellRotate.interpolate({ inputRange: [-1, 1], outputRange: ["-12deg", "12deg"] }),
-                }],
+                transform: [{ rotate: bellRotate.interpolate({ inputRange: [-1, 1], outputRange: ["-12deg", "12deg"] }) }],
               }]}
             />
           </View>
@@ -351,7 +345,6 @@ export default function MenuScreen({ onLogout }: Props) {
             <Ionicons name="flower-outline" size={14} color={COLORS.gold} />
             <View style={styles.sectionDividerLine} />
           </View>
-
           <AngelusRow title="Morning Angelus" subtitle={getSubtitle(morningStatus)} status={morningStatus} imageSource={progressImages["Morning"]} />
           <View style={styles.rowDivider} />
           <AngelusRow title="Noon Angelus"    subtitle={getSubtitle(noonStatus)}    status={noonStatus}    imageSource={progressImages["Noon"]} />
@@ -367,9 +360,22 @@ export default function MenuScreen({ onLogout }: Props) {
             <Ionicons name="flower-outline" size={14} color={COLORS.gold} />
             <View style={styles.sectionDividerLine} />
           </View>
-          <WeekRow label="Morning" imageSource={progressImages["Morning"]} filled={weeklyData.morning} total={weeklyData.total} />
-          <WeekRow label="Noon"    imageSource={progressImages["Noon"]}    filled={weeklyData.noon}    total={weeklyData.total} />
-          <WeekRow label="Evening" imageSource={progressImages["Evening"]} filled={weeklyData.evening} total={weeklyData.total} />
+
+          {/* Day labels header: Mon–Sun */}
+          <View style={styles.weekDayHeader}>
+            <View style={styles.weekIconPlaceholder} />
+            <View style={styles.weekLabelPlaceholder} />
+            <View style={styles.weekDayLabels}>
+              {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+                <Text key={i} style={styles.weekDayLabel}>{d}</Text>
+              ))}
+            </View>
+            <View style={styles.weekCountPlaceholder} />
+          </View>
+
+          <WeekRow label="Morning" imageSource={weekImages["Morning"]} dots={morningDots} count={morningCount} />
+          <WeekRow label="Noon"    imageSource={weekImages["Noon"]}    dots={noonDots}    count={noonCount} />
+          <WeekRow label="Evening" imageSource={weekImages["Evening"]} dots={eveningDots} count={eveningCount} />
         </View>
 
         {/* ── TOTAL PRAYERS OFFERED ── */}
@@ -401,34 +407,56 @@ function AngelusRow({ title, subtitle, status, imageSource }: {
 }) {
   const isCompleted = status === "completed";
   const isActive = status === "active";
+  const isMissed = status === "missed";
+
   return (
     <View style={styles.angelusRow}>
-      <View style={[styles.angelusIconWrap, isCompleted && { backgroundColor: "#F0EAD8" }, isActive && { backgroundColor: "#FFF3D0" }]}>
+      <View style={[
+        styles.angelusIconWrap,
+        isCompleted && { backgroundColor: "#F0EAD8" },
+        isActive && { backgroundColor: "#FFF3D0" },
+        isMissed && { backgroundColor: "#FFEDED" },
+      ]}>
         <Image source={imageSource} style={styles.angelusIcon} resizeMode="contain" />
       </View>
       <View style={styles.angelusTextWrap}>
         <Text style={styles.angelusTitle}>{title}</Text>
-        <Text style={styles.angelusSubtitle}>{subtitle}</Text>
+        <Text style={[
+          styles.angelusSubtitle,
+          isMissed && { color: "#C0605A" },
+          isCompleted && { color: "#5A8A57" },
+        ]}>
+          {subtitle}
+        </Text>
       </View>
       {isCompleted && <Ionicons name="checkmark" size={22} color={COLORS.gold} />}
+      {isMissed && <Ionicons name="close-circle-outline" size={22} color="#C0605A" />}
     </View>
   );
 }
 
 // ─── WeekRow ─────────────────────────────────────────────────────────────────
-function WeekRow({ label, imageSource, filled, total }: {
-  label: string; imageSource: any; filled: number; total: number;
+function WeekRow({ label, imageSource, dots, count }: {
+  label: string; imageSource: any; dots: DotStatus[]; count: number;
 }) {
   return (
     <View style={styles.weekRow}>
       <Image source={imageSource} style={styles.weekIcon} resizeMode="contain" />
       <Text style={styles.weekLabel}>{label}</Text>
       <View style={styles.dotsRow}>
-        {Array.from({ length: total }).map((_, i) => (
-          <View key={i} style={[styles.dot, i < filled ? styles.dotFilled : styles.dotEmpty]} />
+        {dots.map((status, i) => (
+          <View
+            key={i}
+            style={[
+              styles.dot,
+              status === "completed" && styles.dotFilled,
+              status === "missed"    && styles.dotMissed,
+              status === "upcoming"  && styles.dotEmpty,
+            ]}
+          />
         ))}
       </View>
-      <Text style={styles.weekCount}>{filled}/{total}</Text>
+      <Text style={styles.weekCount}>{count}/7</Text>
     </View>
   );
 }
@@ -437,29 +465,18 @@ function WeekRow({ label, imageSource, filled, total }: {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.cream },
   scroll: { paddingBottom: 20 },
-
   header: {
-    height: 100,
-    backgroundColor: "#2F4A7A",
-    paddingRight: 24,
-    paddingLeft: 12,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    height: 100, backgroundColor: "#2F4A7A", paddingRight: 24, paddingLeft: 12,
+    borderBottomLeftRadius: 25, borderBottomRightRadius: 25,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
   logo: { width: 140, height: 40, resizeMode: "contain" },
-  logoutBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#D4A017" },
-  logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A" },
   bellContainer: { width: 85, height: 85, justifyContent: "center", alignItems: "center" },
   bellImage: { width: 85, height: 85, position: "absolute", zIndex: 2 },
   bellEffect: { width: 85, height: 85, position: "absolute", zIndex: 1 },
-
   heroSection: { alignItems: "center", paddingHorizontal: 24, marginTop: 28, marginBottom: 8 },
   heroTitle: { fontSize: 32, color: COLORS.navy, fontFamily: "CormorantGaramond", fontWeight: "600", textAlign: "center" },
-  heroSubtitle: { fontSize: 15, color: COLORS.gold, fontFamily: "CormorantGaramond", textAlign: "center", marginTop: 4, textDecorationLine: "underline" },
-
+  heroSubtitle: { fontSize: 15, color: COLORS.navy, fontFamily: "CormorantGaramond", textAlign: "center", marginTop: 4 },
   sectionCard: {
     marginHorizontal: 20, marginTop: 18, backgroundColor: COLORS.card,
     borderRadius: 24, borderWidth: 2, borderColor: COLORS.border,
@@ -469,21 +486,29 @@ const styles = StyleSheet.create({
   sectionCardTitle: { fontSize: 22, color: COLORS.gold, fontFamily: "CormorantGaramond", fontWeight: "600", textAlign: "center", marginBottom: 8 },
   sectionDividerRow: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
   sectionDividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
-
   angelusRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
   angelusIconWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#F0EAD8", justifyContent: "center", alignItems: "center", marginRight: 14 },
-  angelusIcon: { width: 36, height: 36 },
+  angelusIcon: { width: 59, height: 59 },
   angelusTextWrap: { flex: 1 },
   angelusTitle: { fontSize: 18, color: COLORS.textPrimary, fontFamily: "CormorantGaramond", fontWeight: "600" },
   angelusSubtitle: { fontSize: 13, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginTop: 2 },
   rowDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 2 },
 
+  // Week day header
+  weekDayHeader: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
+  weekIconPlaceholder: { width: 40, marginRight: 10 },
+  weekLabelPlaceholder: { width: 64 },
+  weekDayLabels: { flex: 1, flexDirection: "row", alignItems: "center", gap: 5 },
+  weekDayLabel: { width: 10, fontSize: 10, color: COLORS.muted, fontFamily: "CormorantGaramond", textAlign: "center" },
+  weekCountPlaceholder: { width: 30, marginLeft: 8 },
+
   weekRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
-  weekIcon: { width: 28, height: 28, marginRight: 10 },
+  weekIcon: { width: 40, height: 40, marginRight: 10 },
   weekLabel: { width: 64, fontSize: 16, color: COLORS.textPrimary, fontFamily: "CormorantGaramond" },
   dotsRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 5 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   dotFilled: { backgroundColor: COLORS.gold },
+  dotMissed: { backgroundColor: "#D8A3A0" },  // red-rose for missed
   dotEmpty: { backgroundColor: "#E0D4BE" },
   weekCount: { fontSize: 15, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginLeft: 8, width: 30, textAlign: "right" },
 
@@ -500,4 +525,6 @@ const styles = StyleSheet.create({
   statsDividerV: { width: 1, backgroundColor: COLORS.border },
   statsValue: { fontSize: 28, color: COLORS.navy, fontFamily: "CormorantGaramond", fontWeight: "700" },
   statsCaption: { fontSize: 13, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginTop: 4 },
+  logoutBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#D4A017" },
+  logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A" },
 });

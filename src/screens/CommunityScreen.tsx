@@ -71,35 +71,6 @@ function getFlagEmoji(country: string): string {
   return flags[country] ?? "🌐";
 }
 
-function WorldMapSVG({ w, h }: { w: number; h: number }) {
-  return (
-    <Svg width={w} height={h} viewBox="0 0 220 120">
-      <Defs>
-        <Pattern id="dots" x="0" y="0" width="5" height="5" patternUnits="userSpaceOnUse">
-          <Circle cx="2.5" cy="2.5" r="1.2" fill="#C0B07A" opacity="0.7" />
-        </Pattern>
-      </Defs>
-      <Path
-        d="M15 35 L22 28 L35 26 L45 22 L58 20 L70 22 L80 18 L90 20
-           L100 15 L110 17 L120 14 L130 18 L140 15 L148 20 L155 18
-           L162 22 L168 25 L162 35 L168 42 L165 50 L155 52 L148 58
-           L140 60 L130 62 L120 60 L110 62 L100 58 L90 55 L80 58
-           L70 55 L60 58 L50 55 L40 58 L30 55 L22 50 L15 45 Z"
-        fill="url(#dots)"
-      />
-      <Path d="M60 55 L75 58 L85 62 L90 70 L88 80 L80 85 L72 82 L65 78 L60 70 L58 62 Z" fill="url(#dots)" />
-      <Path d="M90 55 L100 58 L105 65 L103 72 L98 75 L92 72 L88 65 Z" fill="url(#dots)" />
-      <Path d="M125 55 L138 52 L148 55 L152 62 L150 72 L145 78 L138 80 L130 78 L125 70 L122 62 Z" fill="url(#dots)" />
-      <Path d="M155 35 L165 32 L180 30 L195 32 L205 38 L210 48 L205 55 L195 58 L180 55 L168 52 L162 45 Z" fill="url(#dots)" />
-      {([
-        [78, 25], [108, 30], [138, 38],
-        [68, 65], [170, 42], [48, 32], [185, 40],
-      ] as [number, number][]).map(([cx, cy], i) => (
-        <Circle key={i} cx={cx} cy={cy} r={3.5} fill={C.gold} opacity={0.9} />
-      ))}
-    </Svg>
-  );
-}
 
 function GlobeIcon({ size }: { size: number }) {
   return (
@@ -375,12 +346,16 @@ export default function CommunityScreen() {
               </Text>
             </View>
           </View>
-          <View
-            style={{ position: "absolute", right: -s(8), top: s(4), opacity: 0.45 }}
-            pointerEvents="none"
-          >
-            <WorldMapSVG w={sizes.mapW} h={sizes.mapH} />
-          </View>
+        <View
+  style={{ position: "absolute", right: -s(8), top: s(4), opacity: 0.45 }}
+  pointerEvents="none"
+>
+  <Image
+    source={require("../../assets/mapsglobal.png")}
+    style={{ width: sizes.mapW, height: sizes.mapH }}
+    resizeMode="contain"
+  />
+</View>
         </View>
 
         {/* ── TABS ── */}

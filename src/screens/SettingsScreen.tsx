@@ -13,6 +13,7 @@ import {
   Modal,
   Platform,
   Alert,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
@@ -32,6 +33,7 @@ const COLORS = {
 
 // ─── Notification config ───────────────────────────────────────────────────────
 const NOTIF_IDS_KEY = "angelus_notif_ids";
+const LANGUAGE_KEY  = "angelus_language";
 
 type AngelusTime = "morning" | "noon" | "evening";
 
@@ -40,6 +42,119 @@ const ANGELUS_CONFIG: Record<AngelusTime, { label: string; time: string; hour: n
   noon:    { label: "Noon Angelus",    time: "12:00 PM", hour: 12, minute: 0 },
   evening: { label: "Evening Angelus", time: "6:00 PM", hour: 18, minute: 0 },
 };
+
+// ─── Language list ─────────────────────────────────────────────────────────────
+const LANGUAGES = [
+  { code: "af",    name: "Afrikaans",            native: "Afrikaans" },
+  { code: "sq",    name: "Albanian",             native: "Shqip" },
+  { code: "am",    name: "Amharic",              native: "አማርኛ" },
+  { code: "ar",    name: "Arabic",               native: "العربية" },
+  { code: "hy",    name: "Armenian",             native: "Հայերեն" },
+  { code: "az",    name: "Azerbaijani",          native: "Azərbaycan" },
+  { code: "eu",    name: "Basque",               native: "Euskara" },
+  { code: "be",    name: "Belarusian",           native: "Беларуская" },
+  { code: "bn",    name: "Bengali",              native: "বাংলা" },
+  { code: "bs",    name: "Bosnian",              native: "Bosanski" },
+  { code: "bg",    name: "Bulgarian",            native: "Български" },
+  { code: "my",    name: "Burmese",              native: "မြန်မာဘာသာ" },
+  { code: "ca",    name: "Catalan",              native: "Català" },
+  { code: "ceb",   name: "Cebuano",              native: "Cebuano" },
+  { code: "ny",    name: "Chichewa",             native: "Chichewa" },
+  { code: "zh-CN", name: "Chinese (Simplified)", native: "中文 (简体)" },
+  { code: "zh-TW", name: "Chinese (Traditional)",native: "中文 (繁體)" },
+  { code: "co",    name: "Corsican",             native: "Corsu" },
+  { code: "hr",    name: "Croatian",             native: "Hrvatski" },
+  { code: "cs",    name: "Czech",                native: "Čeština" },
+  { code: "da",    name: "Danish",               native: "Dansk" },
+  { code: "nl",    name: "Dutch",                native: "Nederlands" },
+  { code: "en",    name: "English",              native: "English" },
+  { code: "eo",    name: "Esperanto",            native: "Esperanto" },
+  { code: "et",    name: "Estonian",             native: "Eesti" },
+  { code: "tl",    name: "Filipino",             native: "Filipino" },
+  { code: "fi",    name: "Finnish",              native: "Suomi" },
+  { code: "fr",    name: "French",               native: "Français" },
+  { code: "fy",    name: "Frisian",              native: "Frysk" },
+  { code: "gl",    name: "Galician",             native: "Galego" },
+  { code: "ka",    name: "Georgian",             native: "ქართული" },
+  { code: "de",    name: "German",               native: "Deutsch" },
+  { code: "el",    name: "Greek",                native: "Ελληνικά" },
+  { code: "gu",    name: "Gujarati",             native: "ગુજરાતી" },
+  { code: "ht",    name: "Haitian Creole",       native: "Kreyòl ayisyen" },
+  { code: "ha",    name: "Hausa",                native: "Hausa" },
+  { code: "haw",   name: "Hawaiian",             native: "ʻŌlelo Hawaiʻi" },
+  { code: "iw",    name: "Hebrew",               native: "עברית" },
+  { code: "hi",    name: "Hindi",                native: "हिन्दी" },
+  { code: "hmn",   name: "Hmong",                native: "Hmong" },
+  { code: "hu",    name: "Hungarian",            native: "Magyar" },
+  { code: "is",    name: "Icelandic",            native: "Íslenska" },
+  { code: "ig",    name: "Igbo",                 native: "Igbo" },
+  { code: "id",    name: "Indonesian",           native: "Bahasa Indonesia" },
+  { code: "ga",    name: "Irish",                native: "Gaeilge" },
+  { code: "it",    name: "Italian",              native: "Italiano" },
+  { code: "ja",    name: "Japanese",             native: "日本語" },
+  { code: "jw",    name: "Javanese",             native: "Basa Jawa" },
+  { code: "kn",    name: "Kannada",              native: "ಕನ್ನಡ" },
+  { code: "kk",    name: "Kazakh",               native: "Қазақ" },
+  { code: "km",    name: "Khmer",                native: "ខ្មែរ" },
+  { code: "rw",    name: "Kinyarwanda",          native: "Kinyarwanda" },
+  { code: "ko",    name: "Korean",               native: "한국어" },
+  { code: "ku",    name: "Kurdish (Kurmanji)",   native: "Kurdî" },
+  { code: "ky",    name: "Kyrgyz",               native: "Кыргызча" },
+  { code: "lo",    name: "Lao",                  native: "ລາວ" },
+  { code: "la",    name: "Latin",                native: "Latina" },
+  { code: "lv",    name: "Latvian",              native: "Latviešu" },
+  { code: "lt",    name: "Lithuanian",           native: "Lietuvių" },
+  { code: "lb",    name: "Luxembourgish",        native: "Lëtzebuergesch" },
+  { code: "mk",    name: "Macedonian",           native: "Македонски" },
+  { code: "mg",    name: "Malagasy",             native: "Malagasy" },
+  { code: "ms",    name: "Malay",                native: "Bahasa Melayu" },
+  { code: "ml",    name: "Malayalam",            native: "മലയാളം" },
+  { code: "mt",    name: "Maltese",              native: "Malti" },
+  { code: "mi",    name: "Maori",                native: "Māori" },
+  { code: "mr",    name: "Marathi",              native: "मराठी" },
+  { code: "mn",    name: "Mongolian",            native: "Монгол" },
+  { code: "ne",    name: "Nepali",               native: "नेपाली" },
+  { code: "no",    name: "Norwegian",            native: "Norsk" },
+  { code: "or",    name: "Odia (Oriya)",         native: "ଓଡ଼ିଆ" },
+  { code: "ps",    name: "Pashto",               native: "پښتو" },
+  { code: "fa",    name: "Persian",              native: "فارسی" },
+  { code: "pl",    name: "Polish",               native: "Polski" },
+  { code: "pt",    name: "Portuguese",           native: "Português" },
+  { code: "pa",    name: "Punjabi",              native: "ਪੰਜਾਬੀ" },
+  { code: "ro",    name: "Romanian",             native: "Română" },
+  { code: "ru",    name: "Russian",              native: "Русский" },
+  { code: "sm",    name: "Samoan",               native: "Samoan" },
+  { code: "gd",    name: "Scots Gaelic",         native: "Gàidhlig" },
+  { code: "sr",    name: "Serbian",              native: "Српски" },
+  { code: "st",    name: "Sesotho",              native: "Sesotho" },
+  { code: "sn",    name: "Shona",                native: "Shona" },
+  { code: "sd",    name: "Sindhi",               native: "سنڌي" },
+  { code: "si",    name: "Sinhala",              native: "සිංහල" },
+  { code: "sk",    name: "Slovak",               native: "Slovenčina" },
+  { code: "sl",    name: "Slovenian",            native: "Slovenščina" },
+  { code: "so",    name: "Somali",               native: "Soomaali" },
+  { code: "es",    name: "Spanish",              native: "Español" },
+  { code: "su",    name: "Sundanese",            native: "Basa Sunda" },
+  { code: "sw",    name: "Swahili",              native: "Kiswahili" },
+  { code: "sv",    name: "Swedish",              native: "Svenska" },
+  { code: "tg",    name: "Tajik",                native: "Тоҷикӣ" },
+  { code: "ta",    name: "Tamil",                native: "தமிழ்" },
+  { code: "tt",    name: "Tatar",                native: "Татарча" },
+  { code: "te",    name: "Telugu",               native: "తెలుగు" },
+  { code: "th",    name: "Thai",                 native: "ไทย" },
+  { code: "tr",    name: "Turkish",              native: "Türkçe" },
+  { code: "tk",    name: "Turkmen",              native: "Türkmen" },
+  { code: "uk",    name: "Ukrainian",            native: "Українська" },
+  { code: "ur",    name: "Urdu",                 native: "اردو" },
+  { code: "ug",    name: "Uyghur",               native: "ئۇيغۇرچە" },
+  { code: "uz",    name: "Uzbek",                native: "O'zbek" },
+  { code: "vi",    name: "Vietnamese",           native: "Tiếng Việt" },
+  { code: "cy",    name: "Welsh",                native: "Cymraeg" },
+  { code: "xh",    name: "Xhosa",                native: "isiXhosa" },
+  { code: "yi",    name: "Yiddish",              native: "יידיש" },
+  { code: "yo",    name: "Yoruba",               native: "Yorùbá" },
+  { code: "zu",    name: "Zulu",                 native: "isiZulu" },
+];
 
 // Configure how notifications appear when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -121,8 +236,10 @@ export default function SettingsScreen({ onLogout }: Props) {
     noon:    true,
     evening: true,
   });
-  const [notifIds, setNotifIds] = useState<StoredIds>({});
+  const [notifIds, setNotifIds]           = useState<StoredIds>({});
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showLangModal, setShowLangModal]     = useState(false);
+  const [selectedLang, setSelectedLang]       = useState("en");
   const [username, setUsername] = useState("");
   const [email, setEmail]       = useState("");
 
@@ -147,6 +264,12 @@ export default function SettingsScreen({ onLogout }: Props) {
         noon:    !!ids.noon,
         evening: !!ids.evening,
       });
+
+      // Restore selected language
+      try {
+        const savedLang = await AsyncStorage.getItem(LANGUAGE_KEY);
+        if (savedLang) setSelectedLang(savedLang);
+      } catch {}
     })();
   }, []);
 
@@ -231,7 +354,6 @@ export default function SettingsScreen({ onLogout }: Props) {
     const updatedIds = { ...notifIds };
 
     if (enabled) {
-      // Cancel any stale id first, then reschedule
       await cancelNotif(updatedIds[key] ?? null);
       const newId = await scheduleAngelus(key);
       updatedIds[key] = newId;
@@ -275,6 +397,17 @@ export default function SettingsScreen({ onLogout }: Props) {
     await saveStoredIds(empty);
   };
 
+  // ── Language selection ────────────────────────────────────────────────────
+  const handleSelectLanguage = async (code: string) => {
+    setSelectedLang(code);
+    setShowLangModal(false);
+    try {
+      await AsyncStorage.setItem(LANGUAGE_KEY, code);
+    } catch {}
+  };
+
+  const currentLang = LANGUAGES.find((l) => l.code === selectedLang) ?? LANGUAGES.find((l) => l.code === "en")!;
+
   // ── Logout ────────────────────────────────────────────────────────────────
   const handleLogout = async () => {
     try {
@@ -288,6 +421,7 @@ export default function SettingsScreen({ onLogout }: Props) {
 
   return (
     <>
+      {/* ── Logout Modal ── */}
       <Modal visible={showLogoutModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -308,6 +442,63 @@ export default function SettingsScreen({ onLogout }: Props) {
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowLogoutModal(false)}>
               <Text style={styles.modalCancelText}>Stay & Pray</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Language Picker Modal ── */}
+      <Modal visible={showLangModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, styles.langModalCard]}>
+            {/* Header */}
+            <View style={styles.langModalHeader}>
+              <View style={styles.modalIconCircle}>
+                <Ionicons name="language-outline" size={28} color={COLORS.gold} />
+              </View>
+              <Text style={styles.modalTitle}>Choose Language</Text>
+              <Text style={styles.langModalSubtitle}>
+                Select your preferred language for prayers and content.
+              </Text>
+            </View>
+
+            <View style={styles.modalDivider} />
+
+            {/* Language list */}
+            <FlatList
+              data={LANGUAGES}
+              keyExtractor={(item) => item.code}
+              style={styles.langList}
+              showsVerticalScrollIndicator={false}
+              initialNumToRender={20}
+              ItemSeparatorComponent={() => <View style={styles.langSeparator} />}
+              renderItem={({ item }) => {
+                const isSelected = item.code === selectedLang;
+                return (
+                  <TouchableOpacity
+                    style={[styles.langItem, isSelected && styles.langItemSelected]}
+                    onPress={() => handleSelectLanguage(item.code)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.langItemText}>
+                      <Text style={[styles.langItemName, isSelected && styles.langItemNameSelected]}>
+                        {item.name}
+                      </Text>
+                      <Text style={[styles.langItemNative, isSelected && styles.langItemNativeSelected]}>
+                        {item.native}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={22} color={COLORS.gold} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+
+            <View style={styles.modalDivider} />
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowLangModal(false)}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -394,6 +585,30 @@ export default function SettingsScreen({ onLogout }: Props) {
             </TouchableOpacity>
           </View>
 
+          {/* LANGUAGE */}
+          <View style={styles.card}>
+            <View style={styles.cardTitleRow}>
+              <Ionicons name="language-outline" size={20} color={COLORS.gold} />
+              <Text style={styles.cardTitle}>Language</Text>
+            </View>
+            <View style={styles.cardDivider} />
+            <TouchableOpacity style={styles.langRow} onPress={() => setShowLangModal(true)} activeOpacity={0.7}>
+              <View style={styles.langRowLeft}>
+                <View style={styles.langIconCircle}>
+                  <Ionicons name="globe-outline" size={18} color={COLORS.gold} />
+                </View>
+                <View style={styles.langRowText}>
+                  <Text style={styles.langRowLabel}>Choose Language</Text>
+                  <Text style={styles.langRowValue}>
+                    {currentLang.name}
+                    {currentLang.native !== currentLang.name ? `  ·  ${currentLang.native}` : ""}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
           {/* SESSION */}
           <View style={styles.card}>
             <View style={styles.cardTitleRow}>
@@ -438,7 +653,7 @@ function NotificationRow({
   );
 }
 
-// ─── Styles (same as original) ────────────────────────────────────────────────
+// ─── Styles (same as original + language additions) ───────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.cream },
   scroll: { paddingBottom: 20 },
@@ -494,6 +709,43 @@ const styles = StyleSheet.create({
   bulkBtnText: { color: "#fff", fontSize: 15, fontWeight: "600", fontFamily: "CormorantGaramond" },
   logoutRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
   logoutRowText: { fontSize: 17, color: "#C0392B", fontFamily: "CormorantGaramond", fontWeight: "600" },
+
+  // ── Language row (inside card) ──
+  langRow: {
+    flexDirection: "row", alignItems: "center",
+    justifyContent: "space-between", paddingVertical: 4,
+  },
+  langRowLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  langIconCircle: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: "#FFF3DC",
+    borderWidth: 1.5, borderColor: COLORS.gold,
+    justifyContent: "center", alignItems: "center",
+  },
+  langRowText: { flex: 1 },
+  langRowLabel: { fontSize: 17, color: COLORS.textPrimary, fontFamily: "CormorantGaramond", fontWeight: "600" },
+  langRowValue: { fontSize: 13, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginTop: 2 },
+
+  // ── Language picker modal ──
+  langModalCard: { maxHeight: "85%", paddingBottom: 20 },
+  langModalHeader: { alignItems: "center", width: "100%" },
+  langModalSubtitle: {
+    fontSize: 14, color: COLORS.textSecondary, fontFamily: "CormorantGaramond",
+    textAlign: "center", marginTop: 6, lineHeight: 20,
+  },
+  langList: { width: "100%", maxHeight: 380 },
+  langSeparator: { height: 1, backgroundColor: COLORS.border, marginHorizontal: 4 },
+  langItem: {
+    flexDirection: "row", alignItems: "center",
+    paddingVertical: 12, paddingHorizontal: 8, borderRadius: 12,
+  },
+  langItemSelected: { backgroundColor: "#FFF3DC" },
+  langItemText: { flex: 1 },
+  langItemName: { fontSize: 16, color: COLORS.textPrimary, fontFamily: "CormorantGaramond", fontWeight: "600" },
+  langItemNameSelected: { color: COLORS.navy },
+  langItemNative: { fontSize: 13, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginTop: 1 },
+  langItemNativeSelected: { color: COLORS.gold },
+
+  // ── Shared modals ──
   modalOverlay: {
     flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center", alignItems: "center", padding: 28,
