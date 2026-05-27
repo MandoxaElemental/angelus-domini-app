@@ -58,9 +58,9 @@ const prayerImages: Record<string, any> = {
 };
 
 const progressImages: Record<string, any> = {
-  Morning: require("../../assets/Morning3.png"),
-  Noon: require("../../assets/Noon2.png"),
-  Evening: require("../../assets/Evening1.png"),
+  Morning: require("../../assets/Morning_Clear.svg"),
+  Noon: require("../../assets/Noon_Clear.svg"),
+  Evening: require("../../assets/Evening_Clear.svg"),
 };
 const completeImages: Record<string, any> = {
   Morning: require("../../assets/1.png"),
@@ -555,7 +555,7 @@ export default function MainApp({ onLogout }: Props) {
   const [fontsLoaded] = useFonts({
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
     EBGaramond: require("../../assets/fonts/EBGaramond.ttf"),
-    Garamond: require("../../assets/fonts/Garamond.ttf"),
+    Cormorant: require("../../assets/fonts/Cormorant.ttf"),
     Inter: require("../../assets/fonts/Inter.ttf"),
     CormorantGaramondItalic: require("../../assets/fonts/CormorantGaramond-Italic.ttf"),
   });
@@ -752,7 +752,11 @@ export default function MainApp({ onLogout }: Props) {
               <Text style={styles.globalText}>
                 United in prayer around the world.
               </Text>
-              <View style={styles.globalDivider} />
+              <Image
+                source={require("../../assets/Divider.svg")}
+                style={styles.globalDivider}
+                resizeMode="contain"
+              />{" "}
               <View style={styles.nowPrayingRow}>
                 <Text style={styles.nowPrayingLabel}>Now praying:</Text>
 
@@ -988,13 +992,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 24,
-    marginTop: 26,
+    marginTop: 10,
   },
   greetingTitle: {
-    fontSize: 30,
+    fontSize: 28,
     color: COLORS.textPrimary,
     fontWeight: "600",
-    fontFamily: "CormorantGaramond",
+    lineHeight: 20,
+    fontFamily: "Cormorant",
   },
   greetingSubtitle: {
     marginTop: 2,
@@ -1004,7 +1009,7 @@ const styles = StyleSheet.create({
   },
   mainCard: {
     marginHorizontal: 24,
-    marginTop: 18,
+    marginTop: 10,
     backgroundColor: COLORS.card,
     borderRadius: 28,
     borderWidth: 1,
@@ -1031,30 +1036,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 4,
     fontFamily: "Inter",
+    fontWeight: 500,
   },
   cardTitle: {
-    fontSize: 34,
+    fontSize: 40,
     color: COLORS.navy,
-    fontWeight: "300",
+    fontWeight: "400",
     fontFamily: "EBGaramond",
   },
   cardDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: 12,
+    width: "100%",
+    height: 14,
+    marginVertical: 14,
   },
   timeRow: { flexDirection: "row", alignItems: "center" },
   timeText: {
     marginLeft: 6,
-    fontSize: 22,
+    fontSize: 18,
+    fontWeight: 500,
     color: COLORS.navy,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "EBGaramond",
   },
   cardTime: {
     marginTop: 6,
     color: "#6F440A",
     fontSize: 20,
-    fontFamily: "Garamond",
+    lineHeight: 20,
+    fontWeight: "700",
+    fontFamily: "Cormorant",
   },
   dividerHalf: {
     flex: 1,
@@ -1064,15 +1073,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginHorizontal: 24,
-    marginTop: 28,
+    marginTop: 10,
     marginBottom: 18,
   },
   sectionHeaderText: {
     color: COLORS.navy,
-    fontSize: 13,
-    letterSpacing: 1.5,
+    fontSize: 15,
     marginHorizontal: 12,
-    fontFamily: "CormorantGaramond",
+    lineHeight: 20,
+    fontFamily: "Cormorant",
+    fontWeight: "600",
   },
   line: { flex: 1, height: 1, backgroundColor: COLORS.border },
   progressRow: {
@@ -1136,14 +1146,14 @@ const styles = StyleSheet.create({
   progressTitle: {
     fontSize: 17,
     color: COLORS.textPrimary,
-    fontWeight: "500",
-    fontFamily: "CormorantGaramond",
+    fontWeight: "600",
+    fontFamily: "Cormorant",
   },
   progressTitleUnder: {
     fontSize: 14,
     color: COLORS.textPrimary,
-    fontWeight: "400",
-    fontFamily: "CormorantGaramond",
+    fontWeight: "500",
+    fontFamily: "Cormorant",
   },
 
   progressAngelus: {
@@ -1157,7 +1167,7 @@ const styles = StyleSheet.create({
     minWidth: "100%",
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 6,
+    marginTop: 5,
     paddingVertical: 3,
     paddingHorizontal: 10,
     borderRadius: 999,
@@ -1178,13 +1188,13 @@ const styles = StyleSheet.create({
   progressSubtitle: {
     fontSize: 12,
     color: COLORS.textSecondary,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "Cormorant",
   },
   progressImage: { width: 75, height: 75 },
   progressImageU: { width: 60, height: 75 },
   globalCard: {
     marginHorizontal: 24,
-    marginTop: 18,
+    marginTop: 10,
     backgroundColor: COLORS.card,
     borderRadius: 28,
     borderWidth: 1,
@@ -1212,7 +1222,7 @@ const styles = StyleSheet.create({
     color: COLORS.navy,
     fontSize: 12,
     letterSpacing: 1.5,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "Inter",
     marginBottom: 2,
   },
   globalCountRow: {
@@ -1239,9 +1249,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   globalDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: 10,
+    width: "100%",
+    height: 12,
+    marginVertical: 12,
   },
   nowPrayingRow: {
     flexDirection: "row",
