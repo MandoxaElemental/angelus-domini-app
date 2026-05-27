@@ -10,7 +10,10 @@ import {
   Animated,
   Easing,
   Modal,
+  StatusBar,
+  Platform,
 } from "react-native";
+
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
@@ -50,10 +53,89 @@ const prayerImages: Record<string, any> = {
 };
 
 const progressImages: Record<string, any> = {
-  Morning: require("../../assets/Morning_Clear.svg"),
-  Noon: require("../../assets/Noon_Clear.svg"),
-  Evening: require("../../assets/Evening_Clear.svg"),
+  Morning: require("../../assets/Morning3.png"),
+  Noon: require("../../assets/Noon2.png"),
+  Evening: require("../../assets/Evening1.png"),
 };
+
+// ─── Daily Scripture Verses ───────────────────────────────────────────────────
+// Rotates by day-of-year so every day shows a different verse
+const DAILY_VERSES = [
+  { quote: "Be it done unto me according to your word.", ref: "Luke 1:38" },
+  { quote: "The Lord is my shepherd; I shall not want.", ref: "Psalm 23:1" },
+  { quote: "I can do all things through Christ who strengthens me.", ref: "Phil 4:13" },
+  { quote: "Trust in the Lord with all your heart.", ref: "Prov 3:5" },
+  { quote: "For God so loved the world that He gave His only Son.", ref: "John 3:16" },
+  { quote: "Be still, and know that I am God.", ref: "Psalm 46:10" },
+  { quote: "Love one another as I have loved you.", ref: "John 15:12" },
+  { quote: "The Lord is near to the brokenhearted.", ref: "Psalm 34:18" },
+  { quote: "Ask and it will be given to you; seek and you will find.", ref: "Matt 7:7" },
+  { quote: "I am the way, the truth, and the life.", ref: "John 14:6" },
+  { quote: "Come to me, all who are weary, and I will give you rest.", ref: "Matt 11:28" },
+  { quote: "Your word is a lamp to my feet and a light to my path.", ref: "Psalm 119:105" },
+  { quote: "Do not be anxious about anything, but in everything pray.", ref: "Phil 4:6" },
+  { quote: "The Lord bless you and keep you.", ref: "Num 6:24" },
+  { quote: "With God all things are possible.", ref: "Matt 19:26" },
+  { quote: "Fear not, for I am with you.", ref: "Isaiah 41:10" },
+  { quote: "Blessed are the pure in heart, for they shall see God.", ref: "Matt 5:8" },
+  { quote: "He who began a good work in you will complete it.", ref: "Phil 1:6" },
+  { quote: "Cast all your anxieties on Him, for He cares for you.", ref: "1 Pet 5:7" },
+  { quote: "The peace of God surpasses all understanding.", ref: "Phil 4:7" },
+  { quote: "Rejoice always, pray without ceasing.", ref: "1 Thess 5:16–17" },
+  { quote: "Create in me a clean heart, O God.", ref: "Psalm 51:10" },
+  { quote: "Blessed is she who believed the Lord's promise would be fulfilled.", ref: "Luke 1:45" },
+  { quote: "This is the day the Lord has made; let us rejoice.", ref: "Psalm 118:24" },
+  { quote: "Nothing is impossible with God.", ref: "Luke 1:37" },
+  { quote: "Seek first the kingdom of God and His righteousness.", ref: "Matt 6:33" },
+  { quote: "My grace is sufficient for you.", ref: "2 Cor 12:9" },
+  { quote: "The Lord is my light and my salvation.", ref: "Psalm 27:1" },
+  { quote: "He who abides in love abides in God.", ref: "1 John 4:16" },
+  { quote: "I am with you always, to the end of the age.", ref: "Matt 28:20" },
+  { quote: "Pray for one another, that you may be healed.", ref: "James 5:16" },
+  { quote: "Give thanks to the Lord, for He is good.", ref: "Psalm 107:1" },
+  { quote: "God is love.", ref: "1 John 4:8" },
+  { quote: "The Word became flesh and dwelt among us.", ref: "John 1:14" },
+  { quote: "Blessed are the merciful, for they shall receive mercy.", ref: "Matt 5:7" },
+  { quote: "Hail, full of grace, the Lord is with you.", ref: "Luke 1:28" },
+  { quote: "Hope does not put us to shame.", ref: "Rom 5:5" },
+  { quote: "Whatever you do, do it for the glory of God.", ref: "1 Cor 10:31" },
+  { quote: "Draw near to God and He will draw near to you.", ref: "James 4:8" },
+  { quote: "Light shines in the darkness, and the darkness did not overcome it.", ref: "John 1:5" },
+  { quote: "Lord, teach us to pray.", ref: "Luke 11:1" },
+  { quote: "My soul magnifies the Lord.", ref: "Luke 1:46" },
+  { quote: "The fruit of the Spirit is love, joy, peace.", ref: "Gal 5:22" },
+  { quote: "Blessed are those who hunger for righteousness.", ref: "Matt 5:6" },
+  { quote: "You are the light of the world.", ref: "Matt 5:14" },
+  { quote: "Lord, to whom shall we go? You have the words of eternal life.", ref: "John 6:68" },
+  { quote: "I have come that they may have life, and have it abundantly.", ref: "John 10:10" },
+  { quote: "We love because He first loved us.", ref: "1 John 4:19" },
+  { quote: "Do not let your hearts be troubled; trust in God.", ref: "John 14:1" },
+  { quote: "Blessed are the peacemakers, for they shall be called children of God.", ref: "Matt 5:9" },
+  { quote: "His mercy endures forever.", ref: "Psalm 136:1" },
+  { quote: "In the beginning was the Word.", ref: "John 1:1" },
+  { quote: "You shall love the Lord your God with all your heart.", ref: "Matt 22:37" },
+  { quote: "Thy will be done on earth as it is in heaven.", ref: "Matt 6:10" },
+  { quote: "He is risen!", ref: "Luke 24:6" },
+  { quote: "For where two or three gather in my name, I am there.", ref: "Matt 18:20" },
+  { quote: "Blessed are those who have not seen and yet believed.", ref: "John 20:29" },
+  { quote: "The Lord upholds all who fall.", ref: "Psalm 145:14" },
+  { quote: "Return to me, and I will return to you.", ref: "Mal 3:7" },
+  { quote: "Be merciful, just as your Father is merciful.", ref: "Luke 6:36" },
+  { quote: "I am the resurrection and the life.", ref: "John 11:25" },
+  { quote: "All shall be well, and all manner of things shall be well.", ref: "Julian of Norwich" },
+  { quote: "Have I not commanded you? Be strong and courageous.", ref: "Josh 1:9" },
+  { quote: "Hallowed be your name.", ref: "Matt 6:9" },
+  { quote: "She kept all these things, pondering them in her heart.", ref: "Luke 2:19" },
+  { quote: "Whoever humbles himself will be exalted.", ref: "Matt 23:12" },
+];
+
+function getDailyVerse() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+  return DAILY_VERSES[dayOfYear % DAILY_VERSES.length];
+}
 
 export default function MainApp({ onLogout }: Props) {
   const ringScale = useRef(new Animated.Value(1)).current;
@@ -75,6 +157,8 @@ export default function MainApp({ onLogout }: Props) {
 
   const lastTriggeredPrayer = useRef<string | null>(null);
   const navigation = useNavigation<any>();
+
+  const dailyVerse = useMemo(() => getDailyVerse(), []);
 
   const currentHour = new Date().getHours();
   const greeting =
@@ -116,7 +200,6 @@ export default function MainApp({ onLogout }: Props) {
         console.log("✅ userId:", uid);
         setUserId(uid);
 
-        // ── Fetch username: try auth metadata first, then public.users ──
         const metaUsername =
           authSession.user.user_metadata?.username ||
           authSession.user.user_metadata?.name;
@@ -306,6 +389,8 @@ export default function MainApp({ onLogout }: Props) {
 
   return (
     <>
+      <StatusBar hidden={true} />
+
       {/* Prayer-time modal */}
       <Modal visible={showPrayerPopup} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -387,8 +472,8 @@ export default function MainApp({ onLogout }: Props) {
           <View style={styles.greetingRow}>
             <View style={styles.sunIcon}>
               <Image
-                source={progressImages[greeting]}
-                style={styles.progressImage}
+               source={require("../../assets/usericons1.png")}
+                style={styles.progressImageU}
                 resizeMode="contain"
               />
             </View>
@@ -478,7 +563,7 @@ export default function MainApp({ onLogout }: Props) {
             </View>
           </View>
 
-          {/* SCRIPTURE QUOTE CARD */}
+          {/* SCRIPTURE QUOTE CARD — daily rotating verse */}
           <View style={styles.scriptureCard}>
             <Image
               source={require("../../assets/bgquote.png")}
@@ -487,9 +572,9 @@ export default function MainApp({ onLogout }: Props) {
             />
             <View style={styles.scriptureContent}>
               <Text style={styles.scriptureQuote}>
-                {`"Behold, I am the handmaid of the Lord. May it be done to me according to your word."`}
+                {`"${dailyVerse.quote}"`}
               </Text>
-              <Text style={styles.scriptureRef}>— Luke 1:38</Text>
+              <Text style={styles.scriptureRef}>— {dailyVerse.ref}</Text>
             </View>
           </View>
 
@@ -607,17 +692,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginTop: 26,
   },
-  sunIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#FFF7E5",
-    borderWidth: 3,
-    borderColor: "#F1D28B",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-  },
+
   greetingTitle: {
     fontSize: 30,
     color: COLORS.textPrimary,
@@ -747,6 +822,7 @@ const styles = StyleSheet.create({
     fontFamily: "CormorantGaramond",
   },
   progressImage: { width: 75, height: 75 },
+  progressImageU: { width: 60, height: 75 },
 
   // ── GLOBAL CARD ────────────────────────────────────────────────────────────
   globalCard: {
