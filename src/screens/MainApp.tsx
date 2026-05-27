@@ -1047,7 +1047,7 @@ const styles = StyleSheet.create({
   cardDivider: {
     width: "100%",
     height: 14,
-    marginVertical: 14,
+    marginVertical: 5,
   },
   timeRow: { flexDirection: "row", alignItems: "center" },
   timeText: {
@@ -1107,7 +1107,10 @@ const styles = StyleSheet.create({
   },
   progressCardCompleted: { borderColor: "#B8CFB5", backgroundColor: "#F6FBF5" },
   progressCardActive: { borderColor: COLORS.gold, backgroundColor: "#FFF9EC" },
-  progressCardMissed: { borderColor: "#D8A3A0", backgroundColor: "#FFF3F2" },
+  progressCardMissed: {
+    borderColor: COLORS.border,
+    backgroundColor: "#FFF3F2",
+  },
   statusDot: {
     position: "absolute",
     top: 6,
@@ -1234,24 +1237,24 @@ const styles = StyleSheet.create({
     fontSize: 38,
     color: COLORS.navy,
     fontWeight: "700",
-    fontFamily: "CormorantGaramond",
+    fontFamily: "EBCormorant",
   },
   globalPrayedToday: {
     fontSize: 14,
     color: COLORS.textSecondary,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "Cormorant",
     marginLeft: 4,
   },
   globalText: {
     color: COLORS.textSecondary,
     fontSize: 13,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "Cormorant",
     marginTop: 2,
   },
   globalDivider: {
     width: "100%",
-    height: 12,
-    marginVertical: 12,
+    height: 20,
+    marginVertical: 5,
   },
   nowPrayingRow: {
     flexDirection: "row",
@@ -1261,7 +1264,7 @@ const styles = StyleSheet.create({
   nowPrayingLabel: {
     fontSize: 12,
     color: COLORS.textSecondary,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "Cormorant",
     marginRight: 4,
   },
   nowPrayingItem: { flexDirection: "row", alignItems: "center" },
