@@ -630,7 +630,7 @@ export default function MainApp({ onLogout }: Props) {
             <View style={styles.sunIcon}>
               <Image
                 source={require("../../assets/usericons1.png")}
-                style={styles.progressImageU}
+                style={styles.progressImage}
                 resizeMode="contain"
               />
             </View>
@@ -640,9 +640,9 @@ export default function MainApp({ onLogout }: Props) {
                 Good {greeting}
                 {username ? `, ${username}` : ""}
               </Text>
-              <Text style={styles.greetingSubtitle}>
+              {/* <Text style={styles.greetingSubtitle}>
                 Pause with the Church for the Angelus.
-              </Text>
+              </Text> */}
             </View>
           </View>
 
