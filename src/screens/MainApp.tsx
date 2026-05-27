@@ -735,10 +735,10 @@ export default function MainApp({ onLogout }: Props) {
           </TouchableOpacity> */}
 
           {/* LOGOUT */}
-
+          {/* 
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
             <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <View style={{ height: 40 }} />
         </ScrollView>
