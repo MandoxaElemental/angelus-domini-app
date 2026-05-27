@@ -17,6 +17,8 @@ import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { createAudioPlayer } from "expo-audio";
 import { Ionicons } from "@expo/vector-icons";
+import { useFonts } from "expo-font";
+import AppLoading from "expo-app-loading";
 
 import { logout } from "../store/auth";
 
@@ -59,6 +61,11 @@ const progressImages: Record<string, any> = {
   Morning: require("../../assets/Morning3.png"),
   Noon: require("../../assets/Noon2.png"),
   Evening: require("../../assets/Evening1.png"),
+};
+const completeImages: Record<string, any> = {
+  Morning: require("../../assets/1.png"),
+  Noon: require("../../assets/2.png"),
+  Evening: require("../../assets/3.png"),
 };
 
 function format12Hour(date: Date): string {
@@ -545,6 +552,17 @@ export default function MainApp({ onLogout }: Props) {
 
   const eveningStatus = getPrayerStatus("evening", completedPrayers.evening);
 
+  const [fontsLoaded] = useFonts({
+    CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
+    EBGaramond: require("../../assets/fonts/EBGaramond.ttf"),
+    Garamond: require("../../assets/fonts/Garamond.ttf"),
+    Inter: require("../../assets/fonts/Inter.ttf"),
+    CormorantGaramondItalic: require("../../assets/fonts/CormorantGaramond-Italic.ttf"),
+  });
+
+  if (!fontsLoaded) {
+    return null;
+  }
   return (
     <>
       <StatusBar hidden={true} />
@@ -803,25 +821,139 @@ function ProgressCard({
 }: {
   title: string;
   status: PrayerStatus;
-  onPress: () => void | Promise<void>;
+  onPress?: () => void;
 }) {
   const isCompleted = status === "completed";
   const isActive = status === "active";
   const isMissed = status === "missed";
-  const isUpcoming = !isCompleted && !isActive && !isMissed;
+
+  const statusConfig = isCompleted
+    ? {
+        text: "Completed",
+        icon: "checkmark-circle",
+        iconColor: "#5E9B63",
+        bg: "#EEF8EE",
+        border: "#B7D9BB",
+        textColor: "#4D7C52",
+      }
+    : isActive
+      ? {
+          text: "Pray Now",
+          icon: "ellipse",
+          iconColor: COLORS.gold,
+          bg: "#FFF7E7",
+          border: "#E7C979",
+          textColor: "#8A6412",
+        }
+      : isMissed
+        ? {
+            text: "Missed",
+            icon: "close-circle",
+            iconColor: "#C86B6B",
+            bg: "#FFF1F1",
+            border: "#E4B4B4",
+            textColor: "#A44E4E",
+          }
+        : {
+            text: "Upcoming",
+            icon: "time",
+            iconColor: COLORS.navy,
+            bg: "#F3F5FA",
+            border: "#D4DBEA",
+            textColor: COLORS.navy,
+          };
+
+  // Pulse animation
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isActive) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, {
+            toValue: 1.05,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulse, {
+            toValue: 1,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+        ]),
+      ).start();
+    }
+  }, [isActive]);
 
   return (
     <TouchableOpacity
       activeOpacity={0.9}
+      disabled={!isActive}
       onPress={onPress}
-      style={[
-        styles.progressCard,
-        isCompleted && styles.progressCardCompleted,
-        isActive && styles.progressCardActive,
-        isMissed && styles.progressCardMissed,
-      ]}
+      style={{ flex: 1, marginHorizontal: 4 }}
     >
-      {/* existing content */}
+      <Animated.View
+        style={[
+          styles.progressCard,
+          isActive && styles.progressCardActive,
+          isMissed && styles.progressCardMissed,
+          isActive && {
+            transform: [{ scale: pulse }],
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.progressIcon,
+            isCompleted && {
+              backgroundColor: "#DCE8D9",
+            },
+            isActive && {
+              backgroundColor: "#F7E6B8",
+            },
+            isMissed && {
+              backgroundColor: "#F5D6D6",
+            },
+          ]}
+        >
+          <Image
+            source={isCompleted ? completeImages[title] : progressImages[title]}
+            style={styles.progressImage}
+            resizeMode="contain"
+          />
+        </View>
+
+        <Text style={styles.progressTitle}>{title}</Text>
+        <Text style={styles.progressTitleUnder}>Angelus</Text>
+
+        <View
+          style={[
+            styles.progressBox,
+            {
+              backgroundColor: statusConfig.bg,
+              borderColor: statusConfig.border,
+            },
+          ]}
+        >
+          <Ionicons
+            name={statusConfig.icon as any}
+            size={18}
+            color={statusConfig.iconColor}
+            style={{ marginRight: 5 }}
+          />
+
+          <Text
+            style={[
+              styles.progressSubtitle,
+              {
+                color: statusConfig.textColor,
+              },
+            ]}
+          >
+            {statusConfig.text}
+          </Text>
+        </View>
+      </Animated.View>
     </TouchableOpacity>
   );
 }
@@ -875,7 +1007,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     backgroundColor: COLORS.card,
     borderRadius: 28,
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: COLORS.border,
     padding: 10,
     flexDirection: "row",
@@ -898,13 +1030,13 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     fontSize: 12,
     marginBottom: 4,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "Inter",
   },
   cardTitle: {
     fontSize: 34,
     color: COLORS.navy,
     fontWeight: "300",
-    fontFamily: "CormorantGaramond",
+    fontFamily: "EBGaramond",
   },
   cardDivider: {
     height: 1,
@@ -922,7 +1054,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     color: "#6F440A",
     fontSize: 20,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "Garamond",
   },
   dividerHalf: {
     flex: 1,
@@ -949,14 +1081,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   progressCard: {
-    width: "31%",
     backgroundColor: COLORS.card,
     borderRadius: 22,
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: COLORS.border,
     alignItems: "center",
     paddingVertical: 18,
-    paddingHorizontal: 6,
+    paddingHorizontal: 10,
     position: "relative",
     shadowColor: "#3B2E22",
     shadowOpacity: 0.08,
@@ -976,7 +1107,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.card,
   },
@@ -1008,6 +1139,13 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     fontFamily: "CormorantGaramond",
   },
+  progressTitleUnder: {
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    fontWeight: "400",
+    fontFamily: "CormorantGaramond",
+  },
+
   progressAngelus: {
     fontSize: 13,
     color: COLORS.textSecondary,
@@ -1016,12 +1154,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   progressBox: {
+    minWidth: "100%",
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 6,
     paddingVertical: 3,
     paddingHorizontal: 10,
     borderRadius: 999,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: "transparent",
   },
@@ -1047,7 +1187,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     backgroundColor: COLORS.card,
     borderRadius: 28,
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: COLORS.border,
     padding: 14,
     flexDirection: "row",
@@ -1133,7 +1273,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     backgroundColor: COLORS.card,
     borderRadius: 22,
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: COLORS.border,
     flexDirection: "row",
     overflow: "hidden",
@@ -1197,7 +1337,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     padding: 28,
     alignItems: "center",
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: COLORS.border,
   },
   modalTitle: {

@@ -21,6 +21,7 @@
     "@tanstack/react-query": "^5.100.11",
     "axios": "^1.15.0",
     "expo": "^54.0.34",
+    "expo-app-loading": "^2.1.1",
     "expo-audio": "~1.1.1",
     "expo-av": "~16.0.8",
     "expo-blur": "~15.0.8",
