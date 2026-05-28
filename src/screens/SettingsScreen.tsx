@@ -671,8 +671,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 24, marginTop: 28, marginBottom: 18,
   },
   sectionHeaderText: {
-    color: COLORS.navy, fontSize: 13, letterSpacing: 1.5,
-    marginHorizontal: 12, fontFamily: "CormorantGaramond",
+    color: COLORS.navy, fontSize: 30, letterSpacing: 1.5,
+    marginHorizontal: 12, fontFamily: "EBGaramond-Medium",
   },
   line: { flex: 1, height: 1, backgroundColor: COLORS.border },
   card: {
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 }, elevation: 4,
   },
   cardTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
-  cardTitle: { fontSize: 18, color: COLORS.navy, fontFamily: "CormorantGaramond", fontWeight: "600" },
+  cardTitle: { fontSize: 18, color: COLORS.navy, fontFamily: "EBGaramond-Medium", fontWeight: "600" },
   cardDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 12 },
   rowDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 2 },
   profileRow: { flexDirection: "row", alignItems: "center", gap: 14 },

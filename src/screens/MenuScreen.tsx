@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   bellImage: { width: 85, height: 85, position: "absolute", zIndex: 2 },
   bellEffect: { width: 85, height: 85, position: "absolute", zIndex: 1 },
   heroSection: { alignItems: "center", paddingHorizontal: 24, marginTop: 28, marginBottom: 8 },
-  heroTitle: { fontSize: 32, color: COLORS.navy, fontFamily: "CormorantGaramond", fontWeight: "600", textAlign: "center" },
+  heroTitle: { fontSize: 32, color: COLORS.navy, fontFamily: "EBGaramond-Medium", fontWeight: "600", textAlign: "center" },
   heroSubtitle: { fontSize: 15, color: COLORS.navy, fontFamily: "CormorantGaramond", textAlign: "center", marginTop: 4 },
   sectionCard: {
     marginHorizontal: 20, marginTop: 18, backgroundColor: COLORS.card,
@@ -483,14 +483,14 @@ const styles = StyleSheet.create({
     paddingVertical: 18, paddingHorizontal: 20,
     shadowColor: "#3B2E22", shadowOpacity: 0.07, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4,
   },
-  sectionCardTitle: { fontSize: 22, color: COLORS.gold, fontFamily: "CormorantGaramond", fontWeight: "600", textAlign: "center", marginBottom: 8 },
+  sectionCardTitle: { fontSize: 22, color: COLORS.gold, fontFamily: "EBGaramond-Medium", fontWeight: "600", textAlign: "center", marginBottom: 8 },
   sectionDividerRow: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
   sectionDividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
   angelusRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
   angelusIconWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#F0EAD8", justifyContent: "center", alignItems: "center", marginRight: 14 },
   angelusIcon: { width: 59, height: 59 },
   angelusTextWrap: { flex: 1 },
-  angelusTitle: { fontSize: 18, color: COLORS.textPrimary, fontFamily: "CormorantGaramond", fontWeight: "600" },
+  angelusTitle: { fontSize: 18, color: COLORS.textPrimary, fontFamily: "EBGaramond-Medium", fontWeight: "600" },
   angelusSubtitle: { fontSize: 13, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginTop: 2 },
   rowDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 2 },
 
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
 
   weekRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
   weekIcon: { width: 40, height: 40, marginRight: 10 },
-  weekLabel: { width: 64, fontSize: 16, color: COLORS.textPrimary, fontFamily: "CormorantGaramond" },
+  weekLabel: { width: 64, fontSize: 16, color: COLORS.textPrimary, fontFamily: "EBGaramond-Medium" },
   dotsRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 5 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   dotFilled: { backgroundColor: COLORS.gold },
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
   statsHalf: { flex: 1, alignItems: "center" },
   statsDividerV: { width: 1, backgroundColor: COLORS.border },
   statsValue: { fontSize: 28, color: COLORS.navy, fontFamily: "CormorantGaramond", fontWeight: "700" },
-  statsCaption: { fontSize: 13, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginTop: 4 },
+  statsCaption: { fontSize: 13, color: COLORS.textSecondary, fontFamily: "EBGaramond-Medium", marginTop: 4 },
   logoutBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#D4A017" },
   logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A" },
 });

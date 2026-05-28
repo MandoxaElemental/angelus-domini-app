@@ -106,7 +106,6 @@ function getDailyVerse() {
   return DAILY_VERSES[dayOfYear % DAILY_VERSES.length];
 }
 
-// Maps Slot string → prayer key
 const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
   if (!slot) return null;
   if (slot.includes("_6") && !slot.includes("_18")) return "morning";
@@ -146,12 +145,10 @@ export default function MainApp({ onLogout }: Props) {
     return { title: next.title, icon: next.icon, time: next.time };
   }, []);
 
-  // ── Fetch today's completed prayers from DB ───────────────────────────────
   const fetchTodayPrayers = useCallback(async (uid: string) => {
     try {
       const now = new Date();
       const todayStr = now.toISOString().slice(0, 10);
-
       const { data: todaySessions } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
@@ -173,7 +170,6 @@ export default function MainApp({ onLogout }: Props) {
     }
   }, []);
 
-  // ── On mount ──────────────────────────────────────────────────────────────
   useEffect(() => {
     let channel: any = null;
 
@@ -218,10 +214,8 @@ export default function MainApp({ onLogout }: Props) {
         const globalCount = await getGlobalCount(sess.slot);
         setCount(globalCount);
 
-        // Initial fetch of today's prayers
         await fetchTodayPrayers(uid);
 
-        // ── Real-time subscription ──────────────────────────────────────────
         channel = supabase
           .channel(`main-prayer-sessions-${uid}`)
           .on(
@@ -251,7 +245,6 @@ export default function MainApp({ onLogout }: Props) {
     };
   }, [fetchTodayPrayers]);
 
-  // ── Bell pulse loop ───────────────────────────────────────────────────────
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
@@ -269,7 +262,6 @@ export default function MainApp({ onLogout }: Props) {
     return () => { pulse.stop(); };
   }, []);
 
-  // ── Bell swing loop ───────────────────────────────────────────────────────
   useEffect(() => {
     const swing = () => {
       Animated.sequence([
@@ -284,7 +276,6 @@ export default function MainApp({ onLogout }: Props) {
     return () => clearTimeout(timer);
   }, []);
 
-  // ── Countdown timer ───────────────────────────────────────────────────────
   useEffect(() => {
     const updateCountdown = () => {
       const nextPrayer = getNextPrayer();
@@ -302,7 +293,6 @@ export default function MainApp({ onLogout }: Props) {
     return () => clearInterval(interval);
   }, []);
 
-  // ── Prayer-time auto trigger ──────────────────────────────────────────────
   useEffect(() => {
     const checkPrayerTime = () => {
       const nextPrayer = getNextPrayer();
@@ -326,7 +316,6 @@ export default function MainApp({ onLogout }: Props) {
                 await completePrayer(userId, session.sessionId);
                 const newCount = await getGlobalCount(session.slot);
                 setCount(newCount);
-                // Real-time will update completedPrayers automatically
               } catch (err) {
                 console.error("❌ auto-trigger complete error:", err);
               }
@@ -339,7 +328,6 @@ export default function MainApp({ onLogout }: Props) {
     return () => clearInterval(interval);
   }, [session, userId]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
   const playTripleBell = async () => {
     for (let i = 0; i < 3; i++) {
       const { sound } = await Audio.Sound.createAsync(
@@ -353,14 +341,12 @@ export default function MainApp({ onLogout }: Props) {
 
   const handleComplete = async () => {
     if (!session || !userId) return;
-
     navigation.navigate("Prayer", {
       onComplete: async () => {
         try {
           await completePrayer(userId, session.sessionId);
           const newCount = await getGlobalCount(session.slot);
           setCount(newCount);
-          // Real-time listener will update completedPrayers
         } catch (err) {
           console.error("❌ onComplete error:", err);
         }
@@ -386,7 +372,6 @@ export default function MainApp({ onLogout }: Props) {
     <>
       <StatusBar hidden={true} />
 
-      {/* Prayer-time modal */}
       <Modal visible={showPrayerPopup} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -419,6 +404,7 @@ export default function MainApp({ onLogout }: Props) {
 
       <SafeAreaView style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false}>
+
           {/* HEADER */}
           <View style={styles.header}>
             <Image source={require("../../assets/Logo.png")} style={styles.logo} />
@@ -613,8 +599,21 @@ const styles = StyleSheet.create({
   bellImage: { width: 85, height: 85, position: "absolute", zIndex: 2 },
   bellEffect: { width: 85, height: 85, position: "absolute", zIndex: 1 },
   greetingRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 24, marginTop: 26 },
-  greetingTitle: { fontSize: 30, color: COLORS.textPrimary, fontWeight: "600", fontFamily: "CormorantGaramond" },
-  greetingSubtitle: { marginTop: 2, fontSize: 15, color: COLORS.navy, fontFamily: "CormorantGaramond" },
+
+  // Cormorant, 600 SemiBold
+  greetingTitle: {
+    fontSize: 30,
+    color: COLORS.textPrimary,
+    fontFamily: "Cormorant-SemiBold",
+    fontWeight: "600",
+  },
+  greetingSubtitle: {
+    marginTop: 2,
+    fontSize: 15,
+    color: COLORS.navy,
+    fontFamily: "Cormorant-Regular",
+  },
+
   mainCard: {
     marginHorizontal: 24, marginTop: 18, backgroundColor: COLORS.card,
     borderRadius: 28, borderWidth: 3, borderColor: COLORS.border, padding: 10,
@@ -623,28 +622,73 @@ const styles = StyleSheet.create({
   },
   cardImage: { width: 140, height: 180, justifyContent: "center", alignItems: "center", marginRight: 10 },
   cardContent: { flex: 1, justifyContent: "center" },
-  cardLabel: { color: COLORS.gold, letterSpacing: 2, fontSize: 12, marginBottom: 4, fontFamily: "CormorantGaramond" },
-  cardTitle: { fontSize: 34, color: COLORS.navy, fontWeight: "300", fontFamily: "CormorantGaramond" },
-  cardDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 12 },
+
+  // Inter, 500 Medium
+  cardLabel: {
+    color: COLORS.gold,
+    letterSpacing: 2,
+    fontSize: 12,
+    marginBottom: 4,
+    fontFamily: "Inter-Medium",
+    fontWeight: "500",
+  },
+
+  // EB Garamond, 400 Regular
+  cardTitle: {
+    fontSize: 34,
+    color: "#6F440A",
+    fontFamily: "EBGaramond-Regular",
+    fontWeight: "400",
+  },
+
+  cardDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 5 },
   timeRow: { flexDirection: "row", alignItems: "center" },
-  timeText: { marginLeft: 6, fontSize: 22, color: COLORS.navy, fontFamily: "CormorantGaramond" },
-  cardTime: { marginTop: 6, color: "#6F440A", fontSize: 20, fontFamily: "CormorantGaramond" },
+
+  // EB Garamond, 500 Medium
+  timeText: {
+    marginLeft: 6,
+    fontSize: 22,
+    color: COLORS.navy,
+    fontFamily: "EBGaramond-Medium",
+    fontWeight: "500",
+  },
+
+  // Cormorant Garamond Bold, 700
+  cardTime: {
+    marginTop: 6,
+    color: COLORS.navy,
+    fontSize: 20,
+    fontFamily: "EBGaramond-Bold",
+    fontWeight: "600",
+  },
+
   sectionHeader: {
     flexDirection: "row", alignItems: "center",
     marginHorizontal: 24, marginTop: 28, marginBottom: 18,
   },
-  sectionHeaderText: { color: COLORS.navy, fontSize: 13, letterSpacing: 1.5, marginHorizontal: 12, fontFamily: "CormorantGaramond" },
+
+  // Cormorant, 600 SemiBold
+  sectionHeaderText: {
+    color: COLORS.navy,
+    fontSize: 13,
+    letterSpacing: 1.5,
+    marginHorizontal: 12,
+    fontFamily: "Cormorant-SemiBold",
+    fontWeight: "600",
+  },
+
   line: { flex: 1, height: 1, backgroundColor: COLORS.border },
   progressRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24 },
   progressCard: {
     width: "31%", backgroundColor: COLORS.card, borderRadius: 22, borderWidth: 3,
     borderColor: COLORS.border, alignItems: "center", paddingVertical: 18,
     paddingHorizontal: 6, position: "relative",
-    shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
+    shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
   progressCardCompleted: { borderColor: "#B8CFB5", backgroundColor: "#F6FBF5" },
   progressCardActive: { borderColor: COLORS.gold, backgroundColor: "#FFF9EC" },
-  progressCardMissed: { borderColor: "#D8A3A0", backgroundColor: "#FFF3F2" },
+  progressCardMissed: { borderColor: COLORS.border, backgroundColor: "#FFF3F2" },
   statusDot: {
     position: "absolute", top: 6, right: 10, width: 15, height: 15,
     borderRadius: 9, justifyContent: "center", alignItems: "center",
@@ -659,8 +703,23 @@ const styles = StyleSheet.create({
     width: 58, height: 58, borderRadius: 29, backgroundColor: "#F3EFE7",
     justifyContent: "center", alignItems: "center", marginBottom: 8,
   },
-  progressTitle: { fontSize: 17, color: COLORS.textPrimary, fontWeight: "500", fontFamily: "CormorantGaramond" },
-  progressAngelus: { fontSize: 13, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginTop: 1, marginBottom: 10 },
+
+  // Cormorant, 600 SemiBold
+  progressTitle: {
+    fontSize: 17,
+    color: COLORS.textPrimary,
+    fontFamily: "Cormorant-SemiBold",
+    fontWeight: "600",
+  },
+  progressAngelus: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontFamily: "Cormorant-SemiBold",
+    fontWeight: "600",
+    marginTop: 1,
+    marginBottom: 10,
+  },
+
   progressBox: {
     flexDirection: "row", alignItems: "center", paddingVertical: 3,
     paddingHorizontal: 10, borderRadius: 999, borderWidth: 2,
@@ -670,53 +729,92 @@ const styles = StyleSheet.create({
   progressBoxActive: { borderColor: COLORS.gold, backgroundColor: "#FFF6E0" },
   progressBoxMissed: { borderColor: "#D8A3A0", backgroundColor: "#FFF0EF" },
   activeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.gold, marginRight: 5 },
-  progressSubtitle: { fontSize: 12, color: COLORS.textSecondary, fontFamily: "CormorantGaramond" },
+
+  // Cormorant, 600 SemiBold
+  progressSubtitle: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontFamily: "Cormorant-SemiBold",
+    fontWeight: "600",
+  },
+
   progressImage: { width: 75, height: 75 },
   progressImageU: { width: 60, height: 75 },
   globalCard: {
     marginHorizontal: 24, marginTop: 18, backgroundColor: COLORS.card,
     borderRadius: 28, borderWidth: 3, borderColor: COLORS.border, padding: 14,
     flexDirection: "row", alignItems: "flex-start",
-    shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
+    shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
-  globe: { width: 110, height: 110, justifyContent: "center", alignItems: "center", marginRight: 14, alignSelf: "center" },
-  globeIcon: { width: 110, height: 110 },
+  globe: { width: 110, height: 110, justifyContent: "center", alignItems: "center", marginRight: 18, alignSelf: "center" },
+  globeIcon: { width: 160, height: 140 },
   globalRight: { flex: 1, justifyContent: "center" },
-  globalLabel: { color: COLORS.navy, fontSize: 12, letterSpacing: 1.5, fontFamily: "CormorantGaramond", marginBottom: 2 },
+
+  // Inter, 500 Medium
+  globalLabel: {
+    color: COLORS.navy,
+    fontSize: 12,
+    letterSpacing: 1.5,
+    fontFamily: "EBGaramond-Medium",
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+
   globalCountRow: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap" },
-  globalCount: { fontSize: 38, color: COLORS.navy, fontWeight: "700", fontFamily: "CormorantGaramond" },
-  globalPrayedToday: { fontSize: 14, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginLeft: 4 },
-  globalText: { color: COLORS.textSecondary, fontSize: 13, fontFamily: "CormorantGaramond", marginTop: 2 },
+
+  // EB Garamond, 500 Medium
+  globalCount: {
+    fontSize: 38,
+    color: COLORS.navy,
+    fontFamily: "EBGaramond-Medium",
+    fontWeight: "500",
+  },
+
+  globalPrayedToday: { fontSize: 14, color: COLORS.textSecondary, fontFamily: "EBGaramond-Mediumr", marginLeft: 4 },
+  globalText: { color: COLORS.textSecondary, fontSize: 13, fontFamily: "EBGaramond-Medium", marginTop: 2 },
   globalDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 10 },
   nowPrayingRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
-  nowPrayingLabel: { fontSize: 12, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginRight: 4 },
+  nowPrayingLabel: { fontSize: 12, color: COLORS.textSecondary, fontFamily: "EBGaramond-Medium", marginRight: 4 },
   nowPrayingItem: { flexDirection: "row", alignItems: "center" },
   nowPrayingFlag: { fontSize: 14 },
-  nowPrayingCountry: { fontSize: 13, color: COLORS.navy, fontWeight: "600", fontFamily: "CormorantGaramond" },
-  nowPrayingCount: { fontSize: 13, color: COLORS.textPrimary, fontFamily: "CormorantGaramond" },
+  nowPrayingCountry: { fontSize: 13, color: COLORS.navy, fontFamily: "Cormorant-SemiBold" },
+  nowPrayingCount: { fontSize: 13, color: COLORS.textPrimary, fontFamily: "Cormorant-Regular" },
   nowPrayingDot: { fontSize: 13, color: COLORS.muted },
   scriptureCard: {
     marginHorizontal: 24, marginTop: 14, backgroundColor: COLORS.card,
     borderRadius: 22, borderWidth: 3, borderColor: COLORS.border,
     flexDirection: "row", overflow: "hidden",
-    shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
+    shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
   scriptureImage: { width: 190, height: 120 },
   scriptureContent: { flex: 1, padding: 16, justifyContent: "center" },
-  scriptureQuote: { fontSize: 12, color: COLORS.textPrimary, fontStyle: "italic", lineHeight: 12, fontFamily: "CormorantGaramond" },
-  scriptureRef: { marginTop: 7, fontSize: 13, color: COLORS.navy, fontFamily: "CormorantGaramond", fontWeight: "600" },
+  scriptureQuote: { fontSize: 12, color: COLORS.textPrimary, fontStyle: "italic", lineHeight: 12, fontFamily: "EBGaramond-Regular" },
+  scriptureRef: { marginTop: 7, fontSize: 13, color: COLORS.navy, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
   buttonWrapper: { marginHorizontal: 24, marginTop: 28 },
-  button: { borderRadius: 36, paddingVertical: 18, paddingHorizontal: 24, shadowColor: "#D4AF57", shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 6 },
+  button: {
+    borderRadius: 36, paddingVertical: 18, paddingHorizontal: 24,
+    shadowColor: "#D4AF57", shadowOpacity: 0.3, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 }, elevation: 6,
+  },
   buttonInner: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  prayIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.18)", justifyContent: "center", alignItems: "center" },
-  buttonText: { color: "#fff", fontSize: 24, fontWeight: "600" },
+  prayIcon: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    justifyContent: "center", alignItems: "center",
+  },
+  buttonText: { color: "#fff", fontSize: 24, fontWeight: "600", fontFamily: "Cormorant-SemiBold" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
-  modalCard: { width: "100%", backgroundColor: COLORS.card, borderRadius: 28, padding: 28, alignItems: "center", borderWidth: 3, borderColor: COLORS.border },
-  modalTitle: { marginTop: 16, fontSize: 32, color: COLORS.navy, fontFamily: "CormorantGaramond" },
-  modalText: { marginTop: 10, textAlign: "center", color: COLORS.textSecondary, fontSize: 18, lineHeight: 26 },
+  modalCard: {
+    width: "100%", backgroundColor: COLORS.card, borderRadius: 28,
+    padding: 28, alignItems: "center", borderWidth: 3, borderColor: COLORS.border,
+  },
+  modalTitle: { marginTop: 16, fontSize: 32, color: COLORS.navy, fontFamily: "Cormorant-SemiBold" },
+  modalText: { marginTop: 10, textAlign: "center", color: COLORS.textSecondary, fontSize: 18, lineHeight: 26, fontFamily: "Cormorant-Regular" },
   modalButton: { marginTop: 18, backgroundColor: COLORS.gold, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 30 },
-  modalButtonText: { color: "#fff", fontSize: 18, fontWeight: "600" },
+  modalButtonText: { color: "#fff", fontSize: 18, fontWeight: "600", fontFamily: "Cormorant-SemiBold" },
   sunIcon: { marginRight: 12 },
   logoutBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#D4A017" },
-  logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A" },
+  logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A", fontFamily: "Inter-Medium" },
 });

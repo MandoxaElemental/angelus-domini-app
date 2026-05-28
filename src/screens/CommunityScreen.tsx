@@ -288,7 +288,7 @@ export default function CommunityScreen() {
         }}>
           <View>
             <Text style={{
-              fontFamily: "PlayfairDisplay_400Bold",
+              fontFamily: "EBGaramond-Medium",
               fontSize: fs(30),
               color: C.navy,
               lineHeight: fs(36),

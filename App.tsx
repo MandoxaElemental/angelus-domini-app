@@ -43,42 +43,54 @@ export default function App() {
   const [frame] = useState<Rect>(initialFrame);
 
   const [fontsLoaded, fontError] = useFonts({
+    // Playfair Display (from expo-google-fonts)
     PlayfairDisplay_400Regular,
     PlayfairDisplay_400Bold,
     PlayfairDisplay_400Regular_Italic,
     PlayfairDisplay_600SemiBold,
+
+    // Cormorant — local TTF
+    "Cormorant-Regular":  require("./assets/fonts/Cormorant.ttf"),
+    "Cormorant-SemiBold": require("./assets/fonts/CormorantGaramond-SemiBold.ttf"),
+    "Cormorant-Bold":     require("./assets/fonts/CormorantGaramond-Bold.ttf"),
+
+    // Inter — local TTF
+    "Inter-Medium":       require("./assets/fonts/Inter_18pt-Medium.ttf"),
+
+    // EB Garamond — local TTF
+    "EBGaramond-Regular": require("./assets/fonts/EBGaramond-Regular.ttf"),
+    "EBGaramond-Medium":  require("./assets/fonts/EBGaramond-Medium.ttf"),
+    "EBGaramond-Bold": require("./assets/fonts/EBGaramond-Bold.ttf"),
   });
 
   const [isReady, setIsReady] = useState(false);
   const [screen, setScreen] = useState<Screen>("onboarding");
 
-useEffect(() => {
-  async function prepareApp() {
-    try {
-      await AsyncStorage.removeItem("onboarded"); // ← ADD THIS (remove after testing)
+  useEffect(() => {
+    async function prepareApp() {
+      try {
+        await AsyncStorage.removeItem("onboarded"); // ← remove after testing
 
-      // ✅ Use Supabase directly — this waits for the persisted session to load
-      const { data: { session } } = await supabase.auth.getSession();
-      const onboarded = await AsyncStorage.getItem("onboarded");
+        const { data: { session } } = await supabase.auth.getSession();
+        const onboarded = await AsyncStorage.getItem("onboarded");
 
-      if (session?.user) {
-        setScreen("main");
-      } else if (onboarded === "true") {
-        setScreen("login");
-      } else {
-        setScreen("onboarding");
+        if (session?.user) {
+          setScreen("main");
+        } else if (onboarded === "true") {
+          setScreen("login");
+        } else {
+          setScreen("onboarding");
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 2500));
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        setIsReady(true);
       }
-
-      await new Promise(resolve => setTimeout(resolve, 2500));
-    } catch (e) {
-      console.warn(e);
-    } finally {
-      setIsReady(true);
     }
-  }
-  prepareApp();
+    prepareApp();
 
-    // ✅ Listen for auth changes (login/logout) and update screen automatically
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session?.user) {

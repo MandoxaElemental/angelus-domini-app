@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useState, useEffect } from "react";
 import { BlurView } from "expo-blur";
+import { Ionicons } from "@expo/vector-icons";
 import {
   useFonts,
   PlayfairDisplay_400Regular,
@@ -81,6 +82,7 @@ export default function RegisterScreen({
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
@@ -116,7 +118,7 @@ export default function RegisterScreen({
       );
 
       if (data.session) {
-        goToHome(); // ✅ auto login → go to MainApp
+        goToHome();
       } else {
         alert("Check your email to confirm your account.");
         goToLogin();
@@ -170,15 +172,30 @@ export default function RegisterScreen({
               />
             </GlassInput>
 
-            <GlassInput>
+            <GlassInput
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
               <TextInput
                 placeholder="Password"
                 placeholderTextColor="rgba(255,230,167,0.7)"
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
-                style={styles.textInput}
+                secureTextEntry={!showPassword}
+                style={[styles.textInput, { flex: 1 }]}
               />
+
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={22}
+                  color="#FFE6A7"
+                />
+              </TouchableOpacity>
             </GlassInput>
 
             <TouchableOpacity
@@ -206,15 +223,27 @@ export default function RegisterScreen({
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={goToLogin}
-              activeOpacity={0.85}
-              style={styles.loginBtn}
-            >
-              <Text style={styles.loginBtnText}>
-                Already have an account? Login
-              </Text>
-            </TouchableOpacity>
+          {/* Login Text Button */}
+<TouchableOpacity
+  onPress={goToLogin}
+  activeOpacity={0.7}
+  style={{
+    alignItems: "center",
+    marginTop: 12,
+  }}
+>
+  <Text
+    style={{
+      color: "#FFE6A7",
+      fontSize: 14,
+      fontWeight: "600",
+      textDecorationLine: "underline",
+      letterSpacing: 0.3,
+    }}
+  >
+    Sign in to your account
+  </Text>
+</TouchableOpacity>
           </View>
         </ScrollView>
 

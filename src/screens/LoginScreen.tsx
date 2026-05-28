@@ -8,6 +8,7 @@ import {
   TextInput,
   Image,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { login } from "../api/authApi";
 import { saveAuth } from "../store/auth";
 
@@ -16,6 +17,7 @@ const angelusIcon = require("../../assets/angelusdominiicon.png");
 export default function LoginScreen({ onLogin, goToRegister }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     try {
@@ -33,8 +35,14 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
   return (
     <View style={{ flex: 1, backgroundColor: "#FFFDF7" }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24 }}>
-        <View style={{ flex: 1, justifyContent: "center", gap: 16, paddingVertical: 60 }}>
-
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            gap: 16,
+            paddingVertical: 60,
+          }}
+        >
           {/* Circular Logo Container */}
           <View style={{ alignItems: "center", marginBottom: 32 }}>
             <View
@@ -88,6 +96,8 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
               borderRadius: 12,
               paddingHorizontal: 16,
               paddingVertical: 4,
+              flexDirection: "row",
+              alignItems: "center",
             }}
           >
             <TextInput
@@ -95,13 +105,24 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
               placeholderTextColor="#9B9588"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
               style={{
+                flex: 1,
                 height: 56,
                 color: "#1C1C1C",
                 fontSize: 16,
               }}
             />
+
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color="#1F3A6E"
+              />
+            </TouchableOpacity>
           </View>
 
           {/* Login Button */}
@@ -116,7 +137,13 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
               marginTop: 8,
             }}
           >
-            <Text style={{ color: "#FFFDF7", fontWeight: "bold", fontSize: 16 }}>
+            <Text
+              style={{
+                color: "#FFFDF7",
+                fontWeight: "bold",
+                fontSize: 16,
+              }}
+            >
               Login
             </Text>
           </TouchableOpacity>
@@ -144,11 +171,16 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
               borderColor: "#D4A017",
             }}
           >
-            <Text style={{ color: "#D4A017", fontWeight: "bold", fontSize: 16 }}>
+            <Text
+              style={{
+                color: "#D4A017",
+                fontWeight: "bold",
+                fontSize: 16,
+              }}
+            >
               Register
             </Text>
           </TouchableOpacity>
-
         </View>
       </ScrollView>
     </View>

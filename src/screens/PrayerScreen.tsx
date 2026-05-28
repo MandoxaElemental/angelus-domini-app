@@ -95,7 +95,6 @@ export default function PrayerScreen() {
   const route = useRoute<any>();
   const [showCompletionModal, setShowCompletionModal] = useState(false);
 
-  // ── Get onComplete callback from MainApp ──────────────────────────────────
   const onComplete = route.params?.onComplete;
 
   const transitionToNext = () => {
@@ -231,13 +230,11 @@ export default function PrayerScreen() {
     };
   }, [currentStep]);
 
-  // ── When last step finishes: call onComplete then show modal ─────────────
   useEffect(() => {
     const isLastStep = currentStep === PRAYER_SEQUENCE.length - 1;
     if (!isLastStep) return;
 
     const timeout = setTimeout(async () => {
-      // ✅ This calls back to MainApp to save to DB + update progress cards
       if (onComplete) {
         await onComplete();
       }
@@ -448,7 +445,7 @@ const styles = StyleSheet.create({
   bellContainer: { width: 85, height: 85, justifyContent: "center", alignItems: "center" },
   bellImage: { width: 85, height: 85, position: "absolute", zIndex: 2 },
   bellEffect: { width: 85, height: 85, position: "absolute", zIndex: 1 },
-  subtitle: { marginTop: 18, marginBottom: 6, textAlign: "center", color: "#2F4A7A", fontSize: 16, lineHeight: 20 },
+  subtitle: { marginTop: 18, marginBottom: 6, textAlign: "center", color: "#2F4A7A", fontSize: 16, lineHeight: 20, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
   imageContainer: { width: "100%", height: 220 },
   image: { width: "100%", height: "100%" },
   prayerScrollWindow: { height: 150, overflow: "hidden", position: "relative", justifyContent: "center" },
@@ -463,34 +460,34 @@ const styles = StyleSheet.create({
   },
   cardContent: { flexGrow: 1, justifyContent: "center", alignItems: "center" },
   prayerContent: { paddingTop: 50, paddingBottom: 60 },
-  versicle: { fontSize: 30, color: "#6F440A", marginBottom: 6, textAlign: "center", lineHeight: 42, fontFamily: "CormorantGaramond" },
-  responseItalic: { fontSize: 30, color: "#6F440A", fontStyle: "italic", textAlign: "center", lineHeight: 42, fontFamily: "Garamond-Regular" },
-  prayer: { fontSize: 30, lineHeight: 42, textAlign: "center", color: "#6F440A", fontFamily: "Garamond-Regular" },
+  versicle: { fontSize: 30, color: "#6F440A", marginBottom: 6, textAlign: "center", lineHeight: 42, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
+  responseItalic: { fontSize: 30, color: "#6F440A", fontStyle: "italic", textAlign: "center", lineHeight: 42, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
+  prayer: { fontSize: 30, lineHeight: 42, textAlign: "center", color: "#6F440A", fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
   logo: { width: 140, height: 40, resizeMode: "contain" },
   dots: { flexDirection: "row", justifyContent: "center", gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#E7DCCB" },
   activeDot: { backgroundColor: "#C9A24A" },
   button: { margin: 24, borderRadius: 32, overflow: "hidden", shadowColor: "#F5D27A", shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   buttonGradient: { width: "100%", paddingVertical: 16, borderRadius: 32, alignItems: "center" },
-  buttonText: { color: "#fff", fontSize: 20 },
+  buttonText: { color: "#fff", fontSize: 20, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
   buttonDisabled: { opacity: 0.5 },
   timeSelector: { flexDirection: "row", justifyContent: "space-around", paddingHorizontal: 24, marginTop: 8, marginBottom: 12 },
   timeButton: { width: 100, height: 48, borderRadius: 24, justifyContent: "center", alignItems: "center", overflow: "hidden", borderColor: "#C9A24A", borderWidth: 2 },
   timeButtonActive: { shadowColor: "#4B6FB0", shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
-  timeText: { color: "#C9A24A", fontSize: 14 },
-  timeTextActive: { color: "#FFFFFF" },
+  timeText: { color: "#C9A24A", fontSize: 14, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
+  timeTextActive: { color: "#FFFFFF", fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
   footerControls: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginBottom: 26, marginTop: -4 },
-  footerAction: { color: "#6B5E52", fontSize: 18, fontWeight: "500", paddingHorizontal: 6 },
-  footerDivider: { color: "#B8AA96", fontSize: 14, marginHorizontal: 2 },
+  footerAction: { color: "#6B5E52", fontSize: 18, fontWeight: "600", paddingHorizontal: 6, fontFamily: "Cormorant-SemiBold" },
+  footerDivider: { color: "#B8AA96", fontSize: 14, marginHorizontal: 2, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
   modalCard: { width: "100%", backgroundColor: "#FFFAF2", borderRadius: 28, padding: 30, alignItems: "center" },
-  modalTitle: { marginTop: 18, fontSize: 34, color: "#2F4A7A", fontFamily: "CormorantGaramond" },
-  modalText: { marginTop: 12, textAlign: "center", color: "#6B5E52", fontSize: 18, lineHeight: 28 },
+  modalTitle: { marginTop: 18, fontSize: 34, color: "#2F4A7A", fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
+  modalText: { marginTop: 12, textAlign: "center", color: "#6B5E52", fontSize: 18, lineHeight: 28, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
   modalButton: { marginTop: 26, backgroundColor: "#C9A24A", paddingHorizontal: 28, paddingVertical: 14, borderRadius: 30 },
-  modalButtonText: { color: "#fff", fontSize: 18, fontWeight: "600" },
+  modalButtonText: { color: "#fff", fontSize: 18, fontWeight: "600", fontFamily: "Cormorant-SemiBold" },
   bellCardContent: { flex: 1, justifyContent: "center", alignItems: "center", overflow: "hidden" },
   nextPrayerLayer: { justifyContent: "center", alignItems: "center", paddingHorizontal: 28 },
-  upcomingPrayer: { fontSize: 30, lineHeight: 42, textAlign: "center", color: "#6F440A", fontFamily: "CormorantGaramond" },
+  upcomingPrayer: { fontSize: 30, lineHeight: 42, textAlign: "center", color: "#6F440A", fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
   fullCardBlur: { ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(255,255,255,0.12)" },
   blurInner: { alignItems: "center", paddingHorizontal: 30 },
 });
