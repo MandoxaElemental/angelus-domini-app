@@ -1,74 +1,43 @@
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export type PrayerStatus = "upcoming" | "active" | "completed" | "missed";
 
-// ─── Prayer Definitions ───────────────────────────────────────────────────────
-
 export const PRAYERS = [
-  {
-    key: "morning",
-    title: "Morning Angelus",
-    icon: "Morning",
-    hour: 6,
-    minute: 0,
-    endHour: 12,
-    endMinute: 0,
-  },
-  {
-    key: "noon",
-    title: "Noon Angelus",
-    icon: "Noon",
-    hour: 12,
-    minute: 0,
-    endHour: 18,
-    endMinute: 0,
-  },
-  {
-    key: "evening",
-    title: "Evening Angelus",
-    icon: "Evening",
-    hour: 18,
-    minute: 0,
-    endHour: 23,
-    endMinute: 59,
-  },
+  { key: "morning", title: "Morning Angelus", icon: "Morning", hour: 6,  minute: 0 },
+  { key: "noon",    title: "Noon Angelus",    icon: "Noon",    hour: 12, minute: 0 },
+  { key: "evening", title: "Evening Angelus", icon: "Evening", hour: 18, minute: 0 },
 ] as const;
 
-// ─── Core Helpers ─────────────────────────────────────────────────────────────
-
 export function getPrayerDate(hour: number, minute = 0): Date {
-  const date = new Date();
-  date.setHours(hour, minute, 0, 0);
-  return date;
+  const d = new Date();
+  d.setHours(hour, minute, 0, 0);
+  return d;
 }
 
 export function getNextPrayer() {
   const now = new Date();
-
   for (const prayer of PRAYERS) {
-    const prayerTime = getPrayerDate(prayer.hour, prayer.minute);
-    if (now < prayerTime) {
-      return { ...prayer, time: prayerTime };
-    }
+    const t = getPrayerDate(prayer.hour, prayer.minute);
+    if (now < t) return { ...prayer, time: t };
   }
-
-  // Past all three — return tomorrow's morning prayer
-  const tomorrowMorning = getPrayerDate(6, 0);
-  tomorrowMorning.setDate(tomorrowMorning.getDate() + 1);
-  return { ...PRAYERS[0], time: tomorrowMorning };
+  const tomorrow = getPrayerDate(6, 0);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return { ...PRAYERS[0], time: tomorrow };
 }
 
+// Active window = 5 minutes after the prayer time
+const ACTIVE_WINDOW_MS = 5 * 60 * 1000;
+
 export function getPrayerStatus(key: string, completed: boolean): PrayerStatus {
-  const now = new Date();
+  if (completed) return "completed";
+
+  const now    = new Date();
   const prayer = PRAYERS.find((p) => p.key === key);
   if (!prayer) return "upcoming";
 
-  const start = getPrayerDate(prayer.hour, prayer.minute);
-  const end = getPrayerDate(prayer.endHour, prayer.endMinute);
+  const start    = getPrayerDate(prayer.hour, prayer.minute);
+  const activeEnd = new Date(start.getTime() + ACTIVE_WINDOW_MS);
 
-  if (completed) return "completed";
-  if (now < start) return "upcoming";
-  if (now >= start && now <= end) return "active";
+  if (now < start)                        return "upcoming";
+  if (now >= start && now <= activeEnd)   return "active";
   return "missed";
 }
 
@@ -76,27 +45,34 @@ export function formatPrayerTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-// ─── Slot Helpers (used by prayerApi) ────────────────────────────────────────
-
 /**
- * Returns the active prayer slot string for the current time,
- * e.g. "2025-06-01_6", "2025-06-01_12", "2025-06-01_18".
+ * Returns slot string for the CURRENT prayer period.
+ * Morning  = 06:00–11:59 → "_6"
+ * Noon     = 12:00–17:59 → "_12"
+ * Evening  = 18:00–05:59 → "_18"
  */
 export function getSlot(): string {
-  const now = new Date();
-  const h = now.getHours();
+  const now  = new Date();
+  const h    = now.getHours();
+  const date = now.toISOString().split("T")[0];
 
-  let hourSlot = 6;
-  if (h >= 9)  hourSlot = 12;
-  if (h >= 15) hourSlot = 18;
+  let slot: number;
+  if (h >= 6  && h < 12) slot = 6;
+  else if (h >= 12 && h < 18) slot = 12;
+  else slot = 18; // 18:00–05:59 → evening slot
 
-  return `${now.toISOString().split("T")[0]}_${hourSlot}`;
+  // For evening slots that fall on the next calendar day (midnight–5:59am),
+  // attribute them to the previous day's evening slot date
+  let slotDate = date;
+  if (h < 6) {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    slotDate = yesterday.toISOString().split("T")[0];
+  }
+
+  return `${slotDate}_${slot}`;
 }
 
-/**
- * Returns the Date of the next prayer time.
- * Alias kept for any code still importing getNextPrayerTime.
- */
 export function getNextPrayerTime(): Date {
   return getNextPrayer().time;
 }

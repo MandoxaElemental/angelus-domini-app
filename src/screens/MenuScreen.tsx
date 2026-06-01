@@ -51,24 +51,20 @@ const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
   return null;
 };
 
-// Returns the Monday of the current week
 function getWeekMonday(now: Date): Date {
   const d = new Date(now);
-  const day = d.getDay(); // 0=Sun
-  const diff = (day + 6) % 7; // Mon=0
+  const day = d.getDay();
+  const diff = (day + 6) % 7;
   d.setDate(d.getDate() - diff);
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-// For a given prayer (morning/noon/evening) and a day index (0=Mon … 6=Sun),
-// determine if that day slot has passed without being prayed (missed), was prayed,
-// or is still upcoming.
 type DotStatus = "completed" | "missed" | "upcoming";
 
 function getDotStatus(
-  dayIndex: number, // 0 = Monday
-  prayerHour: number, // 6, 12, or 18
+  dayIndex: number,
+  prayerHour: number,
   monday: Date,
   now: Date,
   completedDays: Set<string>
@@ -76,12 +72,11 @@ function getDotStatus(
   const slotDate = new Date(monday);
   slotDate.setDate(monday.getDate() + dayIndex);
   const dateStr = `${slotDate.getFullYear()}-${String(
-  slotDate.getMonth() + 1
-).padStart(2, "0")}-${String(slotDate.getDate()).padStart(2, "0")}`;
+    slotDate.getMonth() + 1
+  ).padStart(2, "0")}-${String(slotDate.getDate()).padStart(2, "0")}`;
 
   if (completedDays.has(dateStr)) return "completed";
 
-  // Slot cutoff: e.g. morning ends at 12:00, noon ends at 18:00, evening ends at 23:59
   const slotEnd = new Date(slotDate);
   if (prayerHour === 6) slotEnd.setHours(12, 0, 0, 0);
   else if (prayerHour === 12) slotEnd.setHours(18, 0, 0, 0);
@@ -90,6 +85,30 @@ function getDotStatus(
   if (now > slotEnd) return "missed";
   return "upcoming";
 }
+
+// ── Format helpers ─────────────────────────────────────────────────────────────
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function formatDate(d: Date): string {
+  return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+function formatTime(d: Date): string {
+  let h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, "0");
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
+
+function formatDayOfWeek(d: Date): string {
+  return DAY_NAMES[d.getDay()];
+}
+// ──────────────────────────────────────────────────────────────────────────────
 
 export default function MenuScreen({ onLogout }: Props) {
   const ringScale = useRef(new Animated.Value(1)).current;
@@ -104,7 +123,6 @@ export default function MenuScreen({ onLogout }: Props) {
     evening: false,
   });
 
-  // week: Set of ISO date strings per prayer type
   const [weekMorning, setWeekMorning] = useState<Set<string>>(new Set());
   const [weekNoon, setWeekNoon] = useState<Set<string>>(new Set());
   const [weekEvening, setWeekEvening] = useState<Set<string>>(new Set());
@@ -112,12 +130,19 @@ export default function MenuScreen({ onLogout }: Props) {
   const [totalMonth, setTotalMonth] = useState(0);
   const [totalYear, setTotalYear] = useState(0);
 
+  // ── Live clock ────────────────────────────────────────────────────────────
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  // ──────────────────────────────────────────────────────────────────────────
+
   const fetchData = useCallback(async (uid: string) => {
     try {
-      const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
+      const nowSnap = new Date();
+      const todayStr = nowSnap.toISOString().slice(0, 10);
 
-      // ── Today's completed prayers ─────────────────────────────────────────
       const { data: todaySessions } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
@@ -135,8 +160,7 @@ export default function MenuScreen({ onLogout }: Props) {
         setCompletedPrayers(updated);
       }
 
-      // ── This week's completed prayers ─────────────────────────────────────
-      const monday = getWeekMonday(now);
+      const monday = getWeekMonday(nowSnap);
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
       sunday.setHours(23, 59, 59, 999);
@@ -168,8 +192,7 @@ export default function MenuScreen({ onLogout }: Props) {
         setWeekEvening(eveningDays);
       }
 
-      // ── Month & Year totals ───────────────────────────────────────────────
-      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const firstOfMonth = new Date(nowSnap.getFullYear(), nowSnap.getMonth(), 1).toISOString();
       const { count: monthCount } = await supabase
         .from("PrayerSessions")
         .select("*", { count: "exact", head: true })
@@ -178,7 +201,7 @@ export default function MenuScreen({ onLogout }: Props) {
         .gte("ScheduledTime", firstOfMonth);
       setTotalMonth(monthCount ?? 0);
 
-      const firstOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
+      const firstOfYear = new Date(nowSnap.getFullYear(), 0, 1).toISOString();
       const { count: yearCount } = await supabase
         .from("PrayerSessions")
         .select("*", { count: "exact", head: true })
@@ -219,7 +242,6 @@ export default function MenuScreen({ onLogout }: Props) {
 
         await fetchData(uid);
 
-        // Clean up any stale channels
         supabase.getChannels().forEach((c) => {
           if (c.topic.includes("menu-prayer-sessions")) supabase.removeChannel(c);
         });
@@ -289,8 +311,6 @@ export default function MenuScreen({ onLogout }: Props) {
     status === "active" ? "Active" :
     status === "missed" ? "Missed" : "Awaiting";
 
-  // Week dots: compute dot statuses for Mon–Sun for each prayer
-  const now = new Date();
   const monday = getWeekMonday(now);
 
   const morningDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
@@ -330,12 +350,26 @@ export default function MenuScreen({ onLogout }: Props) {
           </View>
         </View>
 
+      
+
         {/* ── HERO TITLE ── */}
         <View style={styles.heroSection}>
           <Text style={styles.heroTitle}>Your Prayer Rhythm</Text>
           <Text style={styles.heroSubtitle}>Returning in Prayer at 6 · 12 · 6.</Text>
           <Text style={styles.heroSubtitle}>The 6-12-6 Rhythm of the Angelus.</Text>
         </View>
+
+         {/* ── DATE & TIME BAR ── */}
+<View style={styles.dateTimeBar}>
+  <Ionicons name="calendar" size={22} color={COLORS.gold} />
+  <Text style={styles.dateTimeDate} numberOfLines={1}>{formatDate(now)}</Text>
+  <View style={styles.dateTimeBarDivider} />
+  <Text style={styles.dateTimeDay} numberOfLines={1}>{formatDayOfWeek(now)}</Text>
+  <View style={styles.dateTimeBarDivider} />
+  <Ionicons name="time-outline" size={16} color={COLORS.gold} />
+  <Text style={styles.dateTimeTime} numberOfLines={1}>{formatTime(now)}</Text>
+  <Ionicons name="chevron-down" size={14} color={COLORS.textSecondary} />
+</View>
 
         {/* ── LIGHT THROUGH THE DAY ── */}
         <View style={styles.sectionCard}>
@@ -361,7 +395,6 @@ export default function MenuScreen({ onLogout }: Props) {
             <View style={styles.sectionDividerLine} />
           </View>
 
-          {/* Day labels header: Mon–Sun */}
           <View style={styles.weekDayHeader}>
             <View style={styles.weekIconPlaceholder} />
             <View style={styles.weekLabelPlaceholder} />
@@ -465,6 +498,7 @@ function WeekRow({ label, imageSource, dots, count }: {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.cream },
   scroll: { paddingBottom: 20 },
+
   header: {
     height: 100, backgroundColor: "#2F4A7A", paddingRight: 24, paddingLeft: 12,
     borderBottomLeftRadius: 25, borderBottomRightRadius: 25,
@@ -474,9 +508,59 @@ const styles = StyleSheet.create({
   bellContainer: { width: 85, height: 85, justifyContent: "center", alignItems: "center" },
   bellImage: { width: 85, height: 85, position: "absolute", zIndex: 2 },
   bellEffect: { width: 85, height: 85, position: "absolute", zIndex: 1 },
-  heroSection: { alignItems: "center", paddingHorizontal: 24, marginTop: 28, marginBottom: 8 },
+
+  // ── Date & Time Bar ────────────────────────────────────────────────────────
+dateTimeBar: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",  // ← add this
+  marginHorizontal: 20,
+  marginTop: 14,
+  backgroundColor: COLORS.card,
+  borderRadius: 50,
+  borderWidth: 1.5,
+  borderColor: COLORS.border,
+  paddingVertical: 10,
+  paddingHorizontal: 14,
+  shadowColor: "#3B2E22",
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 3,
+  gap: 7,
+},
+dateTimeDate: {
+  fontSize: 13,
+  color: COLORS.navy,
+  fontFamily: "EBGaramond-Medium",
+  fontWeight: "600",
+  flexShrink: 1,
+},
+dateTimeBarDivider: {
+  width: 1,
+  height: 18,
+  backgroundColor: COLORS.border,
+},
+dateTimeDay: {
+  fontSize: 13,
+  color: COLORS.navy,
+  fontFamily: "EBGaramond-Medium",
+  fontWeight: "500",
+  flexShrink: 0,
+},
+dateTimeTime: {
+  fontSize: 13,
+  color: COLORS.textSecondary,
+  fontFamily: "CormorantGaramond",
+  fontWeight: "600",
+  flexShrink: 0,
+},
+  // ──────────────────────────────────────────────────────────────────────────
+
+  heroSection: { alignItems: "center", paddingHorizontal: 24, marginTop: 20, marginBottom: 8 },
   heroTitle: { fontSize: 32, color: COLORS.navy, fontFamily: "EBGaramond-Medium", fontWeight: "600", textAlign: "center" },
   heroSubtitle: { fontSize: 15, color: COLORS.navy, fontFamily: "CormorantGaramond", textAlign: "center", marginTop: 4 },
+
   sectionCard: {
     marginHorizontal: 20, marginTop: 18, backgroundColor: COLORS.card,
     borderRadius: 24, borderWidth: 2, borderColor: COLORS.border,
@@ -486,6 +570,7 @@ const styles = StyleSheet.create({
   sectionCardTitle: { fontSize: 22, color: COLORS.gold, fontFamily: "EBGaramond-Medium", fontWeight: "600", textAlign: "center", marginBottom: 8 },
   sectionDividerRow: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
   sectionDividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
+
   angelusRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
   angelusIconWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#F0EAD8", justifyContent: "center", alignItems: "center", marginRight: 14 },
   angelusIcon: { width: 59, height: 59 },
@@ -494,7 +579,6 @@ const styles = StyleSheet.create({
   angelusSubtitle: { fontSize: 13, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginTop: 2 },
   rowDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 2 },
 
-  // Week day header
   weekDayHeader: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
   weekIconPlaceholder: { width: 40, marginRight: 10 },
   weekLabelPlaceholder: { width: 64 },
@@ -508,7 +592,7 @@ const styles = StyleSheet.create({
   dotsRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 5 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   dotFilled: { backgroundColor: COLORS.gold },
-  dotMissed: { backgroundColor: "#D8A3A0" },  // red-rose for missed
+  dotMissed: { backgroundColor: "#D8A3A0" },
   dotEmpty: { backgroundColor: "#E0D4BE" },
   weekCount: { fontSize: 15, color: COLORS.textSecondary, fontFamily: "CormorantGaramond", marginLeft: 8, width: 30, textAlign: "right" },
 
@@ -525,6 +609,7 @@ const styles = StyleSheet.create({
   statsDividerV: { width: 1, backgroundColor: COLORS.border },
   statsValue: { fontSize: 28, color: COLORS.navy, fontFamily: "CormorantGaramond", fontWeight: "700" },
   statsCaption: { fontSize: 13, color: COLORS.textSecondary, fontFamily: "EBGaramond-Medium", marginTop: 4 },
+
   logoutBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#D4A017" },
   logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A" },
 });

@@ -10,7 +10,10 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
 
-  if (existingStatus === "granted") return true;
+  if (existingStatus === "granted") {
+    await scheduleAngelusNotifications();
+    return true;
+  }
 
   if (existingStatus === "denied") {
     Alert.alert(
@@ -37,8 +40,40 @@ export async function requestNotificationPermission(): Promise<boolean> {
         vibrationPattern: [0, 250, 250, 250],
       });
     }
+    await scheduleAngelusNotifications();
     return true;
   }
 
   return false;
+}
+
+export async function scheduleAngelusNotifications(): Promise<void> {
+  await Notifications.cancelAllScheduledNotificationsAsync();
+
+  const times = [
+    { hour: 6,  minute: 0, label: "Morning Angelus" },
+    { hour: 12, minute: 0, label: "Noon Angelus"    },
+    { hour: 18, minute: 0, label: "Evening Angelus" },
+  ];
+
+  for (const { hour, minute, label } of times) {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "🔔 " + label,
+        body: "The bells are calling you to prayer. Tap to pray the Angelus.",
+        sound: "default",
+        data: { screen: "Prayer", autoPlay: true },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+        channelId: Platform.OS === "android" ? "angelus-bells" : undefined,
+      } as any,
+    });
+  }
+}
+
+export async function cancelAngelusNotifications(): Promise<void> {
+  await Notifications.cancelAllScheduledNotificationsAsync();
 }

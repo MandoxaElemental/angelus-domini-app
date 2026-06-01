@@ -49,25 +49,26 @@ function TabNavigator({ onLogout }: Props) {
         },
       }}
     >
-  <Tab.Screen
-  name="Home"
-  component={MainApp}
-  options={{
-    tabBarIcon: ({ color, size }) => (
-      <Ionicons name="home" size={size} color={color} />
-    ),
-  }}
-/>
+      <Tab.Screen
+        name="Home"
+        component={MainApp as any}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home" size={size} color={color} />
+          ),
+        }}
+      />
 
       <Tab.Screen
-  name="History"
-  component={MenuScreen}
-  options={{
-    tabBarIcon: ({ color, size }) => (
-      <Ionicons name="time" size={size} color={color} />
-    ),
-  }}
-/>
+        name="History"
+        component={MenuScreen as any}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="time" size={size} color={color} />
+          ),
+        }}
+      />
+
       <Tab.Screen
         name="Community"
         component={CommunityScreen}
@@ -77,16 +78,17 @@ function TabNavigator({ onLogout }: Props) {
           ),
         }}
       />
-   <Tab.Screen
-  name="Settings"
-  options={{
-    tabBarIcon: ({ color, size }) => (
-      <Ionicons name="settings" size={size} color={color} />
-    ),
-  }}
->
-  {() => <SettingsScreen onLogout={onLogout} />}
-</Tab.Screen>
+
+      <Tab.Screen
+        name="Settings"
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings" size={size} color={color} />
+          ),
+        }}
+      >
+        {() => <SettingsScreen onLogout={onLogout} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }

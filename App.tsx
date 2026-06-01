@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import 'react-native-get-random-values';
 import * as SplashScreen from "expo-splash-screen";
-import { ActivityIndicator, Platform, View } from "react-native";
+import { ActivityIndicator, AppState, Platform, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,63 +15,75 @@ import type { EdgeInsets, Rect } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   PlayfairDisplay_400Regular,
-  PlayfairDisplay_400Bold,
   PlayfairDisplay_400Regular_Italic,
   PlayfairDisplay_600SemiBold,
   useFonts,
 } from "@expo-google-fonts/playfair-display";
 import { NavigationContainer } from "@react-navigation/native";
+import * as Notifications from "expo-notifications";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import TabLayout from "./src/navigation/TabLayout";
 import { supabase } from "./src/lib/supabaseClient";
+import { scheduleAngelusNotifications } from "./src/services/notificationService";
 
 SplashScreen.preventAutoHideAsync();
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert:  true,
+    shouldPlaySound:  true,
+    shouldSetBadge:   false,
+    shouldShowBanner: true,
+    shouldShowList:   true,
+  }),
+});
+
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
-const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
+const DEFAULT_WEB_FRAME:  Rect       = { x: 0, y: 0, width: 0, height: 0 };
 
 type Screen = "onboarding" | "register" | "login" | "main";
 
 export default function App() {
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
-  const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
+  const initialFrame  = initialWindowMetrics?.frame  ?? DEFAULT_WEB_FRAME;
 
   const [insets] = useState<EdgeInsets>(initialInsets);
-  const [frame] = useState<Rect>(initialFrame);
+  const [frame]  = useState<Rect>(initialFrame);
+
+  const navigationRef          = useRef<any>(null);
+  const notificationResponseId = useRef<string | null>(null);
 
   const [fontsLoaded, fontError] = useFonts({
-    // Playfair Display (from expo-google-fonts)
     PlayfairDisplay_400Regular,
-    PlayfairDisplay_400Bold,
     PlayfairDisplay_400Regular_Italic,
     PlayfairDisplay_600SemiBold,
-
-    // Cormorant — local TTF
     "Cormorant-Regular":  require("./assets/fonts/Cormorant.ttf"),
     "Cormorant-SemiBold": require("./assets/fonts/CormorantGaramond-SemiBold.ttf"),
     "Cormorant-Bold":     require("./assets/fonts/CormorantGaramond-Bold.ttf"),
-
-    // Inter — local TTF
     "Inter-Medium":       require("./assets/fonts/Inter_18pt-Medium.ttf"),
-
-    // EB Garamond — local TTF
     "EBGaramond-Regular": require("./assets/fonts/EBGaramond-Regular.ttf"),
     "EBGaramond-Medium":  require("./assets/fonts/EBGaramond-Medium.ttf"),
-    "EBGaramond-Bold": require("./assets/fonts/EBGaramond-Bold.ttf"),
+    "EBGaramond-Bold":    require("./assets/fonts/EBGaramond-Bold.ttf"),
   });
 
   const [isReady, setIsReady] = useState(false);
-  const [screen, setScreen] = useState<Screen>("onboarding");
+  const [screen,  setScreen]  = useState<Screen>("onboarding");
 
+  // ── Auth + initial screen ─────────────────────────────────────────────────
   useEffect(() => {
     async function prepareApp() {
       try {
-        await AsyncStorage.removeItem("onboarded"); // ← remove after testing
+        const result = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Supabase timeout")), 5000)
+          ),
+        ]) as any;
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const session   = result?.data?.session ?? null;
         const onboarded = await AsyncStorage.getItem("onboarded");
 
         if (session?.user) {
@@ -81,14 +93,15 @@ export default function App() {
         } else {
           setScreen("onboarding");
         }
-
-        await new Promise(resolve => setTimeout(resolve, 2500));
       } catch (e) {
-        console.warn(e);
+        console.warn("prepareApp error:", e);
+        const onboarded = await AsyncStorage.getItem("onboarded");
+        setScreen(onboarded === "true" ? "login" : "onboarding");
       } finally {
         setIsReady(true);
       }
     }
+
     prepareApp();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -105,6 +118,70 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // ── Reschedule notifications on every app foreground ──────────────────────
+  useEffect(() => {
+    const ensureNotificationsScheduled = async () => {
+      try {
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status === "granted") {
+          await scheduleAngelusNotifications();
+        }
+      } catch (err) {
+        console.warn("Notification reschedule error:", err);
+      }
+    };
+
+    ensureNotificationsScheduled();
+
+    const appStateSub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        ensureNotificationsScheduled();
+      }
+    });
+
+    return () => appStateSub.remove();
+  }, []);
+
+  // ── Notification tap → navigate to Prayer ────────────────────────────────
+  useEffect(() => {
+    const navigateToPrayer = () => {
+      if (screen !== "main") return;
+      const tryNavigate = (attempts = 0) => {
+        if (navigationRef.current) {
+          navigationRef.current.navigate("Prayer", { autoPlay: true });
+        } else if (attempts < 20) {
+          setTimeout(() => tryNavigate(attempts + 1), 150);
+        }
+      };
+      tryNavigate();
+    };
+
+    // Case 1: App is open, user taps notification banner
+    const tapSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const id = response.notification.request.identifier;
+      if (notificationResponseId.current === id) return;
+      notificationResponseId.current = id;
+      navigateToPrayer();
+    });
+
+    // Case 2: App was killed, user tapped notification to open it
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+
+      const id = response.notification.request.identifier;
+
+      const notificationDate = new Date(response.notification.date * 1000);
+      const ageMs = Date.now() - notificationDate.getTime();
+      if (ageMs > 30_000) return;
+
+      notificationResponseId.current = id;
+      navigateToPrayer();
+    });
+
+    return () => tapSub.remove();
+  }, [screen]);
+
+  // ── Hide splash ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (isReady && (fontsLoaded || fontError)) {
       SplashScreen.hideAsync();
@@ -112,15 +189,9 @@ export default function App() {
   }, [isReady, fontsLoaded, fontError]);
 
   const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            refetchOnWindowFocus: false,
-            retry: 1,
-          },
-        },
-      })
+    () => new QueryClient({
+      defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
+    })
   );
 
   const providerInitialMetrics = useMemo(() => {
@@ -129,7 +200,7 @@ export default function App() {
       ...metrics,
       insets: {
         ...metrics.insets,
-        top: Math.max(metrics.insets.top, 16),
+        top:    Math.max(metrics.insets.top,    16),
         bottom: Math.max(metrics.insets.bottom, 12),
       },
     };
@@ -143,10 +214,15 @@ export default function App() {
     );
   }
 
+  const handleOnboardingDone = async () => {
+    await AsyncStorage.setItem("onboarded", "true");
+    setScreen("register");
+  };
+
   const screenContent = () => {
     switch (screen) {
       case "onboarding":
-        return <OnboardingScreen onDone={() => setScreen("register")} />;
+        return <OnboardingScreen onDone={handleOnboardingDone} />;
 
       case "register":
         return (
@@ -172,7 +248,7 @@ export default function App() {
 
       case "main":
         return (
-          <NavigationContainer>
+          <NavigationContainer ref={navigationRef}>
             <TabLayout onLogout={() => setScreen("login")} />
           </NavigationContainer>
         );

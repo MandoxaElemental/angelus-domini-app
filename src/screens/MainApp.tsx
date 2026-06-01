@@ -1,164 +1,144 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
-  ScrollView,
-  Image,
-  Animated,
-  Easing,
-  Modal,
-  StatusBar,
+  useEffect, useRef, useState, useCallback, useMemo,
+} from "react";
+import {
+  View, Text, StyleSheet, TouchableOpacity, SafeAreaView,
+  ScrollView, Image, Animated, Easing, Modal, StatusBar,
 } from "react-native";
+import { useNavigation }        from "@react-navigation/native";
+import { createAudioPlayer }    from "expo-audio";
+import { Ionicons }             from "@expo/vector-icons";
+import { logout }               from "../store/auth";
+import { getNextPrayer, getPrayerStatus, PrayerStatus } from "../utils/prayer";
+import { completePrayer, getGlobalCount, startPrayer, PrayerSession } from "../api/prayerApi";
+import { supabase }             from "../lib/supabaseClient";
 
-import { useNavigation } from "@react-navigation/native";
-import { LinearGradient } from "expo-linear-gradient";
-import { Audio } from "expo-av";
-import { Ionicons } from "@expo/vector-icons";
-import { logout } from "../store/auth";
-import {
-  getNextPrayer,
-  getPrayerStatus,
-  PrayerStatus,
-} from "../utils/prayer";
-import { completePrayer, getGlobalCount, startPrayer } from "../api/prayerApi";
-import { supabase } from "../lib/supabaseClient";
-
-type Props = {
-  onLogout: () => void;
-};
+type Props = { onLogout: () => void };
 
 const COLORS = {
-  navy: "#2F4A7A",
-  navyDark: "#243A61",
-  gold: "#C9A24A",
-  goldBright: "#D4AF57",
-  cream: "#F7F2EA",
-  card: "#FFFAF2",
-  textPrimary: "#53433B",
+  navy:          "#2F4A7A",
+  gold:          "#C9A24A",
+  cream:         "#F7F2EA",
+  card:          "#FFFAF2",
+  textPrimary:   "#53433B",
   textSecondary: "#6B5E52",
-  border: "#E7DCCB",
-  success: "#8FAF8B",
-  muted: "#B8AA96",
+  border:        "#E7DCCB",
+  muted:         "#B8AA96",
 };
 
 const prayerImages: Record<string, any> = {
   Morning: require("../../assets/Morning.png"),
-  Noon: require("../../assets/Noon.png"),
+  Noon:    require("../../assets/Noon.png"),
   Evening: require("../../assets/Evening.png"),
 };
 
 const progressImages: Record<string, any> = {
   Morning: require("../../assets/Morning3.png"),
-  Noon: require("../../assets/Noon2.png"),
+  Noon:    require("../../assets/Noon2.png"),
   Evening: require("../../assets/Evening1.png"),
 };
 
 function format12Hour(date: Date): string {
-  let hours = date.getHours();
-  const minutes = date.getMinutes();
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-  return `${hours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+  let h = date.getHours();
+  const m    = date.getMinutes();
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
 }
 
 const DAILY_VERSES = [
-  { quote: "Be it done unto me according to your word.", ref: "Luke 1:38" },
-  { quote: "The Lord is my shepherd; I shall not want.", ref: "Psalm 23:1" },
-  { quote: "I can do all things through Christ who strengthens me.", ref: "Phil 4:13" },
-  { quote: "Trust in the Lord with all your heart.", ref: "Prov 3:5" },
-  { quote: "For God so loved the world that He gave His only Son.", ref: "John 3:16" },
-  { quote: "Be still, and know that I am God.", ref: "Psalm 46:10" },
-  { quote: "Love one another as I have loved you.", ref: "John 15:12" },
-  { quote: "The Lord is near to the brokenhearted.", ref: "Psalm 34:18" },
-  { quote: "Ask and it will be given to you; seek and you will find.", ref: "Matt 7:7" },
-  { quote: "I am the way, the truth, and the life.", ref: "John 14:6" },
-  { quote: "Come to me, all who are weary, and I will give you rest.", ref: "Matt 11:28" },
-  { quote: "Your word is a lamp to my feet and a light to my path.", ref: "Psalm 119:105" },
-  { quote: "Do not be anxious about anything, but in everything pray.", ref: "Phil 4:6" },
-  { quote: "The Lord bless you and keep you.", ref: "Num 6:24" },
-  { quote: "With God all things are possible.", ref: "Matt 19:26" },
-  { quote: "Fear not, for I am with you.", ref: "Isaiah 41:10" },
-  { quote: "Blessed are the pure in heart, for they shall see God.", ref: "Matt 5:8" },
-  { quote: "He who began a good work in you will complete it.", ref: "Phil 1:6" },
-  { quote: "Cast all your anxieties on Him, for He cares for you.", ref: "1 Pet 5:7" },
-  { quote: "The peace of God surpasses all understanding.", ref: "Phil 4:7" },
-  { quote: "Rejoice always, pray without ceasing.", ref: "1 Thess 5:16–17" },
-  { quote: "Create in me a clean heart, O God.", ref: "Psalm 51:10" },
+  { quote: "Be it done unto me according to your word.",               ref: "Luke 1:38"       },
+  { quote: "The Lord is my shepherd; I shall not want.",               ref: "Psalm 23:1"      },
+  { quote: "I can do all things through Christ who strengthens me.",   ref: "Phil 4:13"       },
+  { quote: "Trust in the Lord with all your heart.",                   ref: "Prov 3:5"        },
+  { quote: "For God so loved the world that He gave His only Son.",    ref: "John 3:16"       },
+  { quote: "Be still, and know that I am God.",                        ref: "Psalm 46:10"     },
+  { quote: "Love one another as I have loved you.",                    ref: "John 15:12"      },
+  { quote: "The Lord is near to the brokenhearted.",                   ref: "Psalm 34:18"     },
+  { quote: "Ask and it will be given to you; seek and you will find.", ref: "Matt 7:7"        },
+  { quote: "I am the way, the truth, and the life.",                   ref: "John 14:6"       },
+  { quote: "Come to me, all who are weary, and I will give you rest.", ref: "Matt 11:28"      },
+  { quote: "Your word is a lamp to my feet and a light to my path.",   ref: "Psalm 119:105"   },
+  { quote: "Do not be anxious about anything, but in everything pray.",ref: "Phil 4:6"        },
+  { quote: "The Lord bless you and keep you.",                         ref: "Num 6:24"        },
+  { quote: "With God all things are possible.",                        ref: "Matt 19:26"      },
+  { quote: "Fear not, for I am with you.",                             ref: "Isaiah 41:10"    },
+  { quote: "Blessed are the pure in heart, for they shall see God.",   ref: "Matt 5:8"        },
+  { quote: "He who began a good work in you will complete it.",        ref: "Phil 1:6"        },
+  { quote: "Cast all your anxieties on Him, for He cares for you.",    ref: "1 Pet 5:7"       },
+  { quote: "The peace of God surpasses all understanding.",            ref: "Phil 4:7"        },
+  { quote: "Rejoice always, pray without ceasing.",                    ref: "1 Thess 5:16–17" },
+  { quote: "Create in me a clean heart, O God.",                       ref: "Psalm 51:10"     },
   { quote: "Blessed is she who believed the Lord's promise would be fulfilled.", ref: "Luke 1:45" },
-  { quote: "This is the day the Lord has made; let us rejoice.", ref: "Psalm 118:24" },
-  { quote: "Nothing is impossible with God.", ref: "Luke 1:37" },
-  { quote: "Seek first the kingdom of God and His righteousness.", ref: "Matt 6:33" },
-  { quote: "My grace is sufficient for you.", ref: "2 Cor 12:9" },
-  { quote: "The Lord is my light and my salvation.", ref: "Psalm 27:1" },
-  { quote: "He who abides in love abides in God.", ref: "1 John 4:16" },
-  { quote: "I am with you always, to the end of the age.", ref: "Matt 28:20" },
+  { quote: "This is the day the Lord has made; let us rejoice.",       ref: "Psalm 118:24"    },
+  { quote: "Nothing is impossible with God.",                          ref: "Luke 1:37"       },
+  { quote: "Seek first the kingdom of God and His righteousness.",     ref: "Matt 6:33"       },
+  { quote: "My grace is sufficient for you.",                          ref: "2 Cor 12:9"      },
+  { quote: "The Lord is my light and my salvation.",                   ref: "Psalm 27:1"      },
+  { quote: "He who abides in love abides in God.",                     ref: "1 John 4:16"     },
+  { quote: "I am with you always, to the end of the age.",             ref: "Matt 28:20"      },
 ];
 
 function getDailyVerse() {
-  const now = new Date();
+  const now   = new Date();
   const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - start.getTime();
-  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-  return DAILY_VERSES[dayOfYear % DAILY_VERSES.length];
+  const day   = Math.floor((now.getTime() - start.getTime()) / 86400000);
+  return DAILY_VERSES[day % DAILY_VERSES.length];
 }
 
-const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
+function slotToKey(slot: string): "morning" | "noon" | "evening" | null {
   if (!slot) return null;
-  if (slot.includes("_6") && !slot.includes("_18")) return "morning";
-  if (slot.includes("_12")) return "noon";
-  if (slot.includes("_18") || slot.includes("_6p")) return "evening";
+  if (slot.endsWith("_6"))  return "morning";
+  if (slot.endsWith("_12")) return "noon";
+  if (slot.endsWith("_18")) return "evening";
   return null;
-};
+}
+
+function hourToSlotKey(h: number): "morning" | "noon" | "evening" {
+  if (h === 6)  return "morning";
+  if (h === 12) return "noon";
+  return "evening";
+}
 
 export default function MainApp({ onLogout }: Props) {
-  const ringScale = useRef(new Animated.Value(1)).current;
-  const ringOpacity = useRef(new Animated.Value(0.4)).current;
-  const bellRotate = useRef(new Animated.Value(0)).current;
-
-  const [timeLeft, setTimeLeft] = useState("00:00:00");
-  const [session, setSession] = useState<any>(null);
-  const [count, setCount] = useState(0);
-  const [userId, setUserId] = useState("");
-  const [username, setUsername] = useState("");
-  const [completedPrayers, setCompletedPrayers] = useState({
-    morning: false,
-    noon: false,
-    evening: false,
-  });
-  const [showPrayerPopup, setShowPrayerPopup] = useState(false);
-  const [isPraying, setIsPraying] = useState(false);
-
-  const lastTriggeredPrayer = useRef<string | null>(null);
   const navigation = useNavigation<any>();
-  const dailyVerse = useMemo(() => getDailyVerse(), []);
 
-  const currentHour = new Date().getHours();
-  const greeting =
-    currentHour < 12 ? "Morning" : currentHour < 18 ? "Afternoon" : "Evening";
+  const ringScale   = useRef(new Animated.Value(1)).current;
+  const ringOpacity = useRef(new Animated.Value(0.4)).current;
+  const bellRotate  = useRef(new Animated.Value(0)).current;
 
-  const currentPrayer = useMemo(() => {
-    const next = getNextPrayer();
-    return { title: next.title, icon: next.icon, time: next.time };
-  }, []);
+  const [timeLeft,         setTimeLeft]         = useState("00:00:00");
+  const [session,          setSession]          = useState<PrayerSession | null>(null);
+  const [count,            setCount]            = useState(0);
+  const [userId,           setUserId]           = useState("");
+  const [username,         setUsername]         = useState("");
+  const [showPrayerPopup,  setShowPrayerPopup]  = useState(false);
+  const [completedPrayers, setCompletedPrayers] = useState({
+    morning: false, noon: false, evening: false,
+  });
+  const [currentPrayer, setCurrentPrayer] = useState(() => {
+    const n = getNextPrayer();
+    return { title: n.title, icon: n.icon, time: n.time };
+  });
+
+  const triggeredToday = useRef<Map<number, string>>(new Map());
+  const dailyVerse     = useMemo(() => getDailyVerse(), []);
+  const currentHour    = new Date().getHours();
+  const greeting       = currentHour < 12 ? "Morning" : currentHour < 18 ? "Afternoon" : "Evening";
 
   const fetchTodayPrayers = useCallback(async (uid: string) => {
     try {
-      const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
-      const { data: todaySessions } = await supabase
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
         .eq("UserId", uid)
         .gte("ScheduledTime", `${todayStr}T00:00:00+00:00`)
         .lte("ScheduledTime", `${todayStr}T23:59:59+00:00`);
 
-      if (todaySessions) {
+      if (data) {
         const updated = { morning: false, noon: false, evening: false };
-        todaySessions.forEach((s: any) => {
+        data.forEach((s: any) => {
           if (!s.Completed) return;
           const key = slotToKey(s.Slot);
           if (key) updated[key] = true;
@@ -166,7 +146,7 @@ export default function MainApp({ onLogout }: Props) {
         setCompletedPrayers(updated);
       }
     } catch (err) {
-      console.error("❌ fetchTodayPrayers error:", err);
+      console.error("fetchTodayPrayers error:", err);
     }
   }, []);
 
@@ -175,202 +155,217 @@ export default function MainApp({ onLogout }: Props) {
 
     (async () => {
       try {
-        let { data: { session: authSession } } = await supabase.auth.getSession();
+        let { data: { session: auth } } = await supabase.auth.getSession();
 
-        if (!authSession?.user?.id) {
+        if (!auth?.user?.id) {
           await new Promise<void>((resolve) => {
             const { data: { subscription } } = supabase.auth.onAuthStateChange(
-              (_event, s) => {
-                if (s) { authSession = s; subscription.unsubscribe(); resolve(); }
-              }
+              (_e, s) => { if (s) { auth = s; subscription.unsubscribe(); resolve(); } }
             );
             setTimeout(resolve, 5000);
           });
         }
 
-        if (!authSession?.user?.id) return;
-
-        const uid = authSession.user.id;
+        if (!auth?.user?.id) return;
+        const uid = auth.user.id;
         setUserId(uid);
 
-        const metaUsername =
-          authSession.user.user_metadata?.username ||
-          authSession.user.user_metadata?.name;
-
-        if (metaUsername) {
-          setUsername(metaUsername);
+        const meta = auth.user.user_metadata?.username || auth.user.user_metadata?.name;
+        if (meta) {
+          setUsername(meta);
         } else {
-          const { data: userData } = await supabase
-            .from("users")
-            .select("username")
-            .eq("id", uid)
-            .single();
-          if (userData?.username) setUsername(userData.username);
+          const { data: u } = await supabase
+            .from("users").select("username").eq("id", uid).single();
+          if (u?.username) setUsername(u.username);
         }
 
         const sess = await startPrayer(uid);
         setSession(sess);
-
-        const globalCount = await getGlobalCount(sess.slot);
-        setCount(globalCount);
-
+        setCount(await getGlobalCount(sess.slot));
         await fetchTodayPrayers(uid);
 
         channel = supabase
-          .channel(`main-prayer-sessions-${uid}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "PrayerSessions",
-              filter: `UserId=eq.${uid}`,
-            },
-            async () => {
-              await fetchTodayPrayers(uid);
-              try {
-                const newCount = await getGlobalCount(sess.slot);
-                setCount(newCount);
-              } catch {}
-            }
-          )
+          .channel(`prayers-${uid}`)
+          .on("postgres_changes", {
+            event: "*", schema: "public",
+            table: "PrayerSessions", filter: `UserId=eq.${uid}`,
+          }, async () => {
+            await fetchTodayPrayers(uid);
+            try { setCount(await getGlobalCount(sess.slot)); } catch {}
+          })
           .subscribe();
+
       } catch (err) {
-        console.error("❌ mount error:", err);
+        console.error("Mount error:", err);
       }
     })();
 
-    return () => {
-      if (channel) supabase.removeChannel(channel);
-    };
+    return () => { if (channel) supabase.removeChannel(channel); };
   }, [fetchTodayPrayers]);
 
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.parallel([
-          Animated.timing(ringScale, { toValue: 1.25, duration: 900, easing: Easing.out(Easing.ease), useNativeDriver: false }),
-          Animated.timing(ringOpacity, { toValue: 0, duration: 900, useNativeDriver: false }),
+          Animated.timing(ringScale,   { toValue: 1.25, duration: 900, easing: Easing.out(Easing.ease), useNativeDriver: false }),
+          Animated.timing(ringOpacity, { toValue: 0,    duration: 900, useNativeDriver: false }),
         ]),
         Animated.parallel([
-          Animated.timing(ringScale, { toValue: 1, duration: 0, useNativeDriver: false }),
+          Animated.timing(ringScale,   { toValue: 1,   duration: 0, useNativeDriver: false }),
           Animated.timing(ringOpacity, { toValue: 0.4, duration: 0, useNativeDriver: false }),
         ]),
       ])
     );
     pulse.start();
-    return () => { pulse.stop(); };
+    return () => pulse.stop();
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const swing = () => {
+      if (cancelled) return;
       Animated.sequence([
-        Animated.timing(bellRotate, { toValue: 1, duration: 180, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-        Animated.timing(bellRotate, { toValue: -1, duration: 180, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-        Animated.timing(bellRotate, { toValue: 0.5, duration: 140, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: 1,    duration: 180, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: -1,   duration: 180, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: 0.5,  duration: 140, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
         Animated.timing(bellRotate, { toValue: -0.4, duration: 140, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-        Animated.timing(bellRotate, { toValue: 0, duration: 120, easing: Easing.out(Easing.ease), useNativeDriver: false }),
-      ]).start(() => setTimeout(swing, 3000));
+        Animated.timing(bellRotate, { toValue: 0,    duration: 120, easing: Easing.out(Easing.ease),   useNativeDriver: false }),
+      ]).start(() => { if (!cancelled) setTimeout(swing, 3000); });
     };
-    const timer = setTimeout(swing, 1000);
-    return () => clearTimeout(timer);
+    const t = setTimeout(swing, 1000);
+    return () => { cancelled = true; clearTimeout(t); };
   }, []);
 
   useEffect(() => {
-    const updateCountdown = () => {
-      const nextPrayer = getNextPrayer();
-      const now = new Date();
-      const diff = nextPrayer.time.getTime() - now.getTime();
-      const hrs = Math.floor(diff / 1000 / 3600);
-      const mins = Math.floor((diff % (1000 * 3600)) / (1000 * 60));
-      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+    const tick = () => {
+      const next = getNextPrayer();
+      setCurrentPrayer(prev => {
+        if (prev.time.getTime() !== next.time.getTime()) {
+          return { title: next.title, icon: next.icon, time: next.time };
+        }
+        return prev;
+      });
+      const diff = next.time.getTime() - Date.now();
+      const hrs  = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000)   / 1000);
       setTimeLeft(
-        `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+        `${String(hrs).padStart(2,"0")}:${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}`
       );
     };
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-    return () => clearInterval(interval);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
-    const checkPrayerTime = () => {
-      const nextPrayer = getNextPrayer();
-      const now = new Date();
-      const diff = nextPrayer.time.getTime() - now.getTime();
+    const check = () => {
+      const now  = new Date();
+      const h    = now.getHours();
+      const m    = now.getMinutes();
+      const date = now.toDateString();
 
-      if (diff <= 1000 && diff >= 0) {
-        const prayerKey = `${nextPrayer.title}-${now.toDateString()}`;
-        if (lastTriggeredPrayer.current === prayerKey) return;
-        lastTriggeredPrayer.current = prayerKey;
+      const isPrayerHour = h === 6 || h === 12 || h === 18;
+      if (!isPrayerHour || m !== 0) return;
 
-        setShowPrayerPopup(true);
-        playTripleBell();
+      const alreadyFired = triggeredToday.current.get(h);
+      if (alreadyFired === date) return;
+      triggeredToday.current.set(h, date);
 
-        setTimeout(() => {
-          setShowPrayerPopup(false);
-          navigation.navigate("Prayer", {
-            onComplete: async () => {
-              try {
-                if (!session || !userId) return;
-                await completePrayer(userId, session.sessionId);
-                const newCount = await getGlobalCount(session.slot);
-                setCount(newCount);
-              } catch (err) {
-                console.error("❌ auto-trigger complete error:", err);
-              }
-            },
-          });
-        }, 7000);
-      }
+      const slotKey = hourToSlotKey(h);
+      setShowPrayerPopup(true);
+      playTripleBell();
+
+      setTimeout(async () => {
+        setShowPrayerPopup(false);
+
+        let freshSession = session;
+        if (userId) {
+          try { freshSession = await startPrayer(userId); setSession(freshSession); }
+          catch {}
+        }
+
+        navigation.navigate("Prayer", {
+          autoPlay: true,
+          onComplete: async () => {
+            try {
+              if (!freshSession || !userId) return;
+              await completePrayer(userId, freshSession.sessionId);
+              setCount(await getGlobalCount(freshSession.slot));
+              setCompletedPrayers(prev => ({ ...prev, [slotKey]: true }));
+            } catch (err) {
+              console.error("Auto-trigger complete error:", err);
+            }
+          },
+        });
+      }, 7000);
     };
-    const interval = setInterval(checkPrayerTime, 1000);
-    return () => clearInterval(interval);
-  }, [session, userId]);
+
+    const id = setInterval(check, 1000);
+    return () => clearInterval(id);
+  }, [session, userId, navigation]);
 
   const playTripleBell = async () => {
     for (let i = 0; i < 3; i++) {
-      const { sound } = await Audio.Sound.createAsync(
-        require("../../assets/audio/bell.mp3")
-      );
-      await sound.playAsync();
-      await new Promise((resolve) => setTimeout(resolve, 2200));
-      await sound.unloadAsync();
+      try {
+        const player = createAudioPlayer(require("../../assets/audio/bell.mp3"));
+        player.play();
+        await new Promise(r => setTimeout(r, 2200));
+        player.remove();
+      } catch {}
     }
   };
 
   const handleComplete = async () => {
     if (!session || !userId) return;
     navigation.navigate("Prayer", {
+      autoPlay: false,
       onComplete: async () => {
         try {
           await completePrayer(userId, session.sessionId);
-          const newCount = await getGlobalCount(session.slot);
-          setCount(newCount);
+          setCount(await getGlobalCount(session.slot));
+          const key = slotToKey(session.slot);
+          if (key) setCompletedPrayers(prev => ({ ...prev, [key]: true }));
         } catch (err) {
-          console.error("❌ onComplete error:", err);
+          console.error("onComplete error:", err);
         }
       },
     });
   };
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      await logout();
-      onLogout();
-    } catch (err) {
-      console.error("Logout error:", err);
+  const navigateToPrayerFromPopup = async () => {
+    setShowPrayerPopup(false);
+    const h       = new Date().getHours();
+    const slotKey = hourToSlotKey(h);
+
+    let freshSession = session;
+    if (userId) {
+      try { freshSession = await startPrayer(userId); setSession(freshSession); }
+      catch {}
     }
+
+    navigation.navigate("Prayer", {
+      autoPlay: true,
+      onComplete: async () => {
+        try {
+          if (!freshSession || !userId) return;
+          await completePrayer(userId, freshSession.sessionId);
+          setCount(await getGlobalCount(freshSession.slot));
+          setCompletedPrayers(prev => ({ ...prev, [slotKey]: true }));
+        } catch (err) {
+          console.error("Popup complete error:", err);
+        }
+      },
+    });
   };
 
   const morningStatus = getPrayerStatus("morning", completedPrayers.morning);
-  const noonStatus = getPrayerStatus("noon", completedPrayers.noon);
+  const noonStatus    = getPrayerStatus("noon",    completedPrayers.noon);
   const eveningStatus = getPrayerStatus("evening", completedPrayers.evening);
 
   return (
     <>
-      <StatusBar hidden={true} />
+      <StatusBar hidden />
 
       <Modal visible={showPrayerPopup} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -378,24 +373,7 @@ export default function MainApp({ onLogout }: Props) {
             <Ionicons name="notifications" size={42} color={COLORS.gold} />
             <Text style={styles.modalTitle}>Angelus Time</Text>
             <Text style={styles.modalText}>The bells are calling you to prayer.</Text>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => {
-                setShowPrayerPopup(false);
-                navigation.navigate("Prayer", {
-                  onComplete: async () => {
-                    try {
-                      if (!session || !userId) return;
-                      await completePrayer(userId, session.sessionId);
-                      const newCount = await getGlobalCount(session.slot);
-                      setCount(newCount);
-                    } catch (err) {
-                      console.error("❌ modal onComplete error:", err);
-                    }
-                  },
-                });
-              }}
-            >
+            <TouchableOpacity style={styles.modalButton} onPress={navigateToPrayerFromPopup}>
               <Text style={styles.modalButtonText}>Pray Now</Text>
             </TouchableOpacity>
           </View>
@@ -463,7 +441,7 @@ export default function MainApp({ onLogout }: Props) {
 
           <View style={styles.progressRow}>
             <ProgressCard title="Morning" status={morningStatus} />
-            <ProgressCard title="Noon" status={noonStatus} />
+            <ProgressCard title="Noon"    status={noonStatus} />
             <ProgressCard title="Evening" status={eveningStatus} />
           </View>
 
@@ -480,24 +458,10 @@ export default function MainApp({ onLogout }: Props) {
               </View>
               <Text style={styles.globalText}>United in prayer around the world.</Text>
               <View style={styles.globalDivider} />
-              <View style={styles.nowPrayingRow}>
-                <Text style={styles.nowPrayingLabel}>Now praying:</Text>
-                <View style={styles.nowPrayingItem}>
-                  <Text style={styles.nowPrayingFlag}></Text>
-                  <Text style={styles.nowPrayingCountry}> </Text>
-                  <Text style={styles.nowPrayingCount}></Text>
-                </View>
-                <Text style={styles.nowPrayingDot}> </Text>
-                <View style={styles.nowPrayingItem}>
-                  <Text style={styles.nowPrayingFlag}></Text>
-                  <Text style={styles.nowPrayingCountry}> </Text>
-                  <Text style={styles.nowPrayingCount}> </Text>
-                </View>
-              </View>
             </View>
           </View>
 
-          {/* SCRIPTURE QUOTE CARD */}
+          {/* SCRIPTURE */}
           <View style={styles.scriptureCard}>
             <Image source={require("../../assets/bgquote.png")} style={styles.scriptureImage} resizeMode="cover" />
             <View style={styles.scriptureContent}>
@@ -506,20 +470,7 @@ export default function MainApp({ onLogout }: Props) {
             </View>
           </View>
 
-          {/* PRAY NOW BUTTON */}
-          <TouchableOpacity activeOpacity={0.9} onPress={handleComplete} disabled={isPraying} style={styles.buttonWrapper}>
-            <LinearGradient colors={[COLORS.goldBright, COLORS.gold]} style={[styles.button, isPraying && { opacity: 0.7 }]}>
-              <View style={styles.buttonInner}>
-                <View style={styles.prayIcon}>
-                  <Ionicons name="heart" size={18} color="#fff" />
-                </View>
-                <Text style={styles.buttonText}>{isPraying ? "Praying..." : "Pray Now"}</Text>
-                <Ionicons name="chevron-forward" size={24} color="#fff" />
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <View style={{ height: 30 }} />
+          <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
     </>
@@ -529,33 +480,33 @@ export default function MainApp({ onLogout }: Props) {
 // ─── ProgressCard ─────────────────────────────────────────────────────────────
 function ProgressCard({ title, status }: { title: string; status: PrayerStatus }) {
   const isCompleted = status === "completed";
-  const isActive = status === "active";
-  const isMissed = status === "missed";
-  const isUpcoming = !isCompleted && !isActive && !isMissed;
+  const isActive    = status === "active";
+  const isMissed    = status === "missed";
+  const isUpcoming  = status === "upcoming";
 
   return (
     <View style={[
       styles.progressCard,
       isCompleted && styles.progressCardCompleted,
-      isActive && styles.progressCardActive,
-      isMissed && styles.progressCardMissed,
+      isActive    && styles.progressCardActive,
+      isMissed    && styles.progressCardMissed,
     ]}>
       <View style={[
         styles.statusDot,
         isCompleted && styles.statusDotCompleted,
-        isActive && styles.statusDotActive,
-        isMissed && styles.statusDotMissed,
-        isUpcoming && styles.statusDotUpcoming,
+        isActive    && styles.statusDotActive,
+        isMissed    && styles.statusDotMissed,
+        isUpcoming  && styles.statusDotUpcoming,
       ]}>
         {isCompleted && <Ionicons name="checkmark" size={10} color="#fff" />}
-        {isActive && <View style={styles.statusDotInner} />}
+        {isActive    && <View style={styles.statusDotInner} />}
       </View>
 
       <View style={[
         styles.progressIcon,
         isCompleted && { backgroundColor: "#DCE8D9" },
-        isActive && { backgroundColor: "#F7E6B8" },
-        isMissed && { backgroundColor: "#F5D6D6" },
+        isActive    && { backgroundColor: "#F7E6B8" },
+        isMissed    && { backgroundColor: "#F5D6D6" },
       ]}>
         <Image source={progressImages[title]} style={styles.progressImage} resizeMode="contain" />
       </View>
@@ -566,20 +517,20 @@ function ProgressCard({ title, status }: { title: string; status: PrayerStatus }
       <View style={[
         styles.progressBox,
         isCompleted && styles.progressBoxCompleted,
-        isActive && styles.progressBoxActive,
-        isMissed && styles.progressBoxMissed,
+        isActive    && styles.progressBoxActive,
+        isMissed    && styles.progressBoxMissed,
       ]}>
-        {isCompleted && <Ionicons name="checkmark-circle" size={13} color="#4A7A48" style={{ marginRight: 3 }} />}
-        {isActive && <View style={styles.activeDot} />}
-        {isMissed && <Ionicons name="close-circle-outline" size={13} color="#A04040" style={{ marginRight: 3 }} />}
-        {isUpcoming && <Ionicons name="time-outline" size={13} color={COLORS.muted} style={{ marginRight: 3 }} />}
+        {isCompleted && <Ionicons name="checkmark-circle"     size={13} color="#4A7A48" style={{ marginRight: 3 }} />}
+        {isActive    && <View style={styles.activeDot} />}
+        {isMissed    && <Ionicons name="close-circle-outline"  size={13} color="#A04040" style={{ marginRight: 3 }} />}
+        {isUpcoming  && <Ionicons name="time-outline"          size={13} color={COLORS.muted}  style={{ marginRight: 3 }} />}
         <Text style={[
           styles.progressSubtitle,
           isCompleted && { color: "#4A7A48" },
-          isActive && { color: "#8A6018" },
-          isMissed && { color: "#A04040" },
+          isActive    && { color: "#8A6018" },
+          isMissed    && { color: "#A04040" },
         ]}>
-          {isCompleted ? "Completed" : isActive ? "Prayed" : isMissed ? "Missed" : "Upcoming"}
+          {isCompleted ? "Completed" : isActive ? "Pray Now" : isMissed ? "Missed" : "Upcoming"}
         </Text>
       </View>
     </View>
@@ -588,233 +539,69 @@ function ProgressCard({ title, status }: { title: string; status: PrayerStatus }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.cream },
-  header: {
-    height: 100, backgroundColor: "#2F4A7A", paddingRight: 24, paddingLeft: 12,
-    borderBottomLeftRadius: 25, borderBottomRightRadius: 25,
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-  },
-  logo: { width: 140, height: 40, resizeMode: "contain" },
-  bellContainer: { width: 85, height: 85, justifyContent: "center", alignItems: "center" },
-  bellImage: { width: 85, height: 85, position: "absolute", zIndex: 2 },
-  bellEffect: { width: 85, height: 85, position: "absolute", zIndex: 1 },
-  greetingRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 24, marginTop: 26 },
-
-  // Cormorant, 600 SemiBold
-  greetingTitle: {
-    fontSize: 30,
-    color: COLORS.textPrimary,
-    fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
-  },
-  greetingSubtitle: {
-    marginTop: 2,
-    fontSize: 15,
-    color: COLORS.navy,
-    fontFamily: "Cormorant-Regular",
-  },
-
-  mainCard: {
-    marginHorizontal: 24, marginTop: 18, backgroundColor: COLORS.card,
-    borderRadius: 28, borderWidth: 3, borderColor: COLORS.border, padding: 10,
-    flexDirection: "row", shadowColor: "#3B2E22", shadowOpacity: 0.08,
-    shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
-  },
-  cardImage: { width: 140, height: 180, justifyContent: "center", alignItems: "center", marginRight: 10 },
-  cardContent: { flex: 1, justifyContent: "center" },
-
-  // Inter, 500 Medium
-  cardLabel: {
-    color: COLORS.gold,
-    letterSpacing: 2,
-    fontSize: 12,
-    marginBottom: 4,
-    fontFamily: "Inter-Medium",
-    fontWeight: "500",
-  },
-
-  // EB Garamond, 400 Regular
-  cardTitle: {
-    fontSize: 34,
-    color: "#6F440A",
-    fontFamily: "EBGaramond-Regular",
-    fontWeight: "400",
-  },
-
-  cardDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 5 },
-  timeRow: { flexDirection: "row", alignItems: "center" },
-
-  // EB Garamond, 500 Medium
-  timeText: {
-    marginLeft: 6,
-    fontSize: 22,
-    color: COLORS.navy,
-    fontFamily: "EBGaramond-Medium",
-    fontWeight: "500",
-  },
-
-  // Cormorant Garamond Bold, 700
-  cardTime: {
-    marginTop: 6,
-    color: COLORS.navy,
-    fontSize: 20,
-    fontFamily: "EBGaramond-Bold",
-    fontWeight: "600",
-  },
-
-  sectionHeader: {
-    flexDirection: "row", alignItems: "center",
-    marginHorizontal: 24, marginTop: 28, marginBottom: 18,
-  },
-
-  // Cormorant, 600 SemiBold
-  sectionHeaderText: {
-    color: COLORS.navy,
-    fontSize: 13,
-    letterSpacing: 1.5,
-    marginHorizontal: 12,
-    fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
-  },
-
-  line: { flex: 1, height: 1, backgroundColor: COLORS.border },
-  progressRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24 },
-  progressCard: {
-    width: "31%", backgroundColor: COLORS.card, borderRadius: 22, borderWidth: 3,
-    borderColor: COLORS.border, alignItems: "center", paddingVertical: 18,
-    paddingHorizontal: 6, position: "relative",
-    shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 }, elevation: 6,
-  },
+  container:         { flex: 1, backgroundColor: COLORS.cream },
+  header:            { height: 100, backgroundColor: "#2F4A7A", paddingRight: 24, paddingLeft: 12, borderBottomLeftRadius: 25, borderBottomRightRadius: 25, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  logo:              { width: 140, height: 40, resizeMode: "contain" },
+  bellContainer:     { width: 85, height: 85, justifyContent: "center", alignItems: "center" },
+  bellImage:         { width: 85, height: 85, position: "absolute", zIndex: 2 },
+  bellEffect:        { width: 85, height: 85, position: "absolute", zIndex: 1 },
+  greetingRow:       { flexDirection: "row", alignItems: "center", paddingHorizontal: 24, marginTop: 26 },
+  sunIcon:           { marginRight: 12 },
+  greetingTitle:     { fontSize: 30, color: COLORS.textPrimary, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
+  greetingSubtitle:  { marginTop: 2, fontSize: 15, color: COLORS.navy, fontFamily: "Cormorant-Regular" },
+  mainCard:          { marginHorizontal: 24, marginTop: 18, backgroundColor: COLORS.card, borderRadius: 28, borderWidth: 3, borderColor: COLORS.border, padding: 10, flexDirection: "row", shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  cardImage:         { width: 140, height: 180, justifyContent: "center", alignItems: "center", marginRight: 10 },
+  cardContent:       { flex: 1, justifyContent: "center" },
+  cardLabel:         { color: COLORS.gold, letterSpacing: 2, fontSize: 12, marginBottom: 4, fontFamily: "Inter-Medium" },
+  cardTitle:         { fontSize: 34, color: "#6F440A", fontFamily: "EBGaramond-Regular" },
+  cardDivider:       { height: 1, backgroundColor: COLORS.border, marginVertical: 5 },
+  timeRow:           { flexDirection: "row", alignItems: "center" },
+  timeText:          { marginLeft: 6, fontSize: 22, color: COLORS.navy, fontFamily: "EBGaramond-Medium" },
+  cardTime:          { marginTop: 6, color: COLORS.navy, fontSize: 20, fontFamily: "EBGaramond-Bold" },
+  sectionHeader:     { flexDirection: "row", alignItems: "center", marginHorizontal: 24, marginTop: 28, marginBottom: 18 },
+  sectionHeaderText: { color: COLORS.navy, fontSize: 13, letterSpacing: 1.5, marginHorizontal: 12, fontFamily: "Cormorant-SemiBold" },
+  line:              { flex: 1, height: 1, backgroundColor: COLORS.border },
+  progressRow:       { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24 },
+  progressCard:      { width: "31%", backgroundColor: COLORS.card, borderRadius: 22, borderWidth: 3, borderColor: COLORS.border, alignItems: "center", paddingVertical: 18, paddingHorizontal: 6, position: "relative", shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   progressCardCompleted: { borderColor: "#B8CFB5", backgroundColor: "#F6FBF5" },
-  progressCardActive: { borderColor: COLORS.gold, backgroundColor: "#FFF9EC" },
-  progressCardMissed: { borderColor: COLORS.border, backgroundColor: "#FFF3F2" },
-  statusDot: {
-    position: "absolute", top: 6, right: 10, width: 15, height: 15,
-    borderRadius: 9, justifyContent: "center", alignItems: "center",
-    borderWidth: 2, borderColor: COLORS.border, backgroundColor: COLORS.card,
-  },
-  statusDotCompleted: { backgroundColor: "#7BA87A", borderColor: "#7BA87A" },
-  statusDotActive: { backgroundColor: COLORS.gold, borderColor: COLORS.gold },
-  statusDotMissed: { backgroundColor: "transparent", borderColor: "#D8A3A0" },
+  progressCardActive:    { borderColor: COLORS.gold, backgroundColor: "#FFF9EC" },
+  progressCardMissed:    { borderColor: COLORS.border, backgroundColor: "#FFF3F2" },
+  statusDot:         { position: "absolute", top: 6, right: 10, width: 15, height: 15, borderRadius: 9, justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: COLORS.border, backgroundColor: COLORS.card },
+  statusDotCompleted:{ backgroundColor: "#7BA87A", borderColor: "#7BA87A" },
+  statusDotActive:   { backgroundColor: COLORS.gold, borderColor: COLORS.gold },
+  statusDotMissed:   { backgroundColor: "transparent", borderColor: "#D8A3A0" },
   statusDotUpcoming: { backgroundColor: "transparent", borderColor: COLORS.muted },
-  statusDotInner: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#fff" },
-  progressIcon: {
-    width: 58, height: 58, borderRadius: 29, backgroundColor: "#F3EFE7",
-    justifyContent: "center", alignItems: "center", marginBottom: 8,
-  },
-
-  // Cormorant, 600 SemiBold
-  progressTitle: {
-    fontSize: 17,
-    color: COLORS.textPrimary,
-    fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
-  },
-  progressAngelus: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
-    marginTop: 1,
-    marginBottom: 10,
-  },
-
-  progressBox: {
-    flexDirection: "row", alignItems: "center", paddingVertical: 3,
-    paddingHorizontal: 10, borderRadius: 999, borderWidth: 2,
-    borderColor: COLORS.border, backgroundColor: "transparent",
-  },
+  statusDotInner:    { width: 7, height: 7, borderRadius: 4, backgroundColor: "#fff" },
+  progressIcon:      { width: 58, height: 58, borderRadius: 29, backgroundColor: "#F3EFE7", justifyContent: "center", alignItems: "center", marginBottom: 8 },
+  progressImage:     { width: 75, height: 75 },
+  progressImageU:    { width: 60, height: 75 },
+  progressTitle:     { fontSize: 17, color: COLORS.textPrimary, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
+  progressAngelus:   { fontSize: 13, color: COLORS.textSecondary, fontFamily: "Cormorant-SemiBold", marginTop: 1, marginBottom: 10 },
+  progressBox:       { flexDirection: "row", alignItems: "center", paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, borderWidth: 2, borderColor: COLORS.border },
   progressBoxCompleted: { borderColor: "#7BA87A", backgroundColor: "#F2FAF1" },
-  progressBoxActive: { borderColor: COLORS.gold, backgroundColor: "#FFF6E0" },
-  progressBoxMissed: { borderColor: "#D8A3A0", backgroundColor: "#FFF0EF" },
-  activeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.gold, marginRight: 5 },
-
-  // Cormorant, 600 SemiBold
-  progressSubtitle: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
-  },
-
-  progressImage: { width: 75, height: 75 },
-  progressImageU: { width: 60, height: 75 },
-  globalCard: {
-    marginHorizontal: 24, marginTop: 18, backgroundColor: COLORS.card,
-    borderRadius: 28, borderWidth: 3, borderColor: COLORS.border, padding: 14,
-    flexDirection: "row", alignItems: "flex-start",
-    shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 }, elevation: 6,
-  },
-  globe: { width: 110, height: 110, justifyContent: "center", alignItems: "center", marginRight: 18, alignSelf: "center" },
-  globeIcon: { width: 160, height: 140 },
-  globalRight: { flex: 1, justifyContent: "center" },
-
-  // Inter, 500 Medium
-  globalLabel: {
-    color: COLORS.navy,
-    fontSize: 12,
-    letterSpacing: 1.5,
-    fontFamily: "EBGaramond-Medium",
-    fontWeight: "500",
-    marginBottom: 2,
-  },
-
-  globalCountRow: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap" },
-
-  // EB Garamond, 500 Medium
-  globalCount: {
-    fontSize: 38,
-    color: COLORS.navy,
-    fontFamily: "EBGaramond-Medium",
-    fontWeight: "500",
-  },
-
-  globalPrayedToday: { fontSize: 14, color: COLORS.textSecondary, fontFamily: "EBGaramond-Mediumr", marginLeft: 4 },
-  globalText: { color: COLORS.textSecondary, fontSize: 13, fontFamily: "EBGaramond-Medium", marginTop: 2 },
-  globalDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 10 },
-  nowPrayingRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
-  nowPrayingLabel: { fontSize: 12, color: COLORS.textSecondary, fontFamily: "EBGaramond-Medium", marginRight: 4 },
-  nowPrayingItem: { flexDirection: "row", alignItems: "center" },
-  nowPrayingFlag: { fontSize: 14 },
-  nowPrayingCountry: { fontSize: 13, color: COLORS.navy, fontFamily: "Cormorant-SemiBold" },
-  nowPrayingCount: { fontSize: 13, color: COLORS.textPrimary, fontFamily: "Cormorant-Regular" },
-  nowPrayingDot: { fontSize: 13, color: COLORS.muted },
-  scriptureCard: {
-    marginHorizontal: 24, marginTop: 14, backgroundColor: COLORS.card,
-    borderRadius: 22, borderWidth: 3, borderColor: COLORS.border,
-    flexDirection: "row", overflow: "hidden",
-    shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 }, elevation: 6,
-  },
-  scriptureImage: { width: 190, height: 120 },
-  scriptureContent: { flex: 1, padding: 16, justifyContent: "center" },
-  scriptureQuote: { fontSize: 12, color: COLORS.textPrimary, fontStyle: "italic", lineHeight: 12, fontFamily: "EBGaramond-Regular" },
-  scriptureRef: { marginTop: 7, fontSize: 13, color: COLORS.navy, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
-  buttonWrapper: { marginHorizontal: 24, marginTop: 28 },
-  button: {
-    borderRadius: 36, paddingVertical: 18, paddingHorizontal: 24,
-    shadowColor: "#D4AF57", shadowOpacity: 0.3, shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 }, elevation: 6,
-  },
-  buttonInner: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  prayIcon: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    justifyContent: "center", alignItems: "center",
-  },
-  buttonText: { color: "#fff", fontSize: 24, fontWeight: "600", fontFamily: "Cormorant-SemiBold" },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
-  modalCard: {
-    width: "100%", backgroundColor: COLORS.card, borderRadius: 28,
-    padding: 28, alignItems: "center", borderWidth: 3, borderColor: COLORS.border,
-  },
-  modalTitle: { marginTop: 16, fontSize: 32, color: COLORS.navy, fontFamily: "Cormorant-SemiBold" },
-  modalText: { marginTop: 10, textAlign: "center", color: COLORS.textSecondary, fontSize: 18, lineHeight: 26, fontFamily: "Cormorant-Regular" },
-  modalButton: { marginTop: 18, backgroundColor: COLORS.gold, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 30 },
-  modalButtonText: { color: "#fff", fontSize: 18, fontWeight: "600", fontFamily: "Cormorant-SemiBold" },
-  sunIcon: { marginRight: 12 },
-  logoutBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#D4A017" },
-  logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A", fontFamily: "Inter-Medium" },
+  progressBoxActive:    { borderColor: COLORS.gold, backgroundColor: "#FFF6E0" },
+  progressBoxMissed:    { borderColor: "#D8A3A0", backgroundColor: "#FFF0EF" },
+  activeDot:         { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.gold, marginRight: 5 },
+  progressSubtitle:  { fontSize: 12, color: COLORS.textSecondary, fontFamily: "Cormorant-SemiBold" },
+  globalCard:        { marginHorizontal: 24, marginTop: 18, backgroundColor: COLORS.card, borderRadius: 28, borderWidth: 3, borderColor: COLORS.border, padding: 14, flexDirection: "row", alignItems: "flex-start", shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  globe:             { width: 110, height: 110, justifyContent: "center", alignItems: "center", marginRight: 18, alignSelf: "center" },
+  globeIcon:         { width: 160, height: 140 },
+  globalRight:       { flex: 1, justifyContent: "center" },
+  globalLabel:       { color: COLORS.navy, fontSize: 12, letterSpacing: 1.5, fontFamily: "EBGaramond-Medium", marginBottom: 2 },
+  globalCountRow:    { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap" },
+  globalCount:       { fontSize: 38, color: COLORS.navy, fontFamily: "EBGaramond-Medium" },
+  globalPrayedToday: { fontSize: 14, color: COLORS.textSecondary, fontFamily: "EBGaramond-Medium", marginLeft: 4 },
+  globalText:        { color: COLORS.textSecondary, fontSize: 13, fontFamily: "EBGaramond-Medium", marginTop: 2 },
+  globalDivider:     { height: 1, backgroundColor: COLORS.border, marginVertical: 10 },
+  scriptureCard:     { marginHorizontal: 24, marginTop: 14, backgroundColor: COLORS.card, borderRadius: 22, borderWidth: 3, borderColor: COLORS.border, flexDirection: "row", overflow: "hidden", shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  scriptureImage:    { width: 190, height: 120 },
+  scriptureContent:  { flex: 1, padding: 16, justifyContent: "center" },
+  scriptureQuote:    { fontSize: 12, color: COLORS.textPrimary, fontStyle: "italic", lineHeight: 18, fontFamily: "EBGaramond-Regular" },
+  scriptureRef:      { marginTop: 7, fontSize: 13, color: COLORS.navy, fontFamily: "Cormorant-SemiBold" },
+  modalOverlay:      { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
+  modalCard:         { width: "100%", backgroundColor: COLORS.card, borderRadius: 28, padding: 28, alignItems: "center", borderWidth: 3, borderColor: COLORS.border },
+  modalTitle:        { marginTop: 16, fontSize: 32, color: COLORS.navy, fontFamily: "Cormorant-SemiBold" },
+  modalText:         { marginTop: 10, textAlign: "center", color: COLORS.textSecondary, fontSize: 18, lineHeight: 26, fontFamily: "Cormorant-Regular" },
+  modalButton:       { marginTop: 18, backgroundColor: COLORS.gold, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 30 },
+  modalButtonText:   { color: "#fff", fontSize: 18, fontWeight: "600", fontFamily: "Cormorant-SemiBold" },
 });
