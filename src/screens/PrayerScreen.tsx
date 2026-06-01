@@ -597,7 +597,6 @@ export default function PrayerScreen() {
           },
         ]}
       >
-        {" "}
         <Image source={require("../../assets/Logo.png")} style={styles.logo} />
         <View style={styles.bellContainer}>
           {/* Ringing effect */}
@@ -785,7 +784,6 @@ export default function PrayerScreen() {
             },
           ]}
         >
-          {" "}
           {PRAYER_SEQUENCE.map((_, i) => (
             <View
               key={i}

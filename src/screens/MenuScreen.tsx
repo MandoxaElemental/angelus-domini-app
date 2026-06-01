@@ -386,12 +386,12 @@ export default function MenuScreen({ onLogout }: Props) {
         {/* ── HERO TITLE ── */}
         <View style={styles.heroSection}>
           <Text style={styles.heroTitle}>Your Prayer Rhythm</Text>
-          <Text style={styles.heroSubtitle}>
+          {/* <Text style={styles.heroSubtitle}>
             Returning in Prayer at 6 · 12 · 6.
           </Text>
           <Text style={styles.heroSubtitle}>
             The 6-12-6 Rhythm of the Angelus.
-          </Text>
+          </Text> */}
         </View>
 
         {/* ── LIGHT THROUGH THE DAY ── */}

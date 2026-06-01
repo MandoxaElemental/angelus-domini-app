@@ -4,12 +4,12 @@
     "slug": "Angelus Domini",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Angelus-domini.png",
+    "icon": "./assets/bell.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
 
     "splash": {
-      "image": "./assets/angelusdominiicon.png",
+      "image": "./assets/bell.png",
       "resizeMode": "contain",
       "backgroundColor": "#1F3A6E"
     },
@@ -52,7 +52,8 @@
         "expo-notifications",
         {
           "icon": "./assets/bell.png",
-          "color": "#C9A24A"
+          "color": "#C9A24A",
+          "sounds": ["./assets/audio/triple-bell.mp3"]
         }
       ],
       "expo-router"
