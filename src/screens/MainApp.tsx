@@ -27,6 +27,7 @@ import { getNextPrayer, getPrayerStatus, PrayerStatus } from "../utils/prayer";
 import { completePrayer, getGlobalCount, startPrayer } from "../api/prayerApi";
 
 import { supabase } from "../lib/supabaseClient";
+import AppHeader from "../../components/Header";
 
 type Props = {
   onLogout: () => void;
@@ -616,39 +617,7 @@ export default function MainApp({ onLogout }: Props) {
 
       <SafeAreaView style={styles.container}>
         {/* HEADER */}
-        <View style={styles.header}>
-          <Image
-            source={require("../../assets/Logo.png")}
-            style={styles.logo}
-          />
-          <View style={styles.bellContainer}>
-            <Animated.Image
-              source={require("../../assets/ring.png")}
-              style={[
-                styles.bellEffect,
-                { opacity: ringOpacity, transform: [{ scale: ringScale }] },
-              ]}
-              resizeMode="contain"
-            />
-            <Animated.Image
-              source={require("../../assets/bell.png")}
-              resizeMode="contain"
-              style={[
-                styles.bellImage,
-                {
-                  transform: [
-                    {
-                      rotate: bellRotate.interpolate({
-                        inputRange: [-1, 1],
-                        outputRange: ["-12deg", "12deg"],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          </View>
-        </View>
+        <AppHeader />
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* GREETING */}
 
@@ -976,26 +945,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cream,
   },
 
-  header: {
-    height: 100,
-    backgroundColor: "#2F4A7A",
-    paddingRight: 24,
-    paddingLeft: 12,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  logo: { width: 140, height: 40, resizeMode: "contain" },
-  bellContainer: {
-    width: 85,
-    height: 85,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  bellImage: { width: 85, height: 85, position: "absolute", zIndex: 2 },
-  bellEffect: { width: 85, height: 85, position: "absolute", zIndex: 1 },
   greetingRow: {
     flexDirection: "row",
     alignItems: "center",

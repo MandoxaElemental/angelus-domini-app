@@ -230,8 +230,6 @@ export default function PrayerScreen() {
     // 6:00 PM → 5:59 AM
     return "6pm";
   };
-
-  const [selectedTime, setSelectedTime] = useState(getCurrentPrayerTime());
   const item = PRAYER_SEQUENCE[currentStep];
   const nextItem = PRAYER_SEQUENCE[currentStep + 1];
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -244,9 +242,12 @@ export default function PrayerScreen() {
   const isTransitioning = useRef(false);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const initialSlot = route.params?.timeSlot;
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const onComplete = route.params?.onComplete;
-
+  const [selectedTime, setSelectedTime] = useState(
+    initialSlot ?? getCurrentPrayerTime(),
+  );
   const transitionToNext = () => {
     if (isTransitioning.current) return;
 

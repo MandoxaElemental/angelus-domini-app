@@ -1,100 +1,59 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+export function configureNotifications() {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 export async function registerForPushNotificationsAsync() {
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  const { status } = await Notifications.getPermissionsAsync();
 
-  let finalStatus = existingStatus;
+  let finalStatus = status;
 
-  if (existingStatus !== "granted") {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
+  if (status !== "granted") {
+    const { status: newStatus } = await Notifications.requestPermissionsAsync();
+    finalStatus = newStatus;
   }
 
   if (finalStatus !== "granted") {
-    alert("Permission for notifications not granted!");
+    alert("Notifications permission not granted");
     return false;
   }
 
   if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("angelus-reminders", {
-      name: "Angelus Reminders",
+    await Notifications.setNotificationChannelAsync("angelus", {
+      name: "Angelus",
       importance: Notifications.AndroidImportance.HIGH,
       sound: "triple-bell.mp3",
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#C9A24A",
     });
   }
 
   return true;
 }
-
-async function scheduleDailyNotification(
+export async function scheduleAngelus(
   hour: number,
   minute: number,
-  title: string,
-  body: string,
+  timeSlot: "6am" | "12pm" | "6pm",
 ) {
   await Notifications.scheduleNotificationAsync({
     content: {
-      title,
-      body,
+      title: "Angelus Prayer",
+      body: "Tap to begin prayer",
       sound: "triple-bell.mp3",
+      data: { timeSlot },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
       hour,
       minute,
       repeats: true,
-    },
-  });
-}
-
-export async function setupAngelusNotifications() {
-  await Notifications.cancelAllScheduledNotificationsAsync();
-
-  await scheduleDailyNotification(
-    6,
-    0,
-    "Angelus Morning Prayer",
-    "The Angel of the Lord declared unto Mary.",
-  );
-
-  await scheduleDailyNotification(
-    12,
-    0,
-    "Angelus Noon Prayer",
-    "Pause and pray the Angelus.",
-  );
-
-  await scheduleDailyNotification(
-    18,
-    0,
-    "Angelus Evening Prayer",
-    "Pray the Angelus at sunset.",
-  );
-}
-
-export async function testNotificationNow() {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "Angelus Test",
-      body: "Testing local notifications.",
-      sound: "triple-bell.mp3",
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: 5,
-      repeats: false,
     },
   });
 }

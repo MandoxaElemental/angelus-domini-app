@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import "react-native-get-random-values";
-
+import * as Notifications from "expo-notifications";
+import { createNavigationContainerRef } from "@react-navigation/native";
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 import * as SplashScreen from "expo-splash-screen";
 
 import {
@@ -40,7 +42,7 @@ import {
 import { NavigationContainer, useNavigation } from "@react-navigation/native";
 
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-
+import type { RootStackParamList } from "./src/navigation/types";
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
@@ -52,7 +54,7 @@ import { supabase } from "./src/lib/supabaseClient";
 
 SplashScreen.preventAutoHideAsync();
 
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const DEFAULT_WEB_INSETS: EdgeInsets = {
   top: 0,
@@ -165,6 +167,23 @@ function AppNavigator({
 }
 
 export default function App() {
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const timeSlot = response.notification.request.content.data
+          ?.timeSlot as RootStackParamList["Prayer"]["timeSlot"] | undefined;
+
+        if (!timeSlot) return;
+
+        if (navigationRef.isReady()) {
+          navigationRef.navigate("Prayer", { timeSlot });
+        }
+      },
+    );
+
+    return () => sub.remove();
+  }, []);
+
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
 
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
@@ -273,7 +292,7 @@ export default function App() {
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           <AppNavigator initialRoute={initialRoute} />
         </NavigationContainer>
 
