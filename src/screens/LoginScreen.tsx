@@ -23,8 +23,9 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
 
       if (!res.token) throw new Error("No session");
 
-      await saveAuth(res.token, res.userId);
-      onLogin();
+      onLogin(); // navigate first
+
+      saveAuth(res.token, res.userId).catch(console.error);
     } catch (err: any) {
       alert(err.message || "Invalid login");
     }

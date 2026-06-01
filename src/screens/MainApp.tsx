@@ -235,6 +235,16 @@ export default function MainApp({ onLogout }: Props) {
     }
   }, []);
 
+  const finishPrayer = async () => {
+    if (!session || !userId) return;
+
+    await completePrayer(userId, session.sessionId);
+
+    const newCount = await getGlobalCount(session.slot);
+
+    setCount(newCount);
+  };
+
   // ── On mount ──────────────────────────────────────────────────────────────
   useEffect(() => {
     let channel: any = null;
@@ -472,7 +482,7 @@ export default function MainApp({ onLogout }: Props) {
               try {
                 if (!session || !userId) return;
 
-                await completePrayer(userId, session.sessionId);
+                await finishPrayer();
 
                 const newCount = await getGlobalCount(session.slot);
 
@@ -517,7 +527,7 @@ export default function MainApp({ onLogout }: Props) {
         try {
           setIsPraying(true);
 
-          await completePrayer(userId, session.sessionId);
+          await finishPrayer();
           const newCount = await getGlobalCount(session.slot);
           setCount(newCount);
           // Real-time listener will update completedPrayers
@@ -587,8 +597,7 @@ export default function MainApp({ onLogout }: Props) {
                     try {
                       if (!session || !userId) return;
 
-                      await completePrayer(userId, session.sessionId);
-
+                      await finishPrayer();
                       const newCount = await getGlobalCount(session.slot);
 
                       setCount(newCount);
@@ -606,42 +615,41 @@ export default function MainApp({ onLogout }: Props) {
       </Modal>
 
       <SafeAreaView style={styles.container}>
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* HEADER */}
-          <View style={styles.header}>
-            <Image
-              source={require("../../assets/Logo.png")}
-              style={styles.logo}
+        {/* HEADER */}
+        <View style={styles.header}>
+          <Image
+            source={require("../../assets/Logo.png")}
+            style={styles.logo}
+          />
+          <View style={styles.bellContainer}>
+            <Animated.Image
+              source={require("../../assets/ring.png")}
+              style={[
+                styles.bellEffect,
+                { opacity: ringOpacity, transform: [{ scale: ringScale }] },
+              ]}
+              resizeMode="contain"
             />
-            <View style={styles.bellContainer}>
-              <Animated.Image
-                source={require("../../assets/ring.png")}
-                style={[
-                  styles.bellEffect,
-                  { opacity: ringOpacity, transform: [{ scale: ringScale }] },
-                ]}
-                resizeMode="contain"
-              />
-              <Animated.Image
-                source={require("../../assets/bell.png")}
-                resizeMode="contain"
-                style={[
-                  styles.bellImage,
-                  {
-                    transform: [
-                      {
-                        rotate: bellRotate.interpolate({
-                          inputRange: [-1, 1],
-                          outputRange: ["-12deg", "12deg"],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-            </View>
+            <Animated.Image
+              source={require("../../assets/bell.png")}
+              resizeMode="contain"
+              style={[
+                styles.bellImage,
+                {
+                  transform: [
+                    {
+                      rotate: bellRotate.interpolate({
+                        inputRange: [-1, 1],
+                        outputRange: ["-12deg", "12deg"],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
           </View>
-
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
           {/* GREETING */}
 
           <View style={styles.greetingRow}>
@@ -756,7 +764,7 @@ export default function MainApp({ onLogout }: Props) {
                 source={require("../../assets/Divider.svg")}
                 style={styles.globalDivider}
                 resizeMode="contain"
-              />{" "}
+              />
               <View style={styles.nowPrayingRow}>
                 <Text style={styles.nowPrayingLabel}>Now praying:</Text>
 

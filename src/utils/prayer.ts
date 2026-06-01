@@ -95,3 +95,21 @@ export function formatPrayerTime(date: Date) {
     minute: "2-digit",
   });
 }
+
+export function getSlot(): string {
+  const now = new Date();
+
+  const morning = getPrayerDate(6);
+  const noon = getPrayerDate(12);
+  const evening = getPrayerDate(18);
+
+  if (now < noon) {
+    return "morning";
+  }
+
+  if (now < evening) {
+    return "noon";
+  }
+
+  return "evening";
+}

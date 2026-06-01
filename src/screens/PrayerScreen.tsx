@@ -9,12 +9,14 @@ import {
   Animated,
   Easing,
   Modal,
+  useWindowDimensions,
 } from "react-native";
 import { createAudioPlayer } from "expo-audio";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { SafeAreaView } from "react-native-safe-area-context";
 type PrayerItem =
   | {
       type: "versicle" | "response" | "prayer";
@@ -181,6 +183,33 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
 ];
 
 export default function PrayerScreen() {
+  const { width, height } = useWindowDimensions();
+
+  const isSmallScreen = width <= 360;
+  const isTinyScreen = width <= 340;
+
+  const scale = Math.min(width / 430, 1);
+
+  const sizes = {
+    headerHeight: isTinyScreen ? 82 : isSmallScreen ? 90 : 100,
+
+    titleFont: isTinyScreen ? 24 : isSmallScreen ? 27 : 30,
+
+    bodyLineHeight: isTinyScreen ? 34 : isSmallScreen ? 38 : 42,
+
+    imageHeight: isTinyScreen ? 160 : isSmallScreen ? 185 : 220,
+
+    cardHeight: isTinyScreen ? 220 : isSmallScreen ? 240 : 260,
+
+    horizontalPadding: isTinyScreen ? 14 : 24,
+
+    buttonHeight: isTinyScreen ? 50 : 58,
+  };
+
+  const dotsPerRow = isTinyScreen ? 10 : PRAYER_SEQUENCE.length;
+
+  const dotsWidth = dotsPerRow * 16;
+
   const [currentStep, setCurrentStep] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const scrollY = useRef(0);
@@ -485,7 +514,16 @@ export default function PrayerScreen() {
   const renderPrayer = () => {
     if (item.type === "versicle") {
       return (
-        <Animated.Text style={[styles.versicle, { opacity: fadeAnim }]}>
+        <Animated.Text
+          style={[
+            styles.versicle,
+            { opacity: fadeAnim },
+            {
+              fontSize: sizes.titleFont,
+              lineHeight: sizes.bodyLineHeight,
+            },
+          ]}
+        >
           {item.text}
         </Animated.Text>
       );
@@ -493,7 +531,16 @@ export default function PrayerScreen() {
 
     if (item.type === "response") {
       return (
-        <Animated.Text style={[styles.responseItalic, { opacity: fadeAnim }]}>
+        <Animated.Text
+          style={[
+            styles.responseItalic,
+            { opacity: fadeAnim },
+            {
+              fontSize: sizes.titleFont,
+              lineHeight: sizes.bodyLineHeight,
+            },
+          ]}
+        >
           {item.text}
         </Animated.Text>
       );
@@ -501,7 +548,16 @@ export default function PrayerScreen() {
 
     if (item.type === "prayer") {
       return (
-        <Animated.Text style={[styles.prayer, { opacity: fadeAnim }]}>
+        <Animated.Text
+          style={[
+            styles.prayer,
+            { opacity: fadeAnim },
+            {
+              fontSize: sizes.titleFont,
+              lineHeight: sizes.bodyLineHeight,
+            },
+          ]}
+        >
           {item.text}
         </Animated.Text>
       );
@@ -531,48 +587,53 @@ export default function PrayerScreen() {
 
   return (
     <>
-      <View style={styles.container}>
-        {/* 🔷 HEADER */}
-        <View style={styles.header}>
-          <Image
-            source={require("../../assets/Logo.png")}
-            style={styles.logo}
+      <View
+        style={[
+          styles.header,
+          {
+            height: sizes.headerHeight,
+            paddingRight: isTinyScreen ? 16 : 24,
+          },
+        ]}
+      >
+        {" "}
+        <Image source={require("../../assets/Logo.png")} style={styles.logo} />
+        <View style={styles.bellContainer}>
+          {/* Ringing effect */}
+          <Animated.Image
+            source={require("../../assets/ring.png")}
+            style={[
+              styles.bellEffect,
+              {
+                opacity: ringOpacity,
+                transform: [{ scale: ringScale }],
+              },
+            ]}
+            resizeMode="contain"
           />
 
-          <View style={styles.bellContainer}>
-            {/* Ringing effect */}
-            <Animated.Image
-              source={require("../../assets/ring.png")}
-              style={[
-                styles.bellEffect,
-                {
-                  opacity: ringOpacity,
-                  transform: [{ scale: ringScale }],
-                },
-              ]}
-              resizeMode="contain"
-            />
-
-            {/* Bell */}
-            <Animated.Image
-              source={require("../../assets/bell.png")}
-              resizeMode="contain"
-              style={[
-                styles.bellImage,
-                {
-                  transform: [
-                    {
-                      rotate: bellRotate.interpolate({
-                        inputRange: [-1, 1],
-                        outputRange: ["-12deg", "12deg"],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          </View>
+          {/* Bell */}
+          <Animated.Image
+            source={require("../../assets/bell.png")}
+            resizeMode="contain"
+            style={[
+              styles.bellImage,
+              {
+                transform: [
+                  {
+                    rotate: bellRotate.interpolate({
+                      inputRange: [-1, 1],
+                      outputRange: ["-12deg", "12deg"],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
         </View>
+      </View>
+      <SafeAreaView style={styles.container}>
+        {/* 🔷 HEADER */}
 
         <Text style={styles.subtitle}>
           Meditating on the mystery of the Incarnation
@@ -610,7 +671,12 @@ export default function PrayerScreen() {
           })}
         </View>
         {/* 🖼 IMAGE */}
-        <View style={styles.imageContainer}>
+        <View
+          style={[
+            styles.imageContainer,
+            { height: Math.min(Math.max(width * 0.5, 160), 220) },
+          ]}
+        >
           <Image
             source={require("../../assets/angelus.png")}
             style={styles.image}
@@ -632,7 +698,15 @@ export default function PrayerScreen() {
         </View>
         {/* 📜 PRAYER CARD */}
 
-        <View style={styles.card}>
+        <View
+          style={[
+            styles.card,
+            {
+              minHeight: sizes.cardHeight,
+              maxHeight: sizes.cardHeight,
+            },
+          ]}
+        >
           {item.type === "prayer" ? (
             <View style={styles.prayerScrollWindow}>
               <ScrollView
@@ -676,7 +750,15 @@ export default function PrayerScreen() {
                   },
                 ]}
               >
-                <Text style={styles.upcomingPrayer}>
+                <Text
+                  style={[
+                    styles.upcomingPrayer,
+                    {
+                      fontSize: sizes.titleFont,
+                      lineHeight: sizes.bodyLineHeight,
+                    },
+                  ]}
+                >
                   {nextItem?.text || ""}
                 </Text>
               </Animated.View>
@@ -692,11 +774,29 @@ export default function PrayerScreen() {
         </View>
 
         {/* ⚪ DOTS */}
-        <View style={styles.dots}>
+        <View
+          style={[
+            styles.dots,
+            isTinyScreen && {
+              flexWrap: "wrap",
+              width: dotsWidth,
+              rowGap: 8,
+            },
+          ]}
+        >
+          {" "}
           {PRAYER_SEQUENCE.map((_, i) => (
             <View
               key={i}
-              style={[styles.dot, i === currentStep && styles.activeDot]}
+              style={[
+                styles.dot,
+                isTinyScreen && {
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                },
+                i === currentStep && styles.activeDot,
+              ]}
             />
           ))}
         </View>
@@ -750,7 +850,12 @@ export default function PrayerScreen() {
               }
             }}
           >
-            <Text style={styles.footerAction}>
+            <Text
+              style={[
+                styles.footerAction,
+                { fontSize: isTinyScreen ? 15 : 18 },
+              ]}
+            >
               {autoPlay ? "Pause" : "Auto Pray"}
             </Text>
           </TouchableOpacity>
@@ -779,7 +884,7 @@ export default function PrayerScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
       <Modal visible={showCompletionModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -815,7 +920,6 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    height: 100,
     backgroundColor: "#2F4A7A",
     paddingRight: 24,
     paddingLeft: 12,
@@ -858,7 +962,6 @@ const styles = StyleSheet.create({
 
   imageContainer: {
     width: "100%",
-    height: 220,
     position: "relative",
   },
 
@@ -915,12 +1018,11 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    margin: 24,
-    padding: 24,
-    backgroundColor: "#FFFAF2",
+    marginHorizontal: 16,
+    marginVertical: 18,
+    padding: 20,
     borderRadius: 24,
-    maxHeight: 260,
-    minHeight: 260,
+    flexShrink: 1,
     textAlign: "center",
     justifyContent: "center",
     shadowColor: "#4a392f",
@@ -949,7 +1051,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   versicle: {
-    fontSize: 30,
     color: "#6F440A",
     marginBottom: 6,
     textAlign: "center",
@@ -958,7 +1059,6 @@ const styles = StyleSheet.create({
     fontWeight: "semibold",
   },
   response: {
-    fontSize: 30,
     color: "#6F440A",
     textAlign: "center",
     lineHeight: 42,
@@ -971,7 +1071,6 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
   },
   responseItalic: {
-    fontSize: 30,
     color: "#6F440A",
     fontStyle: "italic",
     textAlign: "center",
@@ -979,7 +1078,6 @@ const styles = StyleSheet.create({
     fontFamily: "Garamond-Regular",
   },
   prayer: {
-    fontSize: 30,
     lineHeight: 42,
     textAlign: "center",
     color: "#6F440A",
@@ -999,6 +1097,12 @@ const styles = StyleSheet.create({
   },
   activeDot: {
     backgroundColor: "#C9A24A",
+  },
+  dotsWrapped: {
+    flexWrap: "wrap",
+    width: 140,
+    alignSelf: "center",
+    rowGap: 8,
   },
 
   button: {
@@ -1028,13 +1132,15 @@ const styles = StyleSheet.create({
   timeSelector: {
     flexDirection: "row",
     justifyContent: "space-around",
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     marginTop: 8,
-    marginBottom: 12,
+    marginBottom: 8,
   },
 
   timeButton: {
-    width: 100,
+    minWidth: 82,
+    width: "30%",
+    maxWidth: 100,
     height: 48,
     borderRadius: 24,
     justifyContent: "center",
@@ -1067,6 +1173,7 @@ const styles = StyleSheet.create({
 
   footerControls: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 26,
@@ -1075,7 +1182,6 @@ const styles = StyleSheet.create({
 
   footerAction: {
     color: "#6B5E52",
-    fontSize: 18,
     fontWeight: "500",
     paddingHorizontal: 6,
   },
@@ -1153,7 +1259,6 @@ const styles = StyleSheet.create({
   },
 
   upcomingPrayer: {
-    fontSize: 30,
     lineHeight: 42,
     textAlign: "center",
     color: "#6F440A",
@@ -1188,7 +1293,6 @@ const styles = StyleSheet.create({
   },
 
   upNextText: {
-    fontSize: 30,
     color: "#6F440A",
     marginBottom: 6,
     textAlign: "center",
