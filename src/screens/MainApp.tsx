@@ -167,10 +167,6 @@ const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
 export default function MainApp({ onLogout }: Props) {
   const navigation = useNavigation<any>();
 
-  const ringScale = useRef(new Animated.Value(1)).current;
-  const ringOpacity = useRef(new Animated.Value(0.4)).current;
-  const bellRotate = useRef(new Animated.Value(0)).current;
-
   const [timeLeft, setTimeLeft] = useState("00:00:00");
 
   const [session, setSession] = useState<any>(null);
@@ -329,98 +325,6 @@ export default function MainApp({ onLogout }: Props) {
       if (channel) supabase.removeChannel(channel);
     };
   }, [fetchTodayPrayers]);
-
-  // ─────────────────────────────────────────────────────────────
-  // BELL PULSE
-  // ─────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(ringScale, {
-            toValue: 1.25,
-            duration: 900,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: false,
-          }),
-
-          Animated.timing(ringOpacity, {
-            toValue: 0,
-            duration: 900,
-            useNativeDriver: false,
-          }),
-        ]),
-
-        Animated.parallel([
-          Animated.timing(ringScale, {
-            toValue: 1,
-            duration: 0,
-            useNativeDriver: false,
-          }),
-
-          Animated.timing(ringOpacity, {
-            toValue: 0.4,
-            duration: 0,
-            useNativeDriver: false,
-          }),
-        ]),
-      ]),
-    );
-
-    pulse.start();
-
-    return () => pulse.stop();
-  }, []);
-
-  // ─────────────────────────────────────────────────────────────
-  // BELL SWING
-  // ─────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    const swing = () => {
-      Animated.sequence([
-        Animated.timing(bellRotate, {
-          toValue: 1,
-          duration: 180,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-
-        Animated.timing(bellRotate, {
-          toValue: -1,
-          duration: 180,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-
-        Animated.timing(bellRotate, {
-          toValue: 0.5,
-          duration: 140,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-
-        Animated.timing(bellRotate, {
-          toValue: -0.4,
-          duration: 140,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-
-        Animated.timing(bellRotate, {
-          toValue: 0,
-          duration: 120,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: false,
-        }),
-      ]).start(() => setTimeout(swing, 3000));
-    };
-
-    const timer = setTimeout(swing, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
 
   // ─────────────────────────────────────────────────────────────
   // COUNTDOWN TIMER

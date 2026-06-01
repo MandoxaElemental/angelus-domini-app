@@ -126,7 +126,6 @@ export default function RegisterScreen({
         goToLogin();
       }
     } catch (err: any) {
-      console.log("REGISTER ERROR:", err);
       alert(err.message || "Something went wrong");
     } finally {
       setLoading(false);

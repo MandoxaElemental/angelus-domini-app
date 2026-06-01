@@ -142,7 +142,6 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
           {/* Register Button */}
           <TouchableOpacity
             onPress={() => {
-              console.log("GO TO REGISTER CLICKED");
               goToRegister();
             }}
             style={{
