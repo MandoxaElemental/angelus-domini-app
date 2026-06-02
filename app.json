@@ -53,7 +53,7 @@
         {
           "icon": "./assets/bell.png",
           "color": "#C9A24A",
-          "sounds": ["./assets/audio/triple-bell.mp3"]
+          "sounds": "./assets/audio/triple-bell.mp3"
         }
       ],
       "expo-router"
