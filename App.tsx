@@ -1,19 +1,13 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import "react-native-get-random-values";
-import * as Notifications from "expo-notifications";
-import { createNavigationContainerRef } from "@react-navigation/native";
-export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 import * as SplashScreen from "expo-splash-screen";
-
 import {
   ActivityIndicator,
+  AppState,
   Platform,
   View,
-  Text,
-  TouchableOpacity,
   StyleSheet,
 } from "react-native";
-
 import { StatusBar } from "expo-status-bar";
 
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -33,140 +27,37 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
   PlayfairDisplay_400Regular,
-  PlayfairDisplay_700Bold,
   PlayfairDisplay_400Regular_Italic,
   PlayfairDisplay_600SemiBold,
   useFonts,
 } from "@expo-google-fonts/playfair-display";
+import { NavigationContainer } from "@react-navigation/native";
+import * as Notifications from "expo-notifications";
 
-import { NavigationContainer, useNavigation } from "@react-navigation/native";
-
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "./src/navigation/types";
-import LoginScreen from "./src/screens/LoginScreen";
-import RegisterScreen from "./src/screens/RegisterScreen";
-import OnboardingScreen from "./src/screens/OnboardingScreen";
-import PrayerScreen from "./src/screens/PrayerScreen";
-
-import TabLayout from "./src/navigation/TabLayout";
-
 import { supabase } from "./src/lib/supabaseClient";
+import { scheduleAngelusNotifications } from "./src/services/notificationService";
+import TabLayout from "./src/navigation/TabLayout";
 
 SplashScreen.preventAutoHideAsync();
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
+const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
-const DEFAULT_WEB_INSETS: EdgeInsets = {
-  top: 0,
-  right: 0,
-  bottom: 0,
-  left: 0,
-};
-
-const DEFAULT_WEB_FRAME: Rect = {
-  x: 0,
-  y: 0,
-  width: 0,
-  height: 0,
-};
-
-async function testNotificationNow() {
-  console.log("Test notification pressed");
-}
-
-function DevNavbar() {
-  const navigation = useNavigation<any>();
-
-  return (
-    <View style={styles.nav}>
-      <TouchableOpacity onPress={() => navigation.navigate("login")}>
-        <Text style={styles.link}>Login</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => navigation.navigate("register")}>
-        <Text style={styles.link}>Register</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => navigation.navigate("main")}>
-        <Text style={styles.link}>Main</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => navigation.navigate("Prayer")}>
-        <Text style={styles.link}>Prayer</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={testNotificationNow}>
-        <Text style={styles.link}>Test Notification</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-function AppNavigator({
-  initialRoute,
-}: {
-  initialRoute: "onboarding" | "login" | "register" | "main";
-}) {
-  return (
-    <View style={{ flex: 1 }}>
-      <DevNavbar />
-
-      <View style={{ flex: 1 }}>
-        <Stack.Navigator
-          initialRouteName={initialRoute}
-          screenOptions={{
-            headerShown: false,
-          }}
-        >
-          <Stack.Screen name="onboarding">
-            {(props) => (
-              <OnboardingScreen
-                {...props}
-                onDone={async () => {
-                  await AsyncStorage.setItem("onboarded", "true");
-                  props.navigation.replace("register");
-                }}
-              />
-            )}
-          </Stack.Screen>
-
-          <Stack.Screen name="register">
-            {(props) => (
-              <RegisterScreen
-                {...props}
-                goToLogin={() => props.navigation.replace("login")}
-                goToHome={() => props.navigation.replace("main")}
-              />
-            )}
-          </Stack.Screen>
-
-          <Stack.Screen name="login">
-            {(props) => (
-              <LoginScreen
-                {...props}
-                onLogin={() => props.navigation.replace("main")}
-                goToRegister={() => props.navigation.navigate("register")}
-              />
-            )}
-          </Stack.Screen>
-
-          <Stack.Screen name="main">
-            {(props) => (
-              <TabLayout
-                {...props}
-                onLogout={() => props.navigation.replace("login")}
-              />
-            )}
-          </Stack.Screen>
-
-          <Stack.Screen name="Prayer" component={PrayerScreen} />
-        </Stack.Navigator>
-      </View>
-    </View>
-  );
-}
+type Screen = "onboarding" | "register" | "login" | "main";
 
 export default function App() {
+  const navigationRef = useRef<any>(null);
+
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(
       (response) => {
@@ -175,8 +66,8 @@ export default function App() {
 
         if (!timeSlot) return;
 
-        if (navigationRef.isReady()) {
-          navigationRef.navigate("Prayer", { timeSlot });
+        if (navigationRef.current?.isReady?.()) {
+          navigationRef.current.navigate("Prayer", { timeSlot });
         }
       },
     );
@@ -185,46 +76,53 @@ export default function App() {
   }, []);
 
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
-
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
 
   const [insets] = useState<EdgeInsets>(initialInsets);
-
   const [frame] = useState<Rect>(initialFrame);
+  const notificationResponseId = useRef<string | null>(null);
 
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_400Regular,
-    PlayfairDisplay_700Bold,
     PlayfairDisplay_400Regular_Italic,
     PlayfairDisplay_600SemiBold,
+    "Cormorant-Regular": require("./assets/fonts/Cormorant.ttf"),
+    "Cormorant-SemiBold": require("./assets/fonts/CormorantGaramond-SemiBold.ttf"),
+    "Cormorant-Bold": require("./assets/fonts/CormorantGaramond-Bold.ttf"),
+    "Inter-Medium": require("./assets/fonts/Inter_18pt-Medium.ttf"),
+    "EBGaramond-Regular": require("./assets/fonts/EBGaramond-Regular.ttf"),
+    "EBGaramond-Medium": require("./assets/fonts/EBGaramond-Medium.ttf"),
+    "EBGaramond-Bold": require("./assets/fonts/EBGaramond-Bold.ttf"),
   });
 
   const [isReady, setIsReady] = useState(false);
+  const [screen, setScreen] = useState<Screen>("onboarding");
 
-  const [initialRoute, setInitialRoute] = useState<
-    "onboarding" | "login" | "register" | "main"
-  >("onboarding");
-
+  // ── Auth + initial screen ─────────────────────────────────────────────────
   useEffect(() => {
     async function prepareApp() {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const result = (await Promise.race([
+          supabase.auth.getSession(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Supabase timeout")), 5000),
+          ),
+        ])) as any;
 
+        const session = result?.data?.session ?? null;
         const onboarded = await AsyncStorage.getItem("onboarded");
 
         if (session?.user) {
-          setInitialRoute("main");
+          setScreen("main");
         } else if (onboarded === "true") {
-          setInitialRoute("login");
+          setScreen("login");
         } else {
-          setInitialRoute("onboarding");
+          setScreen("onboarding");
         }
-
-        await new Promise((resolve) => setTimeout(resolve, 1500));
       } catch (e) {
-        console.warn(e);
+        console.warn("prepareApp error:", e);
+        const onboarded = await AsyncStorage.getItem("onboarded");
+        setScreen(onboarded === "true" ? "login" : "onboarding");
       } finally {
         setIsReady(true);
       }
@@ -234,13 +132,84 @@ export default function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {});
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        setScreen("main");
+      } else {
+        const onboarded = await AsyncStorage.getItem("onboarded");
+        setScreen(onboarded === "true" ? "login" : "onboarding");
+      }
+    });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
+  // ── Reschedule notifications on every app foreground ──────────────────────
+  useEffect(() => {
+    const ensureNotificationsScheduled = async () => {
+      try {
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status === "granted") {
+          await scheduleAngelusNotifications();
+        }
+      } catch (err) {
+        console.warn("Notification reschedule error:", err);
+      }
+    };
+
+    ensureNotificationsScheduled();
+
+    const appStateSub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        ensureNotificationsScheduled();
+      }
+    });
+
+    return () => appStateSub.remove();
+  }, []);
+
+  // ── Notification tap → navigate to Prayer ────────────────────────────────
+  useEffect(() => {
+    const navigateToPrayer = () => {
+      if (screen !== "main") return;
+      const tryNavigate = (attempts = 0) => {
+        if (navigationRef.current) {
+          navigationRef.current.navigate("Prayer", { autoPlay: true });
+        } else if (attempts < 20) {
+          setTimeout(() => tryNavigate(attempts + 1), 150);
+        }
+      };
+      tryNavigate();
+    };
+
+    // Case 1: App is open, user taps notification banner
+    const tapSub = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const id = response.notification.request.identifier;
+        if (notificationResponseId.current === id) return;
+        notificationResponseId.current = id;
+        navigateToPrayer();
+      },
+    );
+
+    // Case 2: App was killed, user tapped notification to open it
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+
+      const id = response.notification.request.identifier;
+
+      const notificationDate = new Date(response.notification.date * 1000);
+      const ageMs = Date.now() - notificationDate.getTime();
+      if (ageMs > 30_000) return;
+
+      notificationResponseId.current = id;
+      navigateToPrayer();
+    });
+
+    return () => tapSub.remove();
+  }, [screen]);
+
+  // ── Hide splash ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (isReady && (fontsLoaded || fontError)) {
       SplashScreen.hideAsync();
@@ -250,12 +219,7 @@ export default function App() {
   const [queryClient] = useState(
     () =>
       new QueryClient({
-        defaultOptions: {
-          queries: {
-            refetchOnWindowFocus: false,
-            retry: 1,
-          },
-        },
+        defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
       }),
   );
 
@@ -289,11 +253,55 @@ export default function App() {
     );
   }
 
+  const handleOnboardingDone = async () => {
+    await AsyncStorage.setItem("onboarded", "true");
+    setScreen("register");
+  };
+
+  // const screenContent = () => {
+  //   switch (screen) {
+  //     case "onboarding":
+  //       return <OnboardingScreen onDone={handleOnboardingDone} />;
+
+  //     case "register":
+  //       return (
+  //         <RegisterScreen
+  //           goToLogin={async () => {
+  //             await AsyncStorage.setItem("onboarded", "true");
+  //             setScreen("login");
+  //           }}
+  //           goToHome={async () => {
+  //             await AsyncStorage.setItem("onboarded", "true");
+  //             setScreen("main");
+  //           }}
+  //         />
+  //       );
+
+  //     case "login":
+  //       return (
+  //         <LoginScreen
+  //           onLogin={() => setScreen("main")}
+  //           goToRegister={() => setScreen("register")}
+  //         />
+  //       );
+
+  //     case "main":
+  //       return (
+  //         <NavigationContainer ref={navigationRef}>
+  //           <TabLayout onLogout={() => setScreen("login")} />
+  //         </NavigationContainer>
+  //       );
+
+  //     default:
+  //       return null;
+  //   }
+  // };
+
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <NavigationContainer ref={navigationRef}>
-          <AppNavigator initialRoute={initialRoute} />
+          <TabLayout onLogout={() => setScreen("login")} />
         </NavigationContainer>
 
         <StatusBar style="auto" />

@@ -14,15 +14,19 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.angelus-app"
+      "bundleIdentifier": "com.anonymous.angelusapp"
     },
     "android": {
+      "package": "com.annieann.angelusapp",
+
       "adaptiveIcon": {
-        "foregroundImage": "./assets/angelusdominiicon.png",
+        "foregroundImage": "./assets/Angelus-domini.png",
         "backgroundColor": "#ffffff"
       },
+
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
+
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"

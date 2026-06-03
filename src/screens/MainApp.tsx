@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,17 +10,12 @@ import {
   Animated,
   Modal,
   StatusBar,
-  Easing,
 } from "react-native";
 
 import { useNavigation } from "@react-navigation/native";
-import { LinearGradient } from "expo-linear-gradient";
 import { createAudioPlayer } from "expo-audio";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
-import AppLoading from "expo-app-loading";
-
-import { logout } from "../store/auth";
 
 import { getNextPrayer, getPrayerStatus, PrayerStatus } from "../utils/prayer";
 
@@ -29,9 +24,7 @@ import { completePrayer, getGlobalCount, startPrayer } from "../api/prayerApi";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
 
-type Props = {
-  onLogout: () => void;
-};
+type Props = { onLogout: () => void };
 
 const COLORS = {
   navy: "#2F4A7A",
@@ -70,12 +63,11 @@ const completeImages: Record<string, any> = {
 };
 
 function format12Hour(date: Date): string {
-  let hours = date.getHours();
-  const minutes = date.getMinutes();
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-  return `${hours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+  let h = date.getHours();
+  const m = date.getMinutes();
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
 }
 
 const DAILY_VERSES = [
@@ -150,19 +142,23 @@ const DAILY_VERSES = [
 function getDailyVerse() {
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - start.getTime();
-  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-  return DAILY_VERSES[dayOfYear % DAILY_VERSES.length];
+  const day = Math.floor((now.getTime() - start.getTime()) / 86400000);
+  return DAILY_VERSES[day % DAILY_VERSES.length];
 }
 
-// Maps Slot string → prayer key
-const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
+function slotToKey(slot: string): "morning" | "noon" | "evening" | null {
   if (!slot) return null;
-  if (slot.includes("_6") && !slot.includes("_18")) return "morning";
-  if (slot.includes("_12")) return "noon";
-  if (slot.includes("_18") || slot.includes("_6p")) return "evening";
+  if (slot.endsWith("_6")) return "morning";
+  if (slot.endsWith("_12")) return "noon";
+  if (slot.endsWith("_18")) return "evening";
   return null;
-};
+}
+
+function hourToSlotKey(h: number): "morning" | "noon" | "evening" {
+  if (h === 6) return "morning";
+  if (h === 12) return "noon";
+  return "evening";
+}
 
 export default function MainApp({ onLogout }: Props) {
   const navigation = useNavigation<any>();
@@ -177,8 +173,6 @@ export default function MainApp({ onLogout }: Props) {
 
   const [username, setUsername] = useState("");
 
-  const [isPraying, setIsPraying] = useState(false);
-
   const [showPrayerPopup, setShowPrayerPopup] = useState(false);
 
   const [completedPrayers, setCompletedPrayers] = useState({
@@ -186,7 +180,11 @@ export default function MainApp({ onLogout }: Props) {
     noon: false,
     evening: false,
   });
-
+  const [currentPrayer, setCurrentPrayer] = useState(() => {
+    const n = getNextPrayer();
+    return { title: n.title, icon: n.icon, time: n.time };
+  });
+  const triggeredToday = useRef<Map<number, string>>(new Map());
   const lastTriggeredPrayer = useRef<string | null>(null);
   const dailyVerse = useMemo(() => getDailyVerse(), []);
 
@@ -195,32 +193,34 @@ export default function MainApp({ onLogout }: Props) {
   const greeting =
     currentHour < 12 ? "Morning" : currentHour < 18 ? "Afternoon" : "Evening";
 
-  const currentPrayer = useMemo(() => {
-    const next = getNextPrayer();
+  // const currentPrayer = useMemo(() => {
+  //   const next = getNextPrayer();
 
-    return {
-      title: next.title,
-      icon: next.icon,
-      time: next.time,
-    };
-  }, []);
+  //   return {
+  //     title: next.title,
+  //     icon: next.icon,
+  //     time: next.time,
+  //   };
+  // }, []);
 
   // ── Fetch today's completed prayers from DB ───────────────────────────────
   const fetchTodayPrayers = useCallback(async (uid: string) => {
     try {
-      const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
-
-      const { data: todaySessions } = await supabase
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
         .eq("UserId", uid)
         .gte("ScheduledTime", `${todayStr}T00:00:00+00:00`)
         .lte("ScheduledTime", `${todayStr}T23:59:59+00:00`);
 
-      if (todaySessions) {
-        const updated = { morning: false, noon: false, evening: false };
-        todaySessions.forEach((s: any) => {
+      if (data) {
+        const updated: Record<"morning" | "noon" | "evening", boolean> = {
+          morning: false,
+          noon: false,
+          evening: false,
+        };
+        data.forEach((s: any) => {
           if (!s.Completed) return;
           const key = slotToKey(s.Slot);
           if (key) updated[key] = true;
@@ -228,7 +228,7 @@ export default function MainApp({ onLogout }: Props) {
         setCompletedPrayers(updated);
       }
     } catch (err) {
-      console.error("❌ fetchTodayPrayers error:", err);
+      console.error("fetchTodayPrayers error:", err);
     }
   }, []);
 
@@ -242,23 +242,22 @@ export default function MainApp({ onLogout }: Props) {
     setCount(newCount);
   };
 
-  // ── On mount ──────────────────────────────────────────────────────────────
   useEffect(() => {
     let channel: any = null;
 
     (async () => {
       try {
         let {
-          data: { session: authSession },
+          data: { session: auth },
         } = await supabase.auth.getSession();
 
-        if (!authSession?.user?.id) {
+        if (!auth?.user?.id) {
           await new Promise<void>((resolve) => {
             const {
               data: { subscription },
-            } = supabase.auth.onAuthStateChange((_event, s) => {
+            } = supabase.auth.onAuthStateChange((_e, s) => {
               if (s) {
-                authSession = s;
+                auth = s;
                 subscription.unsubscribe();
                 resolve();
               }
@@ -267,38 +266,30 @@ export default function MainApp({ onLogout }: Props) {
           });
         }
 
-        if (!authSession?.user?.id) return;
-
-        const uid = authSession.user.id;
+        if (!auth?.user?.id) return;
+        const uid = auth.user.id;
         setUserId(uid);
 
-        const metaUsername =
-          authSession.user.user_metadata?.username ||
-          authSession.user.user_metadata?.name;
-
-        if (metaUsername) {
-          setUsername(metaUsername);
+        const meta =
+          auth.user.user_metadata?.username || auth.user.user_metadata?.name;
+        if (meta) {
+          setUsername(meta);
         } else {
-          const { data: userData } = await supabase
+          const { data: u } = await supabase
             .from("users")
             .select("username")
             .eq("id", uid)
             .single();
-          if (userData?.username) setUsername(userData.username);
+          if (u?.username) setUsername(u.username);
         }
 
         const sess = await startPrayer(uid);
         setSession(sess);
-
-        const globalCount = await getGlobalCount(sess.slot);
-        setCount(globalCount);
-
-        // Initial fetch of today's prayers
+        setCount(await getGlobalCount(sess.slot));
         await fetchTodayPrayers(uid);
 
-        // ── Real-time subscription ──────────────────────────────────────────
         channel = supabase
-          .channel(`main-prayer-sessions-${uid}`)
+          .channel(`prayers-${uid}`)
           .on(
             "postgres_changes",
             {
@@ -310,8 +301,7 @@ export default function MainApp({ onLogout }: Props) {
             async () => {
               await fetchTodayPrayers(uid);
               try {
-                const newCount = await getGlobalCount(sess.slot);
-                setCount(newCount);
+                setCount(await getGlobalCount(sess.slot));
               } catch {}
             },
           )
@@ -331,92 +321,86 @@ export default function MainApp({ onLogout }: Props) {
   // ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const updateCountdown = () => {
-      const nextPrayer = getNextPrayer();
-
-      const now = new Date();
-
-      const diff = nextPrayer.time.getTime() - now.getTime();
-
-      const hrs = Math.floor(diff / 1000 / 3600);
-
-      const mins = Math.floor((diff % (1000 * 3600)) / (1000 * 60));
-
-      const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
+    const tick = () => {
+      const next = getNextPrayer();
+      setCurrentPrayer((prev) => {
+        if (prev.time.getTime() !== next.time.getTime()) {
+          return { title: next.title, icon: next.icon, time: next.time };
+        }
+        return prev;
+      });
+      const diff = next.time.getTime() - Date.now();
+      const hrs = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
       setTimeLeft(
-        `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`,
+        `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`,
       );
     };
-
-    updateCountdown();
-
-    const interval = setInterval(updateCountdown, 1000);
-
-    return () => clearInterval(interval);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, []);
 
-  // ─────────────────────────────────────────────────────────────
-  // AUTO PRAYER TRIGGER
-  // ─────────────────────────────────────────────────────────────
-
   useEffect(() => {
-    const checkPrayerTime = () => {
-      const nextPrayer = getNextPrayer();
-
+    const check = () => {
       const now = new Date();
+      const h = now.getHours();
+      const m = now.getMinutes();
+      const date = now.toDateString();
 
-      const diff = nextPrayer.time.getTime() - now.getTime();
+      const isPrayerHour = h === 6 || h === 12 || h === 18;
+      if (!isPrayerHour || m !== 0) return;
 
-      if (diff <= 1000 && diff >= 0) {
-        const prayerKey = `${nextPrayer.title}-${now.toDateString()}`;
+      const alreadyFired = triggeredToday.current.get(h);
+      if (alreadyFired === date) return;
+      triggeredToday.current.set(h, date);
 
-        if (lastTriggeredPrayer.current === prayerKey) return;
+      const slotKey = hourToSlotKey(h);
+      setShowPrayerPopup(true);
+      playTripleBell();
 
-        lastTriggeredPrayer.current = prayerKey;
+      setTimeout(async () => {
+        setShowPrayerPopup(false);
 
-        setShowPrayerPopup(true);
+        let freshSession = session;
+        if (userId) {
+          try {
+            freshSession = await startPrayer(userId);
+            setSession(freshSession);
+          } catch {}
+        }
 
-        playTripleBell();
-
-        setTimeout(() => {
-          setShowPrayerPopup(false);
-
-          navigation.navigate("Prayer", {
-            onComplete: async () => {
-              try {
-                if (!session || !userId) return;
-
-                await finishPrayer();
-
-                const newCount = await getGlobalCount(session.slot);
-
-                setCount(newCount);
-                // Real-time will update completedPrayers automatically
-              } catch (err) {
-                console.error("Auto-trigger completion error:", err);
-              }
-            },
-          });
-        }, 7000);
-      }
+        navigation.navigate("Prayer", {
+          autoPlay: true,
+          onComplete: async () => {
+            try {
+              if (!freshSession || !userId) return;
+              await completePrayer(userId, freshSession.sessionId);
+              setCount(await getGlobalCount(freshSession.slot));
+              setCompletedPrayers((prev) => ({ ...prev, [slotKey]: true }));
+            } catch (err) {
+              console.error("Auto-trigger complete error:", err);
+            }
+          },
+        });
+      }, 7000);
     };
 
-    const interval = setInterval(checkPrayerTime, 1000);
+    const id = setInterval(check, 1000);
+    return () => clearInterval(id);
+  }, [session, userId, navigation]);
 
-    return () => clearInterval(interval);
-  }, [session, userId]);
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
   const playTripleBell = async () => {
     for (let i = 0; i < 3; i++) {
-      const player = createAudioPlayer(require("../../assets/audio/bell.mp3"));
-
-      player.play();
-
-      await new Promise((resolve) => setTimeout(resolve, 2200));
-
-      player.remove();
+      try {
+        const player = createAudioPlayer(
+          require("../../assets/audio/bell.mp3"),
+        );
+        player.play();
+        await new Promise((r) => setTimeout(r, 2200));
+        player.remove();
+      } catch {}
     }
   };
 
@@ -426,20 +410,16 @@ export default function MainApp({ onLogout }: Props) {
 
   const handleComplete = async () => {
     if (!session || !userId) return;
-
     navigation.navigate("Prayer", {
+      autoPlay: false,
       onComplete: async () => {
         try {
-          setIsPraying(true);
-
-          await finishPrayer();
-          const newCount = await getGlobalCount(session.slot);
-          setCount(newCount);
-          // Real-time listener will update completedPrayers
+          await completePrayer(userId, session.sessionId);
+          setCount(await getGlobalCount(session.slot));
+          const key = slotToKey(session.slot);
+          if (key) setCompletedPrayers((prev) => ({ ...prev, [key]: true }));
         } catch (err) {
-          console.error("Prayer completion error:", err);
-        } finally {
-          setIsPraying(false);
+          console.error("onComplete error:", err);
         }
       },
     });
@@ -449,16 +429,32 @@ export default function MainApp({ onLogout }: Props) {
   // LOGOUT
   // ─────────────────────────────────────────────────────────────
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
+  const navigateToPrayerFromPopup = async () => {
+    setShowPrayerPopup(false);
+    const h = new Date().getHours();
+    const slotKey = hourToSlotKey(h);
 
-      await logout();
-
-      onLogout();
-    } catch (err) {
-      console.error("Logout error:", err);
+    let freshSession = session;
+    if (userId) {
+      try {
+        freshSession = await startPrayer(userId);
+        setSession(freshSession);
+      } catch {}
     }
+
+    navigation.navigate("Prayer", {
+      autoPlay: true,
+      onComplete: async () => {
+        try {
+          if (!freshSession || !userId) return;
+          await completePrayer(userId, freshSession.sessionId);
+          setCount(await getGlobalCount(freshSession.slot));
+          setCompletedPrayers((prev) => ({ ...prev, [slotKey]: true }));
+        } catch (err) {
+          console.error("Popup complete error:", err);
+        }
+      },
+    });
   };
 
   const morningStatus = getPrayerStatus("morning", completedPrayers.morning);
@@ -480,9 +476,8 @@ export default function MainApp({ onLogout }: Props) {
   }
   return (
     <>
-      <StatusBar hidden={true} />
+      <StatusBar hidden />
 
-      {/* Prayer-time modal */}
       <Modal visible={showPrayerPopup} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -550,7 +545,9 @@ export default function MainApp({ onLogout }: Props) {
           <View style={styles.mainCard}>
             <View style={styles.cardImage}>
               <Image
-                source={prayerImages[currentPrayer.icon]}
+                source={
+                  prayerImages[currentPrayer.icon] ?? prayerImages.Morning
+                }
                 style={{ width: 140, height: 180 }}
                 resizeMode="contain"
               />
@@ -897,7 +894,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 4,
     fontFamily: "Inter",
-    fontWeight: 500,
+    fontWeight: "500",
   },
   cardTitle: {
     fontSize: 40,
@@ -914,7 +911,7 @@ const styles = StyleSheet.create({
   timeText: {
     marginLeft: 6,
     fontSize: 18,
-    fontWeight: 500,
+    fontWeight: "500",
     color: COLORS.navy,
     fontFamily: "EBGaramond",
   },
@@ -1098,7 +1095,7 @@ const styles = StyleSheet.create({
     fontSize: 38,
     color: COLORS.navy,
     fontWeight: "700",
-    fontFamily: "EBCormorant",
+    fontFamily: "EBGaramond",
   },
   globalPrayedToday: {
     fontSize: 14,

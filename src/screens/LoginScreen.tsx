@@ -8,6 +8,7 @@ import {
   TextInput,
   Image,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { login } from "../api/authApi";
 import { saveAuth } from "../store/auth";
 
@@ -16,6 +17,7 @@ const angelusIcon = require("../../assets/angelusdominiicon.png");
 export default function LoginScreen({ onLogin, goToRegister }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     try {
@@ -97,6 +99,8 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
               borderRadius: 12,
               paddingHorizontal: 16,
               paddingVertical: 4,
+              flexDirection: "row",
+              alignItems: "center",
             }}
           >
             <TextInput
@@ -104,13 +108,22 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
               placeholderTextColor="#9B9588"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
               style={{
+                flex: 1,
                 height: 56,
                 color: "#1C1C1C",
                 fontSize: 16,
               }}
             />
+
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color="#1F3A6E"
+              />
+            </TouchableOpacity>
           </View>
 
           {/* Login Button */}
@@ -126,7 +139,11 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
             }}
           >
             <Text
-              style={{ color: "#FFFDF7", fontWeight: "bold", fontSize: 16 }}
+              style={{
+                color: "#FFFDF7",
+                fontWeight: "bold",
+                fontSize: 16,
+              }}
             >
               Login
             </Text>
@@ -155,7 +172,11 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
             }}
           >
             <Text
-              style={{ color: "#D4A017", fontWeight: "bold", fontSize: 16 }}
+              style={{
+                color: "#D4A017",
+                fontWeight: "bold",
+                fontSize: 16,
+              }}
             >
               Register
             </Text>

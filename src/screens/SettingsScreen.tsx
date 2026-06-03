@@ -32,7 +32,6 @@ const COLORS = {
   border: "#E7DCCB",
 };
 
-// ─── Notification config ───────────────────────────────────────────────────────
 const NOTIF_IDS_KEY = "angelus_notif_ids";
 const LANGUAGE_KEY = "angelus_language";
 
@@ -47,7 +46,6 @@ const ANGELUS_CONFIG: Record<
   evening: { label: "Evening Angelus", time: "6:00 PM", hour: 18, minute: 0 },
 };
 
-// ─── Language list ─────────────────────────────────────────────────────────────
 const LANGUAGES = [
   { code: "af", name: "Afrikaans", native: "Afrikaans" },
   { code: "sq", name: "Albanian", native: "Shqip" },
@@ -173,7 +171,7 @@ Notifications.setNotificationHandler({
 // ─── Permission helper ─────────────────────────────────────────────────────────
 async function requestPermissions(): Promise<boolean> {
   if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("angelus", {
+    await Notifications.setNotificationChannelAsync("angelus-bells", {
       name: "Angelus Prayers",
       importance: Notifications.AndroidImportance.HIGH,
       sound: "default",
@@ -188,30 +186,29 @@ async function requestPermissions(): Promise<boolean> {
   return status === "granted";
 }
 
-// ─── Schedule one daily notification, returns its id ─────────────────────────
 async function scheduleAngelus(key: AngelusTime): Promise<string> {
   const cfg = ANGELUS_CONFIG[key];
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: `🔔 ${cfg.label}`,
-      body: "The Angel of the Lord declared unto Mary…",
+      body: "The bells are calling you to prayer. Tap to pray the Angelus.",
       sound: "default",
+      data: { screen: "Prayer", autoPlay: true },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour: cfg.hour,
       minute: cfg.minute,
-    },
+      channelId: Platform.OS === "android" ? "angelus-bells" : undefined,
+    } as any,
   });
   return id;
 }
 
-// ─── Cancel a scheduled notification by id ────────────────────────────────────
 async function cancelNotif(id: string | null) {
   if (id) await Notifications.cancelScheduledNotificationAsync(id);
 }
 
-// ─── Persist ids to AsyncStorage ──────────────────────────────────────────────
 type StoredIds = Partial<Record<AngelusTime, string>>;
 
 async function loadStoredIds(): Promise<StoredIds> {
@@ -227,7 +224,6 @@ async function saveStoredIds(ids: StoredIds) {
   await AsyncStorage.setItem(NOTIF_IDS_KEY, JSON.stringify(ids));
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 type Props = { onLogout: () => void };
 type TogglesState = Record<AngelusTime, boolean>;
 
@@ -236,6 +232,7 @@ export default function SettingsScreen({ onLogout }: Props) {
   const ringOpacity = useRef(new Animated.Value(0.4)).current;
   const bellRotate = useRef(new Animated.Value(0)).current;
 
+  // Default all toggles to TRUE — notifications are on by default
   const [toggles, setToggles] = useState<TogglesState>({
     morning: true,
     noon: true,
@@ -248,29 +245,43 @@ export default function SettingsScreen({ onLogout }: Props) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
 
-  // ── On mount: request perms + restore saved toggle state ─────────────────
+  // On mount: request permissions + auto-enable all on first launch,
+  // or restore saved toggle state for returning users
   useEffect(() => {
     (async () => {
       const granted = await requestPermissions();
+
       if (!granted) {
         Alert.alert(
           "Notifications Disabled",
           "Please enable notifications in your device settings to receive Angelus reminders.",
           [{ text: "OK" }],
         );
-        return;
       }
 
-      // Restore which notifications are active
       const ids = await loadStoredIds();
-      setNotifIds(ids);
-      setToggles({
-        morning: !!ids.morning,
-        noon: !!ids.noon,
-        evening: !!ids.evening,
-      });
+      const isFirstLaunch = !ids.morning && !ids.noon && !ids.evening;
 
-      // Restore selected language
+      if (isFirstLaunch && granted) {
+        // ✅ First time: auto-schedule all three and save
+        const freshIds: StoredIds = {};
+        for (const key of ["morning", "noon", "evening"] as AngelusTime[]) {
+          freshIds[key] = await scheduleAngelus(key);
+        }
+        setNotifIds(freshIds);
+        setToggles({ morning: true, noon: true, evening: true });
+        await saveStoredIds(freshIds);
+        console.log("✅ First launch — all Angelus notifications auto-enabled");
+      } else {
+        // ✅ Returning user: restore exactly what they had saved
+        setNotifIds(ids);
+        setToggles({
+          morning: !!ids.morning,
+          noon: !!ids.noon,
+          evening: !!ids.evening,
+        });
+      }
+
       try {
         const savedLang = await AsyncStorage.getItem(LANGUAGE_KEY);
         if (savedLang) setSelectedLang(savedLang);
@@ -278,7 +289,7 @@ export default function SettingsScreen({ onLogout }: Props) {
     })();
   }, []);
 
-  // ── Fetch user info ───────────────────────────────────────────────────────
+  // Fetch user info
   useEffect(() => {
     (async () => {
       try {
@@ -325,7 +336,7 @@ export default function SettingsScreen({ onLogout }: Props) {
     })();
   }, []);
 
-  // ── Bell animations (unchanged) ───────────────────────────────────────────
+  // Bell pulse animation
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
@@ -360,6 +371,7 @@ export default function SettingsScreen({ onLogout }: Props) {
     return () => pulse.stop();
   }, []);
 
+  // Bell swing animation
   useEffect(() => {
     const swing = () => {
       Animated.sequence([
@@ -399,7 +411,7 @@ export default function SettingsScreen({ onLogout }: Props) {
     return () => clearTimeout(timer);
   }, []);
 
-  // ── Toggle a single Angelus notification ─────────────────────────────────
+  // Toggle a single notification on/off
   const handleToggle = async (key: AngelusTime, enabled: boolean) => {
     const granted = await requestPermissions();
     if (!granted && enabled) {
@@ -410,24 +422,28 @@ export default function SettingsScreen({ onLogout }: Props) {
       return;
     }
 
+    // Update UI immediately for snappy feel
     setToggles((prev) => ({ ...prev, [key]: enabled }));
 
     const updatedIds = { ...notifIds };
 
     if (enabled) {
+      // Cancel any existing one first to avoid duplicates
       await cancelNotif(updatedIds[key] ?? null);
       const newId = await scheduleAngelus(key);
       updatedIds[key] = newId;
+      console.log(`✅ Scheduled ${key} Angelus, id: ${newId}`);
     } else {
       await cancelNotif(updatedIds[key] ?? null);
       delete updatedIds[key];
+      console.log(`🔕 Cancelled ${key} Angelus`);
     }
 
     setNotifIds(updatedIds);
     await saveStoredIds(updatedIds);
   };
 
-  // ── Enable / Disable all ──────────────────────────────────────────────────
+  // Enable all three
   const handleEnableAll = async () => {
     const granted = await requestPermissions();
     if (!granted) {
@@ -448,8 +464,10 @@ export default function SettingsScreen({ onLogout }: Props) {
     setNotifIds(updatedIds);
     setToggles({ morning: true, noon: true, evening: true });
     await saveStoredIds(updatedIds);
+    console.log("✅ All Angelus notifications enabled");
   };
 
+  // Disable all three
   const handleDisableAll = async () => {
     for (const key of ["morning", "noon", "evening"] as AngelusTime[]) {
       await cancelNotif(notifIds[key] ?? null);
@@ -459,9 +477,9 @@ export default function SettingsScreen({ onLogout }: Props) {
     setNotifIds(empty);
     setToggles({ morning: false, noon: false, evening: false });
     await saveStoredIds(empty);
+    console.log("🔕 All Angelus notifications disabled");
   };
 
-  // ── Language selection ────────────────────────────────────────────────────
   const handleSelectLanguage = async (code: string) => {
     setSelectedLang(code);
     setShowLangModal(false);
@@ -474,7 +492,6 @@ export default function SettingsScreen({ onLogout }: Props) {
     LANGUAGES.find((l) => l.code === selectedLang) ??
     LANGUAGES.find((l) => l.code === "en")!;
 
-  // ── Logout ────────────────────────────────────────────────────────────────
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -487,7 +504,7 @@ export default function SettingsScreen({ onLogout }: Props) {
 
   return (
     <>
-      {/* ── Logout Modal ── */}
+      {/* Logout Modal */}
       <Modal visible={showLogoutModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -520,11 +537,10 @@ export default function SettingsScreen({ onLogout }: Props) {
         </View>
       </Modal>
 
-      {/* ── Language Picker Modal ── */}
+      {/* Language Picker Modal */}
       <Modal visible={showLangModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, styles.langModalCard]}>
-            {/* Header */}
             <View style={styles.langModalHeader}>
               <View style={styles.modalIconCircle}>
                 <Ionicons
@@ -538,10 +554,7 @@ export default function SettingsScreen({ onLogout }: Props) {
                 Select your preferred language for prayers and content.
               </Text>
             </View>
-
             <View style={styles.modalDivider} />
-
-            {/* Language list */}
             <FlatList
               data={LANGUAGES}
               keyExtractor={(item) => item.code}
@@ -591,7 +604,6 @@ export default function SettingsScreen({ onLogout }: Props) {
                 );
               }}
             />
-
             <View style={styles.modalDivider} />
             <TouchableOpacity
               style={styles.modalCancelBtn}
@@ -651,7 +663,6 @@ export default function SettingsScreen({ onLogout }: Props) {
               <Text style={styles.cardTitle}>Prayer Notifications</Text>
             </View>
             <View style={styles.cardDivider} />
-
             {(["morning", "noon", "evening"] as AngelusTime[]).map(
               (key, i, arr) => (
                 <View key={key}>
@@ -759,7 +770,6 @@ export default function SettingsScreen({ onLogout }: Props) {
   );
 }
 
-// ─── NotificationRow (unchanged UI) ──────────────────────────────────────────
 function NotificationRow({
   label,
   time,
@@ -793,10 +803,29 @@ function NotificationRow({
   );
 }
 
-// ─── Styles (same as original + language additions) ───────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.cream },
   scroll: { paddingBottom: 20 },
+  header: {
+    height: 100,
+    backgroundColor: "#2F4A7A",
+    paddingRight: 24,
+    paddingLeft: 12,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  logo: { width: 140, height: 40, resizeMode: "contain" },
+  bellContainer: {
+    width: 85,
+    height: 85,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  bellImage: { width: 85, height: 85, position: "absolute", zIndex: 2 },
+  bellEffect: { width: 85, height: 85, position: "absolute", zIndex: 1 },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -806,10 +835,10 @@ const styles = StyleSheet.create({
   },
   sectionHeaderText: {
     color: COLORS.navy,
-    fontSize: 13,
+    fontSize: 30,
     letterSpacing: 1.5,
     marginHorizontal: 12,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "EBGaramond-Medium",
   },
   line: { flex: 1, height: 1, backgroundColor: COLORS.border },
   card: {
@@ -837,7 +866,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     color: COLORS.navy,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "EBGaramond-Medium",
     fontWeight: "600",
   },
   cardDivider: {
@@ -930,8 +959,6 @@ const styles = StyleSheet.create({
     fontFamily: "CormorantGaramond",
     fontWeight: "600",
   },
-
-  // ── Language row (inside card) ──
   langRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -962,8 +989,6 @@ const styles = StyleSheet.create({
     fontFamily: "CormorantGaramond",
     marginTop: 2,
   },
-
-  // ── Language picker modal ──
   langModalCard: { maxHeight: "85%", paddingBottom: 20 },
   langModalHeader: { alignItems: "center", width: "100%" },
   langModalSubtitle: {
@@ -1003,8 +1028,6 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   langItemNativeSelected: { color: COLORS.gold },
-
-  // ── Shared modals ──
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
