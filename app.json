@@ -7,31 +7,30 @@
     "icon": "./assets/bell.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-
     "splash": {
       "image": "./assets/bell.png",
       "resizeMode": "contain",
       "backgroundColor": "#1F3A6E"
     },
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.angelus-app"
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/angelusdominiicon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
-
     "web": {
       "favicon": "./assets/angelusdominiicon.png"
     },
-
     "plugins": [
       "expo-secure-store",
       "expo-splash-screen",
@@ -57,6 +56,12 @@
         }
       ],
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e8c613d8-e954-40b4-b1fc-579a2774b5fb"
+      }
+    }
   }
 }
