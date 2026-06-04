@@ -616,7 +616,7 @@ export default function MainApp({ onLogout }: Props) {
           <View style={styles.globalCard}>
             <View style={styles.globe}>
               <Image
-                source={require("../../assets/globe.png")}
+                source={require("../../assets/Global.svg")}
                 style={styles.globeIcon}
               />
             </View>

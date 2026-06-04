@@ -30,6 +30,12 @@ const COLORS = {
 };
 
 const progressImages: Record<string, any> = {
+  Morning: require("../../assets/Morning_Clear.svg"),
+  Noon: require("../../assets/Noon_Clear.svg"),
+  Evening: require("../../assets/Evening_Clear.svg"),
+};
+
+const completeImages: Record<string, any> = {
   Morning: require("../../assets/1.png"),
   Noon: require("../../assets/2.png"),
   Evening: require("../../assets/3.png"),
@@ -381,21 +387,33 @@ export default function MenuScreen({ onLogout }: Props) {
             title="Morning Angelus"
             subtitle={getSubtitle(morningStatus)}
             status={morningStatus}
-            imageSource={progressImages["Morning"]}
+            imageSource={
+              morningStatus === "completed"
+                ? completeImages["Morning"]
+                : progressImages["Morning"]
+            }
           />
           <View style={styles.rowDivider} />
           <AngelusRow
             title="Noon Angelus"
             subtitle={getSubtitle(noonStatus)}
             status={noonStatus}
-            imageSource={progressImages["Noon"]}
+            imageSource={
+              noonStatus === "completed"
+                ? completeImages["Noon"]
+                : progressImages["Noon"]
+            }
           />
           <View style={styles.rowDivider} />
           <AngelusRow
             title="Evening Angelus"
             subtitle={getSubtitle(eveningStatus)}
             status={eveningStatus}
-            imageSource={progressImages["Evening"]}
+            imageSource={
+              eveningStatus === "completed"
+                ? completeImages["Evening"]
+                : progressImages["Evening"]
+            }
           />
         </View>
 

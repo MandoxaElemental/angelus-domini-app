@@ -8,7 +8,7 @@ import {
   Image,
   SafeAreaView,
 } from "react-native";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Svg, { Circle, Ellipse, Line, Path } from "react-native-svg";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
@@ -126,7 +126,7 @@ export default function CommunityScreen() {
 
   // ── Fetch: unique users who prayed today, grouped by country ─────────────
   const isFetchingRef = useRef(false);
-  const fetchCounts = async () => {
+  const fetchCounts = useCallback(async () => {
     if (isFetchingRef.current) return;
     setLoading(true);
     isFetchingRef.current = true;
@@ -148,7 +148,6 @@ export default function CommunityScreen() {
       if (!sessions || sessions.length === 0) {
         setTotalPrayedToday(0);
         setCountries([]);
-        setLoading(false);
         return;
       }
 
@@ -182,12 +181,12 @@ export default function CommunityScreen() {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  };
+  }, []);
 
   // ── On mount ──────────────────────────────────────────────────────────────
   useEffect(() => {
     fetchCounts();
-  }, []);
+  }, [fetchCounts]);
 
   // ── Real-time: refresh on any PrayerSession change ────────────────────────
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -198,7 +197,7 @@ export default function CommunityScreen() {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "PrayerSessions",
         },
@@ -219,22 +218,23 @@ export default function CommunityScreen() {
       }
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchCounts]);
 
-  const maxCount = useMemo(
-    () => Math.max(...countries.map((c) => c.count), 1),
-    [countries],
-  );
+  const maxCount = useMemo(() => {
+    let max = 1;
 
-  const today = useMemo(
-    () =>
-      new Date().toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }),
-    [],
-  );
+    for (const c of countries) {
+      if (c.count > max) max = c.count;
+    }
+
+    return max;
+  }, [countries]);
+
+  const today = new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.cream }}>
