@@ -10,6 +10,7 @@ import {
   Animated,
   Modal,
   StatusBar,
+  Dimensions,
 } from "react-native";
 
 import { useNavigation } from "@react-navigation/native";
@@ -25,6 +26,11 @@ import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
 
 type Props = { onLogout: () => void };
+
+const { width } = Dimensions.get("window");
+const isSmallScreen = width < 390;
+
+const IMAGE_WIDTH = Math.min(width * 0.3, 140);
 
 const COLORS = {
   navy: "#2F4A7A",
@@ -548,7 +554,10 @@ export default function MainApp({ onLogout }: Props) {
                 source={
                   prayerImages[currentPrayer.icon] ?? prayerImages.Morning
                 }
-                style={{ width: 140, height: 180 }}
+                style={{
+                  width: IMAGE_WIDTH,
+                  height: IMAGE_WIDTH * 1.3,
+                }}
                 resizeMode="contain"
               />
             </View>
@@ -817,12 +826,14 @@ function ProgressCard({
             },
           ]}
         >
-          <Ionicons
-            name={statusConfig.icon as any}
-            size={18}
-            color={statusConfig.iconColor}
-            style={{ marginRight: 5 }}
-          />
+          {!isSmallScreen && (
+            <Ionicons
+              name={statusConfig.icon as any}
+              size={18}
+              color={statusConfig.iconColor}
+              style={{ marginRight: 5 }}
+            />
+          )}
 
           <Text
             style={[
@@ -881,8 +892,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   cardImage: {
-    width: 140,
-    height: 180,
+    width: IMAGE_WIDTH,
+    height: IMAGE_WIDTH * 1.3,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
@@ -935,6 +946,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   sectionHeaderText: {
+    textAlign: "center",
     color: COLORS.navy,
     fontSize: 15,
     marginHorizontal: 12,
@@ -1035,6 +1047,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: "transparent",
+    textAlign: "center",
   },
   progressBoxCompleted: { borderColor: "#7BA87A", backgroundColor: "#F2FAF1" },
   progressBoxActive: { borderColor: COLORS.gold, backgroundColor: "#FFF6E0" },
@@ -1047,7 +1060,7 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   progressSubtitle: {
-    fontSize: 12,
+    fontSize: width < 390 ? 11 : 12,
     color: COLORS.textSecondary,
     fontFamily: "Cormorant",
   },
