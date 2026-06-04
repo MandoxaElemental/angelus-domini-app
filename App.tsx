@@ -38,6 +38,9 @@ import type { RootStackParamList } from "./src/navigation/types";
 import { supabase } from "./src/lib/supabaseClient";
 import { scheduleAngelusNotifications } from "./src/services/notificationService";
 import TabLayout from "./src/navigation/TabLayout";
+import OnboardingScreen from "./src/screens/OnboardingScreen";
+import RegisterScreen from "./src/screens/RegisterScreen";
+import LoginScreen from "./src/screens/LoginScreen";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -300,9 +303,23 @@ export default function App() {
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <NavigationContainer ref={navigationRef}>
-          <TabLayout onLogout={() => setScreen("login")} />
-        </NavigationContainer>
+        {screen === "main" ? (
+          <NavigationContainer ref={navigationRef}>
+            <TabLayout onLogout={() => setScreen("login")} />
+          </NavigationContainer>
+        ) : screen === "onboarding" ? (
+          <OnboardingScreen onDone={handleOnboardingDone} />
+        ) : screen === "register" ? (
+          <RegisterScreen
+            goToLogin={() => setScreen("login")}
+            goToHome={() => setScreen("main")}
+          />
+        ) : (
+          <LoginScreen
+            onLogin={() => setScreen("main")}
+            goToRegister={() => setScreen("register")}
+          />
+        )}
 
         <StatusBar style="auto" />
       </QueryClientProvider>
