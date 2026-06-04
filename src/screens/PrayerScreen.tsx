@@ -949,7 +949,7 @@ const styles = StyleSheet.create({
   cardContent: { flexGrow: 1, justifyContent: "center", alignItems: "center" },
   prayerContent: { paddingTop: 50, paddingBottom: 60 },
   versicle: {
-    fontSize: 30,
+    fontSize: 28,
     color: "#6F440A",
     marginBottom: 6,
     textAlign: "center",
@@ -958,7 +958,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   responseItalic: {
-    fontSize: 30,
+    fontSize: 28,
     color: "#6F440A",
     fontStyle: "italic",
     textAlign: "center",
@@ -967,7 +967,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   prayer: {
-    fontSize: 30,
+    fontSize: 28,
     lineHeight: 42,
     textAlign: "center",
     color: "#6F440A",
@@ -1112,7 +1112,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   upcomingPrayer: {
-    fontSize: 30,
+    fontSize: 28,
     lineHeight: 42,
     textAlign: "center",
     color: "#6F440A",

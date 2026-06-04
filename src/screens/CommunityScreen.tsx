@@ -5,20 +5,11 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   ActivityIndicator,
-  Animated,
-  Easing,
   Image,
   SafeAreaView,
 } from "react-native";
 import { useState, useMemo, useEffect, useRef } from "react";
-import Svg, {
-  Circle,
-  Ellipse,
-  Line,
-  Path,
-  Defs,
-  Pattern,
-} from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path } from "react-native-svg";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
 
@@ -46,30 +37,31 @@ function useScale() {
   }, [width]);
 }
 
-function getFlagEmoji(country: string): string {
-  const flags: Record<string, string> = {
-    Philippines: "🇵🇭",
-    "United States": "🇺🇸",
-    Italy: "🇮🇹",
-    Brazil: "🇧🇷",
-    Mexico: "🇲🇽",
-    Spain: "🇪🇸",
-    France: "🇫🇷",
-    India: "🇮🇳",
-    "United Kingdom": "🇬🇧",
-    Germany: "🇩🇪",
-    Canada: "🇨🇦",
-    Australia: "🇦🇺",
-    Japan: "🇯🇵",
-    "South Korea": "🇰🇷",
-    Indonesia: "🇮🇩",
-    Portugal: "🇵🇹",
-    Poland: "🇵🇱",
-    Argentina: "🇦🇷",
-    Colombia: "🇨🇴",
-    Nigeria: "🇳🇬",
-  };
-  return flags[country] ?? "🌐";
+const FLAGS: Record<string, string> = {
+  Philippines: "🇵🇭",
+  "United States": "🇺🇸",
+  Italy: "🇮🇹",
+  Brazil: "🇧🇷",
+  Mexico: "🇲🇽",
+  Spain: "🇪🇸",
+  France: "🇫🇷",
+  India: "🇮🇳",
+  "United Kingdom": "🇬🇧",
+  Germany: "🇩🇪",
+  Canada: "🇨🇦",
+  Australia: "🇦🇺",
+  Japan: "🇯🇵",
+  "South Korea": "🇰🇷",
+  Indonesia: "🇮🇩",
+  Portugal: "🇵🇹",
+  Poland: "🇵🇱",
+  Argentina: "🇦🇷",
+  Colombia: "🇨🇴",
+  Nigeria: "🇳🇬",
+};
+
+function getFlagEmoji(country: string) {
+  return FLAGS[country] ?? "🌐";
 }
 
 function GlobeIcon({ size }: { size: number }) {
@@ -133,14 +125,17 @@ export default function CommunityScreen() {
   );
 
   // ── Fetch: unique users who prayed today, grouped by country ─────────────
+  const isFetchingRef = useRef(false);
   const fetchCounts = async () => {
+    if (isFetchingRef.current) return;
+    setLoading(true);
+    isFetchingRef.current = true;
     try {
       const now = new Date();
       const todayStr = now.toISOString().slice(0, 10);
       const todayStart = `${todayStr}T00:00:00+00:00`;
       const todayEnd = `${todayStr}T23:59:59+00:00`;
 
-      // Get all completed PrayerSessions today with the UserId
       const { data: sessions, error: sessErr } = await supabase
         .from("PrayerSessions")
         .select("UserId")
@@ -185,6 +180,7 @@ export default function CommunityScreen() {
       console.error("❌ CommunityScreen fetchCounts error:", err);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
@@ -194,6 +190,8 @@ export default function CommunityScreen() {
   }, []);
 
   // ── Real-time: refresh on any PrayerSession change ────────────────────────
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     const channel = supabase
       .channel("community-realtime")
@@ -205,11 +203,20 @@ export default function CommunityScreen() {
           table: "PrayerSessions",
         },
         () => {
-          fetchCounts();
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+          timeoutRef.current = setTimeout(() => {
+            fetchCounts();
+          }, 1000);
         },
       )
       .subscribe();
+
     return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
       supabase.removeChannel(channel);
     };
   }, []);
@@ -219,11 +226,15 @@ export default function CommunityScreen() {
     [countries],
   );
 
-  const today = new Date().toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const today = useMemo(
+    () =>
+      new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
+    [],
+  );
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.cream }}>
@@ -243,6 +254,7 @@ export default function CommunityScreen() {
             paddingHorizontal: hp,
             paddingTop: s(28),
             marginBottom: s(12),
+            marginHorizontal: 10,
           }}
         >
           <View>
