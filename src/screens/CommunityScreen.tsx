@@ -10,14 +10,12 @@ import {
   Image,
   SafeAreaView,
 } from "react-native";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Svg, {
   Circle,
   Ellipse,
   Line,
   Path,
-  Defs,
-  Pattern,
 } from "react-native-svg";
 import { supabase } from "../lib/supabaseClient";
 
@@ -38,7 +36,7 @@ function useScale() {
   const { width } = useWindowDimensions();
   return useMemo(() => {
     const scale = Math.min(width / BASE_WIDTH, 1.35);
-    const s = (dp: number) => Math.round(dp * scale);
+    const s  = (dp: number) => Math.round(dp * scale);
     const fs = (dp: number) => Math.round(dp * Math.min(scale, 1.2));
     const hp = Math.max(s(14), 12);
     return { s, fs, hp, width };
@@ -71,7 +69,6 @@ function getFlagEmoji(country: string): string {
   return flags[country] ?? "🌐";
 }
 
-
 function GlobeIcon({ size }: { size: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 36 36">
@@ -86,48 +83,97 @@ function GlobeIcon({ size }: { size: number }) {
 
 type CountryRow = { country: string; count: number };
 
+// ── Shared helper: rolling 24-hour window, unique users who completed a prayer ──
+// Same logic as MainApp so both screens always show the same number.
+async function fetchGlobalStats(): Promise<{
+  totalPrayedToday: number;
+  countries: CountryRow[];
+}> {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  // 1. All completed sessions in the last 24 hours
+  const { data: sessions, error: sessErr } = await supabase
+    .from("PrayerSessions")
+    .select("UserId")
+    .eq("Completed", true)
+    .gte("CompletedAt", since);
+
+  if (sessErr) throw sessErr;
+
+  if (!sessions || sessions.length === 0) {
+    return { totalPrayedToday: 0, countries: [] };
+  }
+
+  // 2. Unique user IDs who prayed
+  const uniqueUserIds = [...new Set(sessions.map((s: any) => s.UserId as string))];
+  const totalPrayedToday = uniqueUserIds.length;
+
+  // 3. Look up the country for each unique user
+  const { data: userData, error: userErr } = await supabase
+    .from("users")
+    .select("Id, Country")
+    .in("Id", uniqueUserIds);
+
+  if (userErr) throw userErr;
+
+  // 4. Count unique prayers per country
+  const countMap: Record<string, number> = {};
+  for (const user of userData ?? []) {
+    const country = user.Country ?? "Unknown";
+    countMap[country] = (countMap[country] ?? 0) + 1;
+  }
+
+  const countries = Object.entries(countMap)
+    .map(([country, count]) => ({ country, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return { totalPrayedToday, countries };
+}
+
 export default function CommunityScreen() {
-  const [activeTab, setActiveTab] = useState<"country" | "region">("country");
-  const [countries, setCountries] = useState<CountryRow[]>([]);
+  const [activeTab,        setActiveTab]        = useState<"country" | "region">("country");
+  const [countries,        setCountries]        = useState<CountryRow[]>([]);
   const [totalPrayedToday, setTotalPrayedToday] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading,          setLoading]          = useState(true);
   const { s, fs, hp, width } = useScale();
 
-  const ringScale = useRef(new Animated.Value(1)).current;
+  const ringScale   = useRef(new Animated.Value(1)).current;
   const ringOpacity = useRef(new Animated.Value(0.4)).current;
-  const bellRotate = useRef(new Animated.Value(0)).current;
+  const bellRotate  = useRef(new Animated.Value(0)).current;
 
   // ── Bell ring pulse loop ──────────────────────────────────────────────────
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.parallel([
-          Animated.timing(ringScale, { toValue: 1.25, duration: 900, easing: Easing.out(Easing.ease), useNativeDriver: false }),
-          Animated.timing(ringOpacity, { toValue: 0, duration: 900, useNativeDriver: false }),
+          Animated.timing(ringScale,   { toValue: 1.25, duration: 900, easing: Easing.out(Easing.ease), useNativeDriver: false }),
+          Animated.timing(ringOpacity, { toValue: 0,    duration: 900, useNativeDriver: false }),
         ]),
         Animated.parallel([
-          Animated.timing(ringScale, { toValue: 1, duration: 0, useNativeDriver: false }),
+          Animated.timing(ringScale,   { toValue: 1,   duration: 0, useNativeDriver: false }),
           Animated.timing(ringOpacity, { toValue: 0.4, duration: 0, useNativeDriver: false }),
         ]),
       ])
     );
     pulse.start();
-    return () => { pulse.stop(); };
+    return () => pulse.stop();
   }, []);
 
   // ── Bell swing loop ───────────────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false;
     const swing = () => {
+      if (cancelled) return;
       Animated.sequence([
-        Animated.timing(bellRotate, { toValue: 1, duration: 180, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-        Animated.timing(bellRotate, { toValue: -1, duration: 180, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-        Animated.timing(bellRotate, { toValue: 0.5, duration: 140, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: 1,    duration: 180, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: -1,   duration: 180, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bellRotate, { toValue: 0.5,  duration: 140, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
         Animated.timing(bellRotate, { toValue: -0.4, duration: 140, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-        Animated.timing(bellRotate, { toValue: 0, duration: 120, easing: Easing.out(Easing.ease), useNativeDriver: false }),
-      ]).start(() => setTimeout(swing, 3000));
+        Animated.timing(bellRotate, { toValue: 0,    duration: 120, easing: Easing.out(Easing.ease),   useNativeDriver: false }),
+      ]).start(() => { if (!cancelled) setTimeout(swing, 3000); });
     };
     const timer = setTimeout(swing, 1000);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, []);
 
   const sizes = useMemo(() => ({
@@ -141,81 +187,46 @@ export default function CommunityScreen() {
     countW:     s(42),
   }), [s, width]);
 
-  // ── Fetch: unique users who prayed today, grouped by country ─────────────
-  const fetchCounts = async () => {
+  // ── Fetch & update state ──────────────────────────────────────────────────
+  const refresh = useCallback(async () => {
     try {
-      const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
-      const todayStart = `${todayStr}T00:00:00+00:00`;
-      const todayEnd   = `${todayStr}T23:59:59+00:00`;
-
-      // Get all completed PrayerSessions today with the UserId
-      const { data: sessions, error: sessErr } = await supabase
-        .from("PrayerSessions")
-        .select("UserId")
-        .eq("Completed", true)
-        .gte("ScheduledTime", todayStart)
-        .lte("ScheduledTime", todayEnd);
-
-      if (sessErr) throw sessErr;
-
-      if (!sessions || sessions.length === 0) {
-        setTotalPrayedToday(0);
-        setCountries([]);
-        setLoading(false);
-        return;
-      }
-
-      // Unique user IDs who prayed today
-      const uniqueUserIds = [...new Set(sessions.map((s: any) => s.UserId))];
-      setTotalPrayedToday(uniqueUserIds.length);
-
-      // ✅ FIXED: use "Id" (capital I) to match the users table column
-      const { data: userData, error: userErr } = await supabase
-        .from("users")
-        .select("Id, Country")
-        .in("Id", uniqueUserIds);
-
-      if (userErr) throw userErr;
-
-      // Count unique prayers per country
-      const countMap: Record<string, number> = {};
-      for (const user of userData ?? []) {
-        const country = user.Country ?? "Unknown";
-        countMap[country] = (countMap[country] ?? 0) + 1;
-      }
-
-      const sorted = Object.entries(countMap)
-        .map(([country, count]) => ({ country, count }))
-        .sort((a, b) => b.count - a.count);
-
-      setCountries(sorted);
+      const { totalPrayedToday, countries } = await fetchGlobalStats();
+      setTotalPrayedToday(totalPrayedToday);
+      setCountries(countries);
     } catch (err) {
-      console.error("❌ CommunityScreen fetchCounts error:", err);
+      console.error("CommunityScreen refresh error:", err);
     } finally {
       setLoading(false);
     }
-  };
-
-  // ── On mount ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    fetchCounts();
   }, []);
 
-  // ── Real-time: refresh on any PrayerSession change ────────────────────────
+  // ── Initial load ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  // ── Real-time: subscribe to ALL PrayerSession changes globally ────────────
   useEffect(() => {
     const channel = supabase
-      .channel("community-realtime")
+      .channel("community-realtime-global")
       .on("postgres_changes", {
         event: "*",
         schema: "public",
         table: "PrayerSessions",
       }, () => {
-        fetchCounts();
+        // Any insert/update anywhere in the world triggers a refresh
+        refresh();
       })
       .subscribe();
+
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [refresh]);
+
+  // ── Poll every 60 seconds as a safety net ─────────────────────────────────
+  useEffect(() => {
+    const id = setInterval(refresh, 60_000);
+    return () => clearInterval(id);
+  }, [refresh]);
 
   const maxCount = useMemo(
     () => Math.max(...countries.map((c) => c.count), 1),
@@ -325,37 +336,61 @@ export default function CommunityScreen() {
           <View style={{ flexDirection: "row", gap: s(12) }}>
             <GlobeIcon size={sizes.globeSize} />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: fs(11), color: C.muted, marginBottom: 1 }}>Today</Text>
-              <Text style={{ fontSize: fs(11), color: C.muted, marginBottom: s(4) }}>{today}</Text>
-              <Text style={{
-                fontFamily: "PlayfairDisplay_400Bold",
-                fontSize: fs(34), color: C.gold,
-                lineHeight: fs(38), letterSpacing: -0.5,
-              }}>
-                {totalPrayedToday.toLocaleString()}
+              <Text style={{ fontSize: fs(11), color: C.muted, marginBottom: 1 }}>
+                Last 24 hours · Live
               </Text>
-              <Text style={{
-                fontSize: fs(9), fontWeight: "700",
-                letterSpacing: 1.3, color: C.brown,
-                textTransform: "uppercase", marginTop: 2,
-              }}>
-                PEOPLE HAVE PRAYED
+              <Text style={{ fontSize: fs(11), color: C.muted, marginBottom: s(4) }}>
+                {today}
               </Text>
-              <Text style={{ fontSize: fs(10), color: C.muted, marginTop: 2 }}>
-                around the world today
-              </Text>
+
+              {loading ? (
+                <ActivityIndicator size="small" color={C.gold} style={{ marginTop: s(8) }} />
+              ) : (
+                <>
+                  <Text style={{
+                    fontFamily: "PlayfairDisplay_400Bold",
+                    fontSize: fs(34), color: C.gold,
+                    lineHeight: fs(38), letterSpacing: -0.5,
+                  }}>
+                    {totalPrayedToday.toLocaleString()}
+                  </Text>
+                  <Text style={{
+                    fontSize: fs(9), fontWeight: "700",
+                    letterSpacing: 1.3, color: C.brown,
+                    textTransform: "uppercase", marginTop: 2,
+                  }}>
+                    PEOPLE HAVE PRAYED
+                  </Text>
+                  <Text style={{ fontSize: fs(10), color: C.muted, marginTop: 2 }}>
+                    around the world today
+                  </Text>
+                </>
+              )}
             </View>
           </View>
-        <View
-  style={{ position: "absolute", right: -s(8), top: s(4), opacity: 0.45 }}
-  pointerEvents="none"
->
-  <Image
-    source={require("../../assets/mapsglobal.png")}
-    style={{ width: sizes.mapW, height: sizes.mapH }}
-    resizeMode="contain"
-  />
-</View>
+
+          {/* Live indicator dot */}
+          <View style={{
+            position: "absolute", top: s(12), right: s(12),
+            flexDirection: "row", alignItems: "center", gap: s(4),
+          }}>
+            <View style={{
+              width: s(7), height: s(7), borderRadius: s(4),
+              backgroundColor: "#4CAF50",
+            }} />
+            <Text style={{ fontSize: fs(9), color: C.muted, letterSpacing: 0.5 }}>LIVE</Text>
+          </View>
+
+          <View
+            style={{ position: "absolute", right: -s(8), top: s(4), opacity: 0.45 }}
+            pointerEvents="none"
+          >
+            <Image
+              source={require("../../assets/mapsglobal.png")}
+              style={{ width: sizes.mapW, height: sizes.mapH }}
+              resizeMode="contain"
+            />
+          </View>
         </View>
 
         {/* ── TABS ── */}
@@ -396,16 +431,34 @@ export default function CommunityScreen() {
         </View>
 
         {/* ── SECTION LABEL ── */}
-        <Text style={{
-          fontSize: fs(12), fontWeight: "700",
-          color: C.brown, paddingHorizontal: hp,
-          paddingTop: s(12), paddingBottom: s(8),
-          letterSpacing: 0.2,
+        <View style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: hp,
+          paddingTop: s(12),
+          paddingBottom: s(8),
         }}>
-          {activeTab === "country"
-            ? `Top Countries · ${today}`
-            : "By Region · Coming Soon"}
-        </Text>
+          <Text style={{
+            fontSize: fs(12), fontWeight: "700",
+            color: C.brown, letterSpacing: 0.2,
+          }}>
+            {activeTab === "country"
+              ? `Top Countries · Last 24 hours`
+              : "By Region · Coming Soon"}
+          </Text>
+          {activeTab === "country" && !loading && (
+            <View style={{
+              flexDirection: "row", alignItems: "center", gap: s(4),
+            }}>
+              <View style={{
+                width: s(6), height: s(6), borderRadius: s(3),
+                backgroundColor: "#4CAF50",
+              }} />
+              <Text style={{ fontSize: fs(9), color: C.muted }}>Real-time</Text>
+            </View>
+          )}
+        </View>
 
         {/* ── COUNTRY ROWS ── */}
         {loading ? (
@@ -422,7 +475,7 @@ export default function CommunityScreen() {
             textAlign: "center", color: C.muted,
             fontSize: fs(13), marginTop: s(20),
           }}>
-            No prayers recorded yet today.
+            No prayers recorded in the last 24 hours.
           </Text>
         ) : (
           <View style={{ paddingHorizontal: hp, gap: sizes.rowGap }}>
@@ -450,10 +503,12 @@ export default function CommunityScreen() {
 
                   {/* Bar + name */}
                   <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: s(3) }}>
-                      <Text style={{
-                        fontSize: fs(11), color: C.brown, fontWeight: "600",
-                      }}>
+                    <View style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      marginBottom: s(3),
+                    }}>
+                      <Text style={{ fontSize: fs(11), color: C.brown, fontWeight: "600" }}>
                         {country}
                       </Text>
                       <Text style={{ fontSize: fs(11), color: C.mutedLight }}>

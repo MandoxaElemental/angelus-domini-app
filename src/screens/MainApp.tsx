@@ -8,9 +8,8 @@ import {
 import { useNavigation }        from "@react-navigation/native";
 import { createAudioPlayer }    from "expo-audio";
 import { Ionicons }             from "@expo/vector-icons";
-import { logout }               from "../store/auth";
 import { getNextPrayer, getPrayerStatus, PrayerStatus } from "../utils/prayer";
-import { completePrayer, getGlobalCount, startPrayer, PrayerSession } from "../api/prayerApi";
+import { completePrayer, startPrayer, PrayerSession } from "../api/prayerApi";
 import { supabase }             from "../lib/supabaseClient";
 
 type Props = { onLogout: () => void };
@@ -39,7 +38,7 @@ const progressImages: Record<string, any> = {
 };
 
 function format12Hour(date: Date): string {
-  let h = date.getHours();
+  let h      = date.getHours();
   const m    = date.getMinutes();
   const ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
@@ -100,6 +99,25 @@ function hourToSlotKey(h: number): "morning" | "noon" | "evening" {
   return "evening";
 }
 
+// ── Global prayer count: unique users who completed a prayer in last 24 hours ──
+async function fetchGlobalPrayedToday(): Promise<number> {
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from("PrayerSessions")
+      .select("UserId")
+      .eq("Completed", true)
+      .gte("CompletedAt", since);
+
+    if (error) throw error;
+    const uniqueUsers = new Set((data ?? []).map((s: any) => s.UserId));
+    return uniqueUsers.size;
+  } catch (err) {
+    console.error("fetchGlobalPrayedToday error:", err);
+    return 0;
+  }
+}
+
 export default function MainApp({ onLogout }: Props) {
   const navigation = useNavigation<any>();
 
@@ -126,6 +144,13 @@ export default function MainApp({ onLogout }: Props) {
   const currentHour    = new Date().getHours();
   const greeting       = currentHour < 12 ? "Morning" : currentHour < 18 ? "Afternoon" : "Evening";
 
+  // ── Refresh global count ──────────────────────────────────────────────────
+  const refreshGlobalCount = useCallback(async () => {
+    const n = await fetchGlobalPrayedToday();
+    setCount(n);
+  }, []);
+
+  // ── Fetch today's completed prayers from Supabase ─────────────────────────
   const fetchTodayPrayers = useCallback(async (uid: string) => {
     try {
       const todayStr = new Date().toISOString().slice(0, 10);
@@ -150,6 +175,7 @@ export default function MainApp({ onLogout }: Props) {
     }
   }, []);
 
+  // ── Auth + session init ───────────────────────────────────────────────────
   useEffect(() => {
     let channel: any = null;
 
@@ -181,17 +207,27 @@ export default function MainApp({ onLogout }: Props) {
 
         const sess = await startPrayer(uid);
         setSession(sess);
-        setCount(await getGlobalCount(sess.slot));
+
+        // Use new global count function
+        await refreshGlobalCount();
         await fetchTodayPrayers(uid);
 
+        // Real-time: listen to ANY PrayerSession change globally
         channel = supabase
-          .channel(`prayers-${uid}`)
+          .channel(`main-prayers-${uid}`)
           .on("postgres_changes", {
             event: "*", schema: "public",
-            table: "PrayerSessions", filter: `UserId=eq.${uid}`,
-          }, async () => {
-            await fetchTodayPrayers(uid);
-            try { setCount(await getGlobalCount(sess.slot)); } catch {}
+            table: "PrayerSessions",
+          }, async (payload: any) => {
+            // Refresh global count on any change worldwide
+            await refreshGlobalCount();
+
+            // Refresh personal prayer status only if it's this user's record
+            const changedUserId =
+              payload?.new?.UserId ?? payload?.old?.UserId ?? null;
+            if (changedUserId === uid) {
+              await fetchTodayPrayers(uid);
+            }
           })
           .subscribe();
 
@@ -201,8 +237,15 @@ export default function MainApp({ onLogout }: Props) {
     })();
 
     return () => { if (channel) supabase.removeChannel(channel); };
-  }, [fetchTodayPrayers]);
+  }, [fetchTodayPrayers, refreshGlobalCount]);
 
+  // ── Poll global count every 60 seconds as a safety net ───────────────────
+  useEffect(() => {
+    const id = setInterval(refreshGlobalCount, 60_000);
+    return () => clearInterval(id);
+  }, [refreshGlobalCount]);
+
+  // ── Bell pulse animation ──────────────────────────────────────────────────
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
@@ -220,6 +263,7 @@ export default function MainApp({ onLogout }: Props) {
     return () => pulse.stop();
   }, []);
 
+  // ── Bell swing animation ──────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     const swing = () => {
@@ -236,6 +280,7 @@ export default function MainApp({ onLogout }: Props) {
     return () => { cancelled = true; clearTimeout(t); };
   }, []);
 
+  // ── Countdown timer to next prayer ───────────────────────────────────────
   useEffect(() => {
     const tick = () => {
       const next = getNextPrayer();
@@ -258,6 +303,7 @@ export default function MainApp({ onLogout }: Props) {
     return () => clearInterval(id);
   }, []);
 
+  // ── In-app prayer trigger ─────────────────────────────────────────────────
   useEffect(() => {
     const check = () => {
       const now  = new Date();
@@ -291,7 +337,7 @@ export default function MainApp({ onLogout }: Props) {
             try {
               if (!freshSession || !userId) return;
               await completePrayer(userId, freshSession.sessionId);
-              setCount(await getGlobalCount(freshSession.slot));
+              await refreshGlobalCount();
               setCompletedPrayers(prev => ({ ...prev, [slotKey]: true }));
             } catch (err) {
               console.error("Auto-trigger complete error:", err);
@@ -303,8 +349,9 @@ export default function MainApp({ onLogout }: Props) {
 
     const id = setInterval(check, 1000);
     return () => clearInterval(id);
-  }, [session, userId, navigation]);
+  }, [session, userId, navigation, refreshGlobalCount]);
 
+  // ── Audio bell ────────────────────────────────────────────────────────────
   const playTripleBell = async () => {
     for (let i = 0; i < 3; i++) {
       try {
@@ -316,6 +363,7 @@ export default function MainApp({ onLogout }: Props) {
     }
   };
 
+  // ── Manual pray button ────────────────────────────────────────────────────
   const handleComplete = async () => {
     if (!session || !userId) return;
     navigation.navigate("Prayer", {
@@ -323,7 +371,7 @@ export default function MainApp({ onLogout }: Props) {
       onComplete: async () => {
         try {
           await completePrayer(userId, session.sessionId);
-          setCount(await getGlobalCount(session.slot));
+          await refreshGlobalCount();
           const key = slotToKey(session.slot);
           if (key) setCompletedPrayers(prev => ({ ...prev, [key]: true }));
         } catch (err) {
@@ -333,6 +381,7 @@ export default function MainApp({ onLogout }: Props) {
     });
   };
 
+  // ── Popup "Pray Now" button ───────────────────────────────────────────────
   const navigateToPrayerFromPopup = async () => {
     setShowPrayerPopup(false);
     const h       = new Date().getHours();
@@ -350,7 +399,7 @@ export default function MainApp({ onLogout }: Props) {
         try {
           if (!freshSession || !userId) return;
           await completePrayer(userId, freshSession.sessionId);
-          setCount(await getGlobalCount(freshSession.slot));
+          await refreshGlobalCount();
           setCompletedPrayers(prev => ({ ...prev, [slotKey]: true }));
         } catch (err) {
           console.error("Popup complete error:", err);
@@ -367,6 +416,7 @@ export default function MainApp({ onLogout }: Props) {
     <>
       <StatusBar hidden />
 
+      {/* IN-APP PRAYER POPUP */}
       <Modal visible={showPrayerPopup} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -520,10 +570,10 @@ function ProgressCard({ title, status }: { title: string; status: PrayerStatus }
         isActive    && styles.progressBoxActive,
         isMissed    && styles.progressBoxMissed,
       ]}>
-        {isCompleted && <Ionicons name="checkmark-circle"     size={13} color="#4A7A48" style={{ marginRight: 3 }} />}
+        {isCompleted && <Ionicons name="checkmark-circle"    size={13} color="#4A7A48" style={{ marginRight: 3 }} />}
         {isActive    && <View style={styles.activeDot} />}
-        {isMissed    && <Ionicons name="close-circle-outline"  size={13} color="#A04040" style={{ marginRight: 3 }} />}
-        {isUpcoming  && <Ionicons name="time-outline"          size={13} color={COLORS.muted}  style={{ marginRight: 3 }} />}
+        {isMissed    && <Ionicons name="close-circle-outline" size={13} color="#A04040" style={{ marginRight: 3 }} />}
+        {isUpcoming  && <Ionicons name="time-outline"         size={13} color={COLORS.muted}  style={{ marginRight: 3 }} />}
         <Text style={[
           styles.progressSubtitle,
           isCompleted && { color: "#4A7A48" },
@@ -539,69 +589,69 @@ function ProgressCard({ title, status }: { title: string; status: PrayerStatus }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container:         { flex: 1, backgroundColor: COLORS.cream },
-  header:            { height: 100, backgroundColor: "#2F4A7A", paddingRight: 24, paddingLeft: 12, borderBottomLeftRadius: 25, borderBottomRightRadius: 25, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  logo:              { width: 140, height: 40, resizeMode: "contain" },
-  bellContainer:     { width: 85, height: 85, justifyContent: "center", alignItems: "center" },
-  bellImage:         { width: 85, height: 85, position: "absolute", zIndex: 2 },
-  bellEffect:        { width: 85, height: 85, position: "absolute", zIndex: 1 },
-  greetingRow:       { flexDirection: "row", alignItems: "center", paddingHorizontal: 24, marginTop: 26 },
-  sunIcon:           { marginRight: 12 },
-  greetingTitle:     { fontSize: 30, color: COLORS.textPrimary, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
-  greetingSubtitle:  { marginTop: 2, fontSize: 15, color: COLORS.navy, fontFamily: "Cormorant-Regular" },
-  mainCard:          { marginHorizontal: 24, marginTop: 18, backgroundColor: COLORS.card, borderRadius: 28, borderWidth: 3, borderColor: COLORS.border, padding: 10, flexDirection: "row", shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
-  cardImage:         { width: 140, height: 180, justifyContent: "center", alignItems: "center", marginRight: 10 },
-  cardContent:       { flex: 1, justifyContent: "center" },
-  cardLabel:         { color: COLORS.gold, letterSpacing: 2, fontSize: 12, marginBottom: 4, fontFamily: "Inter-Medium" },
-  cardTitle:         { fontSize: 34, color: "#6F440A", fontFamily: "EBGaramond-Regular" },
-  cardDivider:       { height: 1, backgroundColor: COLORS.border, marginVertical: 5 },
-  timeRow:           { flexDirection: "row", alignItems: "center" },
-  timeText:          { marginLeft: 6, fontSize: 22, color: COLORS.navy, fontFamily: "EBGaramond-Medium" },
-  cardTime:          { marginTop: 6, color: COLORS.navy, fontSize: 20, fontFamily: "EBGaramond-Bold" },
-  sectionHeader:     { flexDirection: "row", alignItems: "center", marginHorizontal: 24, marginTop: 28, marginBottom: 18 },
-  sectionHeaderText: { color: COLORS.navy, fontSize: 13, letterSpacing: 1.5, marginHorizontal: 12, fontFamily: "Cormorant-SemiBold" },
-  line:              { flex: 1, height: 1, backgroundColor: COLORS.border },
-  progressRow:       { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24 },
-  progressCard:      { width: "31%", backgroundColor: COLORS.card, borderRadius: 22, borderWidth: 3, borderColor: COLORS.border, alignItems: "center", paddingVertical: 18, paddingHorizontal: 6, position: "relative", shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  container:             { flex: 1, backgroundColor: COLORS.cream },
+  header:                { height: 100, backgroundColor: "#2F4A7A", paddingRight: 24, paddingLeft: 12, borderBottomLeftRadius: 25, borderBottomRightRadius: 25, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  logo:                  { width: 140, height: 40, resizeMode: "contain" },
+  bellContainer:         { width: 85, height: 85, justifyContent: "center", alignItems: "center" },
+  bellImage:             { width: 85, height: 85, position: "absolute", zIndex: 2 },
+  bellEffect:            { width: 85, height: 85, position: "absolute", zIndex: 1 },
+  greetingRow:           { flexDirection: "row", alignItems: "center", paddingHorizontal: 24, marginTop: 26 },
+  sunIcon:               { marginRight: 12 },
+  greetingTitle:         { fontSize: 30, color: COLORS.textPrimary, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
+  greetingSubtitle:      { marginTop: 2, fontSize: 15, color: COLORS.navy, fontFamily: "Cormorant-Regular" },
+  mainCard:              { marginHorizontal: 24, marginTop: 18, backgroundColor: COLORS.card, borderRadius: 28, borderWidth: 3, borderColor: COLORS.border, padding: 10, flexDirection: "row", shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  cardImage:             { width: 140, height: 180, justifyContent: "center", alignItems: "center", marginRight: 10 },
+  cardContent:           { flex: 1, justifyContent: "center" },
+  cardLabel:             { color: COLORS.gold, letterSpacing: 2, fontSize: 12, marginBottom: 4, fontFamily: "Inter-Medium" },
+  cardTitle:             { fontSize: 34, color: "#6F440A", fontFamily: "EBGaramond-Regular" },
+  cardDivider:           { height: 1, backgroundColor: COLORS.border, marginVertical: 5 },
+  timeRow:               { flexDirection: "row", alignItems: "center" },
+  timeText:              { marginLeft: 6, fontSize: 22, color: COLORS.navy, fontFamily: "EBGaramond-Medium" },
+  cardTime:              { marginTop: 6, color: COLORS.navy, fontSize: 20, fontFamily: "EBGaramond-Bold" },
+  sectionHeader:         { flexDirection: "row", alignItems: "center", marginHorizontal: 24, marginTop: 28, marginBottom: 18 },
+  sectionHeaderText:     { color: COLORS.navy, fontSize: 13, letterSpacing: 1.5, marginHorizontal: 12, fontFamily: "Cormorant-SemiBold" },
+  line:                  { flex: 1, height: 1, backgroundColor: COLORS.border },
+  progressRow:           { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24 },
+  progressCard:          { width: "31%", backgroundColor: COLORS.card, borderRadius: 22, borderWidth: 3, borderColor: COLORS.border, alignItems: "center", paddingVertical: 18, paddingHorizontal: 6, position: "relative", shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   progressCardCompleted: { borderColor: "#B8CFB5", backgroundColor: "#F6FBF5" },
   progressCardActive:    { borderColor: COLORS.gold, backgroundColor: "#FFF9EC" },
   progressCardMissed:    { borderColor: COLORS.border, backgroundColor: "#FFF3F2" },
-  statusDot:         { position: "absolute", top: 6, right: 10, width: 15, height: 15, borderRadius: 9, justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: COLORS.border, backgroundColor: COLORS.card },
-  statusDotCompleted:{ backgroundColor: "#7BA87A", borderColor: "#7BA87A" },
-  statusDotActive:   { backgroundColor: COLORS.gold, borderColor: COLORS.gold },
-  statusDotMissed:   { backgroundColor: "transparent", borderColor: "#D8A3A0" },
-  statusDotUpcoming: { backgroundColor: "transparent", borderColor: COLORS.muted },
-  statusDotInner:    { width: 7, height: 7, borderRadius: 4, backgroundColor: "#fff" },
-  progressIcon:      { width: 58, height: 58, borderRadius: 29, backgroundColor: "#F3EFE7", justifyContent: "center", alignItems: "center", marginBottom: 8 },
-  progressImage:     { width: 75, height: 75 },
-  progressImageU:    { width: 60, height: 75 },
-  progressTitle:     { fontSize: 17, color: COLORS.textPrimary, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
-  progressAngelus:   { fontSize: 13, color: COLORS.textSecondary, fontFamily: "Cormorant-SemiBold", marginTop: 1, marginBottom: 10 },
-  progressBox:       { flexDirection: "row", alignItems: "center", paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, borderWidth: 2, borderColor: COLORS.border },
-  progressBoxCompleted: { borderColor: "#7BA87A", backgroundColor: "#F2FAF1" },
-  progressBoxActive:    { borderColor: COLORS.gold, backgroundColor: "#FFF6E0" },
-  progressBoxMissed:    { borderColor: "#D8A3A0", backgroundColor: "#FFF0EF" },
-  activeDot:         { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.gold, marginRight: 5 },
-  progressSubtitle:  { fontSize: 12, color: COLORS.textSecondary, fontFamily: "Cormorant-SemiBold" },
-  globalCard:        { marginHorizontal: 24, marginTop: 18, backgroundColor: COLORS.card, borderRadius: 28, borderWidth: 3, borderColor: COLORS.border, padding: 14, flexDirection: "row", alignItems: "flex-start", shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
-  globe:             { width: 110, height: 110, justifyContent: "center", alignItems: "center", marginRight: 18, alignSelf: "center" },
-  globeIcon:         { width: 160, height: 140 },
-  globalRight:       { flex: 1, justifyContent: "center" },
-  globalLabel:       { color: COLORS.navy, fontSize: 12, letterSpacing: 1.5, fontFamily: "EBGaramond-Medium", marginBottom: 2 },
-  globalCountRow:    { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap" },
-  globalCount:       { fontSize: 38, color: COLORS.navy, fontFamily: "EBGaramond-Medium" },
-  globalPrayedToday: { fontSize: 14, color: COLORS.textSecondary, fontFamily: "EBGaramond-Medium", marginLeft: 4 },
-  globalText:        { color: COLORS.textSecondary, fontSize: 13, fontFamily: "EBGaramond-Medium", marginTop: 2 },
-  globalDivider:     { height: 1, backgroundColor: COLORS.border, marginVertical: 10 },
-  scriptureCard:     { marginHorizontal: 24, marginTop: 14, backgroundColor: COLORS.card, borderRadius: 22, borderWidth: 3, borderColor: COLORS.border, flexDirection: "row", overflow: "hidden", shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
-  scriptureImage:    { width: 190, height: 120 },
-  scriptureContent:  { flex: 1, padding: 16, justifyContent: "center" },
-  scriptureQuote:    { fontSize: 12, color: COLORS.textPrimary, fontStyle: "italic", lineHeight: 18, fontFamily: "EBGaramond-Regular" },
-  scriptureRef:      { marginTop: 7, fontSize: 13, color: COLORS.navy, fontFamily: "Cormorant-SemiBold" },
-  modalOverlay:      { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
-  modalCard:         { width: "100%", backgroundColor: COLORS.card, borderRadius: 28, padding: 28, alignItems: "center", borderWidth: 3, borderColor: COLORS.border },
-  modalTitle:        { marginTop: 16, fontSize: 32, color: COLORS.navy, fontFamily: "Cormorant-SemiBold" },
-  modalText:         { marginTop: 10, textAlign: "center", color: COLORS.textSecondary, fontSize: 18, lineHeight: 26, fontFamily: "Cormorant-Regular" },
-  modalButton:       { marginTop: 18, backgroundColor: COLORS.gold, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 30 },
-  modalButtonText:   { color: "#fff", fontSize: 18, fontWeight: "600", fontFamily: "Cormorant-SemiBold" },
+  statusDot:             { position: "absolute", top: 6, right: 10, width: 15, height: 15, borderRadius: 9, justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: COLORS.border, backgroundColor: COLORS.card },
+  statusDotCompleted:    { backgroundColor: "#7BA87A", borderColor: "#7BA87A" },
+  statusDotActive:       { backgroundColor: COLORS.gold, borderColor: COLORS.gold },
+  statusDotMissed:       { backgroundColor: "transparent", borderColor: "#D8A3A0" },
+  statusDotUpcoming:     { backgroundColor: "transparent", borderColor: COLORS.muted },
+  statusDotInner:        { width: 7, height: 7, borderRadius: 4, backgroundColor: "#fff" },
+  progressIcon:          { width: 58, height: 58, borderRadius: 29, backgroundColor: "#F3EFE7", justifyContent: "center", alignItems: "center", marginBottom: 8 },
+  progressImage:         { width: 75, height: 75 },
+  progressImageU:        { width: 60, height: 75 },
+  progressTitle:         { fontSize: 17, color: COLORS.textPrimary, fontFamily: "Cormorant-SemiBold", fontWeight: "600" },
+  progressAngelus:       { fontSize: 13, color: COLORS.textSecondary, fontFamily: "Cormorant-SemiBold", marginTop: 1, marginBottom: 10 },
+  progressBox:           { flexDirection: "row", alignItems: "center", paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, borderWidth: 2, borderColor: COLORS.border },
+  progressBoxCompleted:  { borderColor: "#7BA87A", backgroundColor: "#F2FAF1" },
+  progressBoxActive:     { borderColor: COLORS.gold, backgroundColor: "#FFF6E0" },
+  progressBoxMissed:     { borderColor: "#D8A3A0", backgroundColor: "#FFF0EF" },
+  activeDot:             { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.gold, marginRight: 5 },
+  progressSubtitle:      { fontSize: 12, color: COLORS.textSecondary, fontFamily: "Cormorant-SemiBold" },
+  globalCard:            { marginHorizontal: 24, marginTop: 18, backgroundColor: COLORS.card, borderRadius: 28, borderWidth: 3, borderColor: COLORS.border, padding: 14, flexDirection: "row", alignItems: "flex-start", shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  globe:                 { width: 110, height: 110, justifyContent: "center", alignItems: "center", marginRight: 18, alignSelf: "center" },
+  globeIcon:             { width: 160, height: 140 },
+  globalRight:           { flex: 1, justifyContent: "center" },
+  globalLabel:           { color: COLORS.navy, fontSize: 12, letterSpacing: 1.5, fontFamily: "EBGaramond-Medium", marginBottom: 2 },
+  globalCountRow:        { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap" },
+  globalCount:           { fontSize: 38, color: COLORS.navy, fontFamily: "EBGaramond-Medium" },
+  globalPrayedToday:     { fontSize: 14, color: COLORS.textSecondary, fontFamily: "EBGaramond-Medium", marginLeft: 4 },
+  globalText:            { color: COLORS.textSecondary, fontSize: 13, fontFamily: "EBGaramond-Medium", marginTop: 2 },
+  globalDivider:         { height: 1, backgroundColor: COLORS.border, marginVertical: 10 },
+  scriptureCard:         { marginHorizontal: 24, marginTop: 14, backgroundColor: COLORS.card, borderRadius: 22, borderWidth: 3, borderColor: COLORS.border, flexDirection: "row", overflow: "hidden", shadowColor: "#3B2E22", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  scriptureImage:        { width: 190, height: 120 },
+  scriptureContent:      { flex: 1, padding: 16, justifyContent: "center" },
+  scriptureQuote:        { fontSize: 12, color: COLORS.textPrimary, fontStyle: "italic", lineHeight: 18, fontFamily: "EBGaramond-Regular" },
+  scriptureRef:          { marginTop: 7, fontSize: 13, color: COLORS.navy, fontFamily: "Cormorant-SemiBold" },
+  modalOverlay:          { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
+  modalCard:             { width: "100%", backgroundColor: COLORS.card, borderRadius: 28, padding: 28, alignItems: "center", borderWidth: 3, borderColor: COLORS.border },
+  modalTitle:            { marginTop: 16, fontSize: 32, color: COLORS.navy, fontFamily: "Cormorant-SemiBold" },
+  modalText:             { marginTop: 10, textAlign: "center", color: COLORS.textSecondary, fontSize: 18, lineHeight: 26, fontFamily: "Cormorant-Regular" },
+  modalButton:           { marginTop: 18, backgroundColor: COLORS.gold, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 30 },
+  modalButtonText:       { color: "#fff", fontSize: 18, fontWeight: "600", fontFamily: "Cormorant-SemiBold" },
 });

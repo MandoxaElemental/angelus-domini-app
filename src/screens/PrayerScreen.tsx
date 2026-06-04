@@ -11,10 +11,10 @@ import {
   Modal,
 } from "react-native";
 import { createAudioPlayer } from "expo-audio";
-import { LinearGradient } from "expo-linear-gradient";
+import { LinearGradient }    from "expo-linear-gradient";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import { Ionicons }          from "@expo/vector-icons";
+import { BlurView }          from "expo-blur";
 
 type PrayerItem =
   | { type: "versicle" | "response" | "prayer"; text: string; duration: number; audio?: any }
@@ -27,88 +27,78 @@ const CLOSING_CALL = {
   versicle: "Pray for us, O Holy Mother of God.",
   response: "That we may be made worthy of the promises of Christ.",
 };
-const CLOSING_PRAYER = `Let us pray:
-
-Pour forth, we beseech Thee, O Lord, Thy grace into our hearts; that we, to whom the incarnation of Christ, Thy Son, was made known by the message of an angel, may by His Passion and Cross be brought to the glory of His Resurrection, through the same Christ Our Lord.
-
-Amen.`;
+const CLOSING_PRAYER = `Let us pray:\n\nPour forth, we beseech Thee, O Lord, Thy grace into our hearts; that we, to whom the incarnation of Christ, Thy Son, was made known by the message of an angel, may by His Passion and Cross be brought to the glory of His Resurrection, through the same Christ Our Lord.\n\nAmen.`;
 
 const PRAYER_SEQUENCE: PrayerItem[] = [
-  { type: "versicle", text: SIGN_OF_THE_CROSS,               duration: 4000,  audio: require("../../assets/audio/SignOfTheCross1.mp3") },
-  { type: "bell",     text: "",     count: 3,                 duration: 9900  },
-  { type: "versicle", text: "The Angel of the Lord declared unto Mary", duration: 3500, audio: require("../../assets/audio/Versicle1.mp3") },
-  { type: "response", text: "And she conceived of the Holy Spirit.",    duration: 3500, audio: require("../../assets/audio/Response1.mp3") },
-  { type: "versicle", text: HAIL_MARY_PART_1,                duration: 7500,  audio: require("../../assets/audio/HailMaryV1.mp3") },
-  { type: "response", text: HAIL_MARY_PART_2,                duration: 6500,  audio: require("../../assets/audio/HolyMaryV1.mp3") },
-  { type: "bell",     text: "",     count: 3,                 duration: 9900  },
-  { type: "versicle", text: "Behold the handmaid of the Lord",           duration: 3500, audio: require("../../assets/audio/Versicle2.mp3") },
+  { type: "versicle", text: SIGN_OF_THE_CROSS,                         duration: 4000,  audio: require("../../assets/audio/SignOfTheCross1.mp3") },
+  { type: "bell",     text: "",     count: 3,                           duration: 9900  },
+  { type: "versicle", text: "The Angel of the Lord declared unto Mary", duration: 3500,  audio: require("../../assets/audio/Versicle1.mp3") },
+  { type: "response", text: "And she conceived of the Holy Spirit.",    duration: 3500,  audio: require("../../assets/audio/Response1.mp3") },
+  { type: "versicle", text: HAIL_MARY_PART_1,                          duration: 7500,  audio: require("../../assets/audio/HailMaryV1.mp3") },
+  { type: "response", text: HAIL_MARY_PART_2,                          duration: 6500,  audio: require("../../assets/audio/HolyMaryV1.mp3") },
+  { type: "bell",     text: "",     count: 3,                           duration: 9900  },
+  { type: "versicle", text: "Behold the handmaid of the Lord",          duration: 3500,  audio: require("../../assets/audio/Versicle2.mp3") },
   { type: "response", text: "Be it done unto me according to thy word.", duration: 3500, audio: require("../../assets/audio/Response2.mp3") },
-  { type: "versicle", text: HAIL_MARY_PART_1,                duration: 7500,  audio: require("../../assets/audio/HailMaryV2.mp3") },
-  { type: "response", text: HAIL_MARY_PART_2,                duration: 6500,  audio: require("../../assets/audio/HolyMaryV2.mp3") },
-  { type: "bell",     text: "",     count: 3,                 duration: 9900  },
-  { type: "versicle", text: "And the Word was made flesh",   duration: 3500,  audio: require("../../assets/audio/Versicle3.mp3") },
-  { type: "response", text: "And dwelt amongst us.",         duration: 3500,  audio: require("../../assets/audio/Response3.mp3") },
-  { type: "versicle", text: HAIL_MARY_PART_1,                duration: 7500,  audio: require("../../assets/audio/HailMaryV3.mp3") },
-  { type: "response", text: HAIL_MARY_PART_2,                duration: 6500,  audio: require("../../assets/audio/HolyMaryV3.mp3") },
-  { type: "versicle", text: CLOSING_CALL.versicle,           duration: 3500,  audio: require("../../assets/audio/Versicle4.mp3") },
-  { type: "response", text: CLOSING_CALL.response,           duration: 3500,  audio: require("../../assets/audio/Response4.mp3") },
-  { type: "prayer",   text: CLOSING_PRAYER,                  duration: 19000, audio: require("../../assets/audio/Prayer.mp3") },
-  { type: "bell",     text: "",     count: 3,                 duration: 9900  },
-  { type: "versicle", text: SIGN_OF_THE_CROSS,               duration: 4000,  audio: require("../../assets/audio/SignOfTheCross2.mp3") },
+  { type: "versicle", text: HAIL_MARY_PART_1,                          duration: 7500,  audio: require("../../assets/audio/HailMaryV2.mp3") },
+  { type: "response", text: HAIL_MARY_PART_2,                          duration: 6500,  audio: require("../../assets/audio/HolyMaryV2.mp3") },
+  { type: "bell",     text: "",     count: 3,                           duration: 9900  },
+  { type: "versicle", text: "And the Word was made flesh",              duration: 3500,  audio: require("../../assets/audio/Versicle3.mp3") },
+  { type: "response", text: "And dwelt amongst us.",                    duration: 3500,  audio: require("../../assets/audio/Response3.mp3") },
+  { type: "versicle", text: HAIL_MARY_PART_1,                          duration: 7500,  audio: require("../../assets/audio/HailMaryV3.mp3") },
+  { type: "response", text: HAIL_MARY_PART_2,                          duration: 6500,  audio: require("../../assets/audio/HolyMaryV3.mp3") },
+  { type: "versicle", text: CLOSING_CALL.versicle,                      duration: 3500,  audio: require("../../assets/audio/Versicle4.mp3") },
+  { type: "response", text: CLOSING_CALL.response,                      duration: 3500,  audio: require("../../assets/audio/Response4.mp3") },
+  { type: "prayer",   text: CLOSING_PRAYER,                             duration: 19000, audio: require("../../assets/audio/Prayer.mp3") },
+  { type: "bell",     text: "",     count: 3,                           duration: 9900  },
+  { type: "versicle", text: SIGN_OF_THE_CROSS,                         duration: 4000,  audio: require("../../assets/audio/SignOfTheCross2.mp3") },
 ];
 
+function getCurrentPrayerTime(): "6am" | "12pm" | "6pm" {
+  const now = new Date();
+  const m   = now.getHours() * 60 + now.getMinutes();
+  if (m >= 6 * 60 && m < 12 * 60) return "6am";
+  if (m >= 12 * 60 && m < 18 * 60) return "12pm";
+  return "6pm";
+}
+
 export default function PrayerScreen() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
-  const scrollY   = useRef(0);
+  const navigation = useNavigation<any>();
+  const route      = useRoute<any>();
+  const onComplete = route.params?.onComplete;
 
-  const getCurrentPrayerTime = () => {
-    const now = new Date();
-    const m   = now.getHours() * 60 + now.getMinutes();
-    if (m >= 6 * 60 && m < 12 * 60) return "6am";
-    if (m >= 12 * 60 && m < 18 * 60) return "12pm";
-    return "6pm";
-  };
+  const [currentStep,         setCurrentStep]         = useState(0);
+  const [autoPlay,            setAutoPlay]            = useState(false);
+  const [audioEnabled,        setAudioEnabled]        = useState(true);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [selectedTime,        setSelectedTime]        = useState<"6am" | "12pm" | "6pm">(getCurrentPrayerTime);
 
-  const [selectedTime, setSelectedTime] = useState(getCurrentPrayerTime());
-  const item     = PRAYER_SEQUENCE[currentStep];
-  const nextItem = PRAYER_SEQUENCE[currentStep + 1];
+  const scrollRef       = useRef<ScrollView>(null);
+  const scrollY         = useRef(0);
+  const audioRef        = useRef<any>(null);
+  const isTransitioning = useRef(false);
 
   const fadeAnim    = useRef(new Animated.Value(0)).current;
   const ringScale   = useRef(new Animated.Value(1)).current;
   const ringOpacity = useRef(new Animated.Value(0.4)).current;
   const bellRotate  = useRef(new Animated.Value(0)).current;
-  const audioRef    = useRef<any>(null);
 
-  // ✅ FIX: Always start as false — only set true when route params say so
-  const [autoPlay,      setAutoPlay]      = useState(false);
-  const [audioEnabled,  setAudioEnabled]  = useState(true);
-  const isTransitioning = useRef(false);
+  const item     = PRAYER_SEQUENCE[currentStep];
+  const nextItem = PRAYER_SEQUENCE[currentStep + 1];
 
-  const navigation = useNavigation<any>();
-  const route      = useRoute<any>();
-  const [showCompletionModal, setShowCompletionModal] = useState(false);
-
-  const onComplete = route.params?.onComplete;
-
-  // ✅ FIX: Read autoPlay from route params ONCE on mount only
-  // useEffect with empty deps = runs once when screen mounts
-  // This prevents stale cached params from re-triggering on subsequent navigations
+  // ✅ FIX: Read autoPlay from route params ONCE on mount.
+  //    Clear the param immediately so going back and returning doesn't re-trigger.
   useEffect(() => {
     const fromNotification = route.params?.autoPlay === true;
     setAutoPlay(fromNotification);
-
-    // ✅ FIX: Immediately clear the param so if the user goes back and
-    // returns to this screen manually, it won't auto-play again
     if (fromNotification) {
       navigation.setParams({ autoPlay: undefined });
     }
-  }, []); // ← empty deps: intentionally runs only on mount
+  }, []); // empty deps — intentionally runs only on mount
 
+  // ── Step transition ───────────────────────────────────────────────────────
   const transitionToNext = () => {
     if (isTransitioning.current) return;
     if (currentStep >= PRAYER_SEQUENCE.length - 1) return;
-
     isTransitioning.current = true;
     Animated.timing(fadeAnim, {
       toValue: 0, duration: 600, useNativeDriver: false,
@@ -118,12 +108,14 @@ export default function PrayerScreen() {
     });
   };
 
-  // Audio: only plays when autoPlay AND audioEnabled are both true
+  // ── Audio playback ────────────────────────────────────────────────────────
+  // Only plays when autoPlay AND audioEnabled are both true
   useEffect(() => {
     if (item.type === "bell") return;
-    if (!autoPlay)      { audioRef.current?.remove?.(); return; }
-    if (!audioEnabled)  { audioRef.current?.remove?.(); return; }
-
+    if (!autoPlay || !audioEnabled) {
+      audioRef.current?.remove?.();
+      return;
+    }
     const run = async () => {
       audioRef.current?.remove?.();
       if (item.audio) {
@@ -136,6 +128,7 @@ export default function PrayerScreen() {
     return () => { audioRef.current?.remove?.(); };
   }, [currentStep, audioEnabled, autoPlay]);
 
+  // ── Bell animation helpers ────────────────────────────────────────────────
   const animateBellSwing = () => {
     bellRotate.setValue(0);
     Animated.sequence([
@@ -163,18 +156,15 @@ export default function PrayerScreen() {
     }
   };
 
+  // ── Clock sync for time selector ──────────────────────────────────────────
   useEffect(() => {
-    const update = () => setSelectedTime(getCurrentPrayerTime());
-    update();
-    const interval = setInterval(update, 60000);
+    const interval = setInterval(() => setSelectedTime(getCurrentPrayerTime()), 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // Bell sequence: only runs when autoPlay is true
+  // ── Bell step handler ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (item.type !== "bell") return;
-    if (!autoPlay) return; // ← bells don't fire on manual open
-
+    if (item.type !== "bell" || !autoPlay) return;
     let cancelled = false;
     const runBell = async () => {
       await new Promise((r) => setTimeout(r, 500));
@@ -189,6 +179,7 @@ export default function PrayerScreen() {
     return () => { cancelled = true; };
   }, [currentStep, autoPlay]);
 
+  // ── Bell pulse loop ───────────────────────────────────────────────────────
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
@@ -206,6 +197,7 @@ export default function PrayerScreen() {
     return () => { pulse.stop(); };
   }, []);
 
+  // ── Fade in on step change ────────────────────────────────────────────────
   useEffect(() => {
     fadeAnim.setValue(0);
     Animated.timing(fadeAnim, {
@@ -213,16 +205,18 @@ export default function PrayerScreen() {
     }).start();
   }, [currentStep]);
 
-  // Auto-advance timer: only when autoPlay is true
+  // ── Auto-advance timer ────────────────────────────────────────────────────
   useEffect(() => {
-    if (!autoPlay) return;
-    if (item.type === "bell") return;
-    if (currentStep >= PRAYER_SEQUENCE.length - 1) { setAutoPlay(false); return; }
+    if (!autoPlay || item.type === "bell") return;
+    if (currentStep >= PRAYER_SEQUENCE.length - 1) {
+      setAutoPlay(false);
+      return;
+    }
     const timeout = setTimeout(() => { transitionToNext(); }, item.duration);
     return () => clearTimeout(timeout);
   }, [currentStep, autoPlay, item]);
 
-  // Auto-scroll for closing prayer
+  // ── Auto-scroll for closing prayer ────────────────────────────────────────
   useEffect(() => {
     let interval: any;
     if (item.type === "prayer") {
@@ -234,7 +228,7 @@ export default function PrayerScreen() {
     return () => { clearInterval(interval); scrollY.current = 0; };
   }, [currentStep]);
 
-  // Completion handler
+  // ── Completion handler ────────────────────────────────────────────────────
   useEffect(() => {
     if (currentStep !== PRAYER_SEQUENCE.length - 1) return;
     const timeout = setTimeout(async () => {
@@ -244,6 +238,7 @@ export default function PrayerScreen() {
     return () => clearTimeout(timeout);
   }, [currentStep]);
 
+  // ── Manual controls ───────────────────────────────────────────────────────
   const handleNext = () => {
     if (currentStep < PRAYER_SEQUENCE.length - 1) {
       setCurrentStep((p) => p + 1);
@@ -253,22 +248,43 @@ export default function PrayerScreen() {
   const handleRestart = () => {
     audioRef.current?.remove?.();
     audioRef.current = null;
-    setAutoPlay(false); // ← restart goes to idle; user taps "Auto Pray" to start
+    setAutoPlay(false);
     scrollY.current = 0;
     scrollRef.current?.scrollTo({ y: 0, animated: false });
     fadeAnim.setValue(0);
     setCurrentStep(0);
   };
 
+  const toggleAutoPlay = () => {
+    const next = !autoPlay;
+    setAutoPlay(next);
+    if (next && audioEnabled && item.type !== "bell") {
+      audioRef.current?.remove?.();
+      if (item.audio) {
+        const player = createAudioPlayer(item.audio);
+        audioRef.current = player;
+        player.play();
+      }
+    }
+  };
+
+  const toggleAudio = () => {
+    const next = !audioEnabled;
+    setAudioEnabled(next);
+    if (!next) audioRef.current?.remove?.();
+  };
+
+  // ── Render prayer text ────────────────────────────────────────────────────
   const renderPrayer = () => {
-    if (item.type === "versicle") return <Animated.Text style={[styles.versicle,       { opacity: fadeAnim }]}>{item.text}</Animated.Text>;
-    if (item.type === "response") return <Animated.Text style={[styles.responseItalic,  { opacity: fadeAnim }]}>{item.text}</Animated.Text>;
-    if (item.type === "prayer")   return <Animated.Text style={[styles.prayer,          { opacity: fadeAnim }]}>{item.text}</Animated.Text>;
+    if (item.type === "versicle") return <Animated.Text style={[styles.versicle,      { opacity: fadeAnim }]}>{item.text}</Animated.Text>;
+    if (item.type === "response") return <Animated.Text style={[styles.responseItalic, { opacity: fadeAnim }]}>{item.text}</Animated.Text>;
+    if (item.type === "prayer")   return <Animated.Text style={[styles.prayer,         { opacity: fadeAnim }]}>{item.text}</Animated.Text>;
   };
 
   return (
     <>
       <View style={styles.container}>
+
         {/* HEADER */}
         <View style={styles.header}>
           <Image source={require("../../assets/Logo.png")} style={styles.logo} />
@@ -290,12 +306,13 @@ export default function PrayerScreen() {
 
         <Text style={styles.subtitle}>Meditating on the mystery of the Incarnation</Text>
 
+        {/* TIME SELECTOR */}
         <View style={styles.timeSelector}>
-          {[
+          {([
             { label: "6:00 AM",  value: "6am"  },
             { label: "12:00 PM", value: "12pm" },
             { label: "6:00 PM",  value: "6pm"  },
-          ].map((t) => {
+          ] as const).map((t) => {
             const active = selectedTime === t.value;
             return (
               <TouchableOpacity key={t.value} onPress={() => setSelectedTime(t.value)} activeOpacity={0.85}>
@@ -311,6 +328,7 @@ export default function PrayerScreen() {
           })}
         </View>
 
+        {/* IMAGE */}
         <View style={styles.imageContainer}>
           <Image source={require("../../assets/angelus.png")} style={styles.image} />
         </View>
@@ -345,14 +363,14 @@ export default function PrayerScreen() {
           )}
         </View>
 
-        {/* DOTS */}
+        {/* PROGRESS DOTS */}
         <View style={styles.dots}>
           {PRAYER_SEQUENCE.map((_, i) => (
             <View key={i} style={[styles.dot, i === currentStep && styles.activeDot]} />
           ))}
         </View>
 
-        {/* BUTTON */}
+        {/* CONTINUE / FINISH BUTTON */}
         <TouchableOpacity
           style={[styles.button, (autoPlay || item.type === "bell") && styles.buttonDisabled]}
           onPress={handleNext}
@@ -375,18 +393,7 @@ export default function PrayerScreen() {
 
         {/* FOOTER CONTROLS */}
         <View style={styles.footerControls}>
-          <TouchableOpacity onPress={() => {
-            const next = !autoPlay;
-            setAutoPlay(next);
-            if (next && audioEnabled && item.type !== "bell") {
-              audioRef.current?.remove?.();
-              if (item.audio) {
-                const player = createAudioPlayer(item.audio);
-                audioRef.current = player;
-                player.play();
-              }
-            }
-          }}>
+          <TouchableOpacity onPress={toggleAutoPlay}>
             <Text style={styles.footerAction}>{autoPlay ? "Pause" : "Auto Pray"}</Text>
           </TouchableOpacity>
           <Text style={styles.footerDivider}>•</Text>
@@ -394,11 +401,7 @@ export default function PrayerScreen() {
             <Text style={styles.footerAction}>Restart</Text>
           </TouchableOpacity>
           <Text style={styles.footerDivider}>•</Text>
-          <TouchableOpacity onPress={() => {
-            const next = !audioEnabled;
-            setAudioEnabled(next);
-            if (!next) audioRef.current?.remove?.();
-          }}>
+          <TouchableOpacity onPress={toggleAudio}>
             <Text style={styles.footerAction}>{audioEnabled ? "Voice On" : "Voice Off"}</Text>
           </TouchableOpacity>
         </View>

@@ -7,54 +7,51 @@
     "icon": "./assets/Angelus-domini.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-
     "splash": {
       "image": "./assets/angelusdominiicon.png",
       "resizeMode": "contain",
       "backgroundColor": "#1F3A6E"
     },
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.angelusapp"
     },
-
     "android": {
       "package": "com.annieann.angelusapp",
-
       "adaptiveIcon": {
         "foregroundImage": "./assets/Angelus-domini.png",
         "backgroundColor": "#ffffff"
       },
-
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-
       "permissions": [
+         "android.permission.RECEIVE_BOOT_COMPLETED",
+  "android.permission.SCHEDULE_EXACT_ALARM",
+  "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
-
     "web": {
       "favicon": "./assets/angelusdominiicon.png"
     },
-
     "plugins": [
       "expo-secure-store",
       "expo-splash-screen",
       "expo-audio",
-
       [
         "expo-notifications",
         {
           "icon": "./assets/bell.png",
           "color": "#2F4A7A",
-          "sounds": []
+           "sounds": [
+      "./assets/audio/triple_bell.mp3"
+    ]
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-font"
     ],
-
     "extra": {
       "eas": {
         "projectId": "6da1a91f-2298-44e8-af97-b23b170f3b2d"
