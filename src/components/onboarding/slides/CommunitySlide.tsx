@@ -2,8 +2,18 @@ import React from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width, height } from "../styles/sharedStyles";
-import { BLUE, GOLD, IVORY, TEXT_SECONDARY } from "../../../lib/constants/colors";
-import { FONT_BODY, FONT_BODY_SEMIBOLD, FONT_TITLE_BOLD, FONT_TITLE_ITALIC } from "../../../lib/constants/fonts";
+import {
+  BLUE,
+  GOLD,
+  IVORY,
+  TEXT_SECONDARY,
+} from "../../../lib/constants/colors";
+import {
+  FONT_BODY,
+  FONT_BODY_SEMIBOLD,
+  FONT_TITLE_BOLD,
+  FONT_TITLE_ITALIC,
+} from "../../../lib/constants/fonts";
 
 type Props = {
   title: string;
@@ -12,7 +22,12 @@ type Props = {
   onNext: () => void;
 };
 
-export function CommunitySlide({ title, description, isActive, onNext }: Props) {
+export function CommunitySlide({
+  title,
+  description,
+  isActive,
+  onNext,
+}: Props) {
   const mapHeight = height < 700 ? height * 0.28 : height * 0.32;
 
   return (
@@ -20,7 +35,7 @@ export function CommunitySlide({ title, description, isActive, onNext }: Props) 
       <View style={styles.content}>
         <FadeIn delay={80} isVisible={isActive}>
           <Image
-            source={require("../../../../assets/globe.png")}
+            source={require("../../../../assets/Globe.png")}
             style={[styles.worldMap, { height: mapHeight }]}
             resizeMode="contain"
           />
@@ -45,7 +60,9 @@ export function CommunitySlide({ title, description, isActive, onNext }: Props) 
             onPress={onNext}
             style={[sharedStyles.primaryBtn, { backgroundColor: GOLD }]}
           >
-            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>Continue</Text>
+            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
+              Continue
+            </Text>
           </TouchableOpacity>
         </FadeIn>
       </View>
