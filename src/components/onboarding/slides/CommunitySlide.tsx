@@ -35,7 +35,7 @@ export function CommunitySlide({
       <View style={styles.content}>
         <FadeIn delay={80} isVisible={isActive}>
           <Image
-            source={require("../../../../assets/globe.png")}
+            source={require("../../../../assets/globe_prayer.png")}
             style={[styles.worldMap, { height: mapHeight }]}
             resizeMode="contain"
           />
