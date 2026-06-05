@@ -7,9 +7,7 @@
     "types": ["react", "react-native"],
     "ignoreDeprecations": "6.0"
   },
-  "exclude": [
-    "node_modules"
-  ],
+  "exclude": ["node_modules"],
   "expo": {
     "plugins": [
       [
@@ -20,10 +18,17 @@
         "expo-font",
         {
           "fonts": [
-            "./assets/fonts/CormorantGaramond-VariableFont_wght.ttf",
-              "./assets/fonts/CormorantGaramond-Italic-VariableFont_wght.ttf",
-              "./assets/fonts/Inter-Regular.ttf",
-              "./assets/fonts/Inter-Bold.ttf"
+            "./assets/fonts/Cormorant.ttf",
+            "./assets/fonts/Cormorant-Italic.ttf",
+            "./assets/fonts/CormorantGaramond.ttf",
+            "./assets/fonts/CormorantGaramond-Italic.ttf",
+            "./assets/fonts/Inter.ttf",
+            "./assets/fonts/Inter-Italic.ttf",
+            "./assets/fonts/EBGaramond.ttf",
+            "./assets/fonts/EBGaramond-Regular.ttf",
+            "./assets/fonts/EBGaramond-Italic.ttf",
+            "./assets/fonts/EBGaramond-Bold.ttf",
+            "./assets/fonts/EBGaramond-Medium.ttf"
           ],
           "android": {
             "fonts": [
@@ -31,26 +36,38 @@
                 "fontFamily": "CormorantGaramond",
                 "fontDefinitions": [
                   {
-                    "path": "./assets/fonts/CormorantGaramond-Italic-VariableFont_wght.ttf",
+                    "path": "./assets/fonts/CormorantGaramond-Italic.ttf",
                     "weight": 700,
                     "style": "italic"
-                  },
+                  }
                 ]
               },
               {
                 "fontFamily": "Inter",
                 "fontDefinitions": [
                   {
-                    "path": "./assets/fonts/Inter-Bold.ttf",
+                    "path": "./assets/fonts/Inter.ttf",
                     "weight": 700,
                     "style": "bold"
-                  },
+                  }
                 ]
               }
             ]
           },
           "ios": {
-            "fonts": ["./assets/fonts/CormorantGaramond-VariableFont_wght.ttf", "./assets/fonts/CormorantGaramond-Italic-VariableFont_wght.ttf"]
+            "fonts": [
+              "./assets/fonts/Cormorant.ttf",
+              "./assets/fonts/Cormorant-Italic.ttf",
+              "./assets/fonts/CormorantGaramond.ttf",
+              "./assets/fonts/CormorantGaramond-Italic.ttf",
+              "./assets/fonts/Inter.ttf",
+              "./assets/fonts/Inter-Italic.ttf",
+              "./assets/fonts/EBGaramond.ttf",
+              "./assets/fonts/EBGaramond-Regular.ttf",
+              "./assets/fonts/EBGaramond-Italic.ttf",
+              "./assets/fonts/EBGaramond-Bold.ttf",
+              "./assets/fonts/EBGaramond-Medium.ttf"
+            ]
           }
         }
       ]
