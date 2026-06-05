@@ -343,7 +343,7 @@ export default function MenuScreen({ onLogout }: Props) {
         contentContainerStyle={styles.scroll}
       >
         {/* ── HERO TITLE ── */}
-        <View style={styles.heroSection}>
+        {/* <View style={styles.heroSection}>
           <Text style={styles.heroTitle}>Your Prayer Rhythm</Text>
           <Text style={styles.heroSubtitle}>
             Returning in Prayer at 6 · 12 · 6.
@@ -351,7 +351,7 @@ export default function MenuScreen({ onLogout }: Props) {
           <Text style={styles.heroSubtitle}>
             The 6-12-6 Rhythm of the Angelus.
           </Text>
-        </View>
+        </View> */}
 
         {/* ── DATE & TIME BAR ── */}
         <View style={styles.dateTimeBar}>

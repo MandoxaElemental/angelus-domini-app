@@ -1,4 +1,9 @@
-export type PrayerStatus = "upcoming" | "active" | "completed" | "missed";
+export type PrayerStatus =
+  | "upcoming"
+  | "active"
+  | "completed"
+  | "missed"
+  | "disabled";
 
 export const PRAYERS = [
   {

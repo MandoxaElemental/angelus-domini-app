@@ -8,7 +8,6 @@ import {
   ScrollView,
   Image,
   Animated,
-  Modal,
   StatusBar,
   Dimensions,
 } from "react-native";
@@ -24,6 +23,7 @@ import { completePrayer, getGlobalCount, startPrayer } from "../api/prayerApi";
 
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
+import { getAngelusMode, AngelusMode } from "../services/notificationService";
 
 type Props = { onLogout: () => void };
 
@@ -167,6 +167,12 @@ function hourToSlotKey(h: number): "morning" | "noon" | "evening" {
 }
 
 export default function MainApp({ onLogout }: Props) {
+  const [angelusMode, setAngelusMode] = useState<AngelusMode>("all_three");
+
+  useEffect(() => {
+    getAngelusMode().then(setAngelusMode);
+  }, []);
+
   const navigation = useNavigation<any>();
 
   const [timeLeft, setTimeLeft] = useState("00:00:00");
@@ -178,8 +184,6 @@ export default function MainApp({ onLogout }: Props) {
   const [userId, setUserId] = useState("");
 
   const [username, setUsername] = useState("");
-
-  const [showPrayerPopup, setShowPrayerPopup] = useState(false);
 
   const [completedPrayers, setCompletedPrayers] = useState({
     morning: false,
@@ -363,12 +367,8 @@ export default function MainApp({ onLogout }: Props) {
       triggeredToday.current.set(h, date);
 
       const slotKey = hourToSlotKey(h);
-      setShowPrayerPopup(true);
-      playTripleBell();
 
       setTimeout(async () => {
-        setShowPrayerPopup(false);
-
         let freshSession = session;
         if (userId) {
           try {
@@ -435,39 +435,17 @@ export default function MainApp({ onLogout }: Props) {
   // LOGOUT
   // ─────────────────────────────────────────────────────────────
 
-  const navigateToPrayerFromPopup = async () => {
-    setShowPrayerPopup(false);
-    const h = new Date().getHours();
-    const slotKey = hourToSlotKey(h);
-
-    let freshSession = session;
-    if (userId) {
-      try {
-        freshSession = await startPrayer(userId);
-        setSession(freshSession);
-      } catch {}
-    }
-
-    navigation.navigate("Prayer", {
-      autoPlay: true,
-      onComplete: async () => {
-        try {
-          if (!freshSession || !userId) return;
-          await completePrayer(userId, freshSession.sessionId);
-          setCount(await getGlobalCount(freshSession.slot));
-          setCompletedPrayers((prev) => ({ ...prev, [slotKey]: true }));
-        } catch (err) {
-          console.error("Popup complete error:", err);
-        }
-      },
-    });
-  };
-
-  const morningStatus = getPrayerStatus("morning", completedPrayers.morning);
+  const morningStatus =
+    angelusMode === "noon_only"
+      ? "disabled"
+      : getPrayerStatus("morning", completedPrayers.morning);
 
   const noonStatus = getPrayerStatus("noon", completedPrayers.noon);
 
-  const eveningStatus = getPrayerStatus("evening", completedPrayers.evening);
+  const eveningStatus =
+    angelusMode === "noon_only"
+      ? "disabled"
+      : getPrayerStatus("evening", completedPrayers.evening);
 
   const [fontsLoaded] = useFonts({
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
@@ -483,43 +461,6 @@ export default function MainApp({ onLogout }: Props) {
   return (
     <>
       <StatusBar hidden />
-
-      <Modal visible={showPrayerPopup} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Ionicons name="notifications" size={42} color={COLORS.gold} />
-
-            <Text style={styles.modalTitle}>Angelus Time</Text>
-            <Text style={styles.modalText}>
-              The bells are calling you to prayer.
-            </Text>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => {
-                setShowPrayerPopup(false);
-
-                navigation.navigate("Prayer", {
-                  onComplete: async () => {
-                    try {
-                      if (!session || !userId) return;
-
-                      await finishPrayer();
-                      const newCount = await getGlobalCount(session.slot);
-
-                      setCount(newCount);
-                    } catch (err) {
-                      console.error("Modal completion error:", err);
-                    }
-                  },
-                });
-              }}
-            >
-              <Text style={styles.modalButtonText}>Pray Now</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
       <SafeAreaView style={styles.container}>
         {/* HEADER */}
         <AppHeader />
@@ -536,13 +477,10 @@ export default function MainApp({ onLogout }: Props) {
             </View>
 
             <View>
-              <Text style={styles.greetingTitle}>
-                Good {greeting}
-                {username ? `, ${username}` : ""}
+              <Text style={styles.greetingTitle}>Good {greeting}</Text>
+              <Text style={styles.greetingSubtitle}>
+                {username ? `${username}` : ""}
               </Text>
-              {/* <Text style={styles.greetingSubtitle}>
-                Pause with the Church for the Angelus.
-              </Text> */}
             </View>
           </View>
 
@@ -717,6 +655,7 @@ function ProgressCard({
   const isCompleted = status === "completed";
   const isActive = status === "active";
   const isMissed = status === "missed";
+  const isDisabled = status === "disabled";
 
   const statusConfig = isCompleted
     ? {
@@ -745,14 +684,23 @@ function ProgressCard({
             border: "#E4B4B4",
             textColor: "#A44E4E",
           }
-        : {
-            text: "Upcoming",
-            icon: "time",
-            iconColor: COLORS.navy,
-            bg: "#F3F5FA",
-            border: "#D4DBEA",
-            textColor: COLORS.navy,
-          };
+        : isDisabled
+          ? {
+              text: "Disabled",
+              icon: "remove-circle-outline",
+              iconColor: "#AAA",
+              bg: "#F5F5F5",
+              border: "#DDD",
+              textColor: "#AAA",
+            }
+          : {
+              text: "Upcoming",
+              icon: "time",
+              iconColor: COLORS.navy,
+              bg: "#F3F5FA",
+              border: "#D4DBEA",
+              textColor: COLORS.navy,
+            };
 
   // Pulse animation
   const pulse = useRef(new Animated.Value(1)).current;
@@ -779,7 +727,7 @@ function ProgressCard({
   return (
     <TouchableOpacity
       activeOpacity={0.9}
-      disabled={!isActive}
+      disabled={!isActive || isDisabled}
       onPress={onPress}
       style={{ flex: 1, marginHorizontal: 4 }}
     >
@@ -790,6 +738,11 @@ function ProgressCard({
           isMissed && styles.progressCardMissed,
           isActive && {
             transform: [{ scale: pulse }],
+          },
+          isDisabled && {
+            backgroundColor: "#F7F7F7",
+            borderColor: "#E0E0E0",
+            opacity: 0.6,
           },
         ]}
       >
@@ -871,10 +824,10 @@ const styles = StyleSheet.create({
     fontFamily: "Cormorant",
   },
   greetingSubtitle: {
-    marginTop: 2,
-    fontSize: 15,
+    marginTop: 3,
+    fontSize: 25,
     color: COLORS.navy,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "Cormorant",
   },
   mainCard: {
     marginHorizontal: 24,
@@ -1037,6 +990,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   progressBox: {
+    textAlign: "center",
     minWidth: "100%",
     flexDirection: "row",
     alignItems: "center",
@@ -1047,7 +1001,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: "transparent",
-    textAlign: "center",
   },
   progressBoxCompleted: { borderColor: "#7BA87A", backgroundColor: "#F2FAF1" },
   progressBoxActive: { borderColor: COLORS.gold, backgroundColor: "#FFF6E0" },
@@ -1208,43 +1161,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   buttonText: { color: "#fff", fontSize: 24, fontWeight: "600" },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  modalCard: {
-    width: "100%",
-    backgroundColor: COLORS.card,
-    borderRadius: 28,
-    padding: 28,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  modalTitle: {
-    marginTop: 16,
-    fontSize: 32,
-    color: COLORS.navy,
-    fontFamily: "CormorantGaramond",
-  },
-  modalText: {
-    marginTop: 10,
-    textAlign: "center",
-    color: COLORS.textSecondary,
-    fontSize: 18,
-    lineHeight: 26,
-  },
-  modalButton: {
-    marginTop: 18,
-    backgroundColor: COLORS.gold,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 30,
-  },
-  modalButtonText: { color: "#fff", fontSize: 18, fontWeight: "600" },
   sunIcon: { marginRight: 12 },
   logoutBtn: {
     paddingHorizontal: 14,

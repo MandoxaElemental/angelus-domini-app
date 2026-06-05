@@ -36,7 +36,10 @@ import * as Notifications from "expo-notifications";
 
 import type { RootStackParamList } from "./src/navigation/types";
 import { supabase } from "./src/lib/supabaseClient";
-import { scheduleAngelusNotifications } from "./src/services/notificationService";
+import {
+  getAngelusMode,
+  scheduleAngelusNotifications,
+} from "./src/services/notificationService";
 import TabLayout from "./src/navigation/TabLayout";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
@@ -61,22 +64,22 @@ type Screen = "onboarding" | "register" | "login" | "main";
 export default function App() {
   const navigationRef = useRef<any>(null);
 
-  useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const timeSlot = response.notification.request.content.data
-          ?.timeSlot as RootStackParamList["Prayer"]["timeSlot"] | undefined;
+  // useEffect(() => {
+  //   const sub = Notifications.addNotificationResponseReceivedListener(
+  //     (response) => {
+  //       const timeSlot = response.notification.request.content.data
+  //         ?.timeSlot as RootStackParamList["Prayer"]["timeSlot"] | undefined;
 
-        if (!timeSlot) return;
+  //       if (!timeSlot) return;
 
-        if (navigationRef.current?.isReady?.()) {
-          navigationRef.current.navigate("Prayer", { timeSlot });
-        }
-      },
-    );
+  //       if (navigationRef.current?.isReady?.()) {
+  //         navigationRef.current.navigate("Prayer", { timeSlot });
+  //       }
+  //     },
+  //   );
 
-    return () => sub.remove();
-  }, []);
+  //   return () => sub.remove();
+  // }, []);
 
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
@@ -153,13 +156,13 @@ export default function App() {
       try {
         const { status } = await Notifications.getPermissionsAsync();
         if (status === "granted") {
-          await scheduleAngelusNotifications();
+          const mode = await getAngelusMode();
+          await scheduleAngelusNotifications(mode);
         }
       } catch (err) {
         console.warn("Notification reschedule error:", err);
       }
     };
-
     ensureNotificationsScheduled();
 
     const appStateSub = AppState.addEventListener("change", (state) => {

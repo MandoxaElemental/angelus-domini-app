@@ -796,8 +796,12 @@ function NotificationRow({
       <Switch
         value={enabled}
         onValueChange={onToggle}
-        trackColor={{ false: "#D0C8B8", true: "#D4AF57" }}
-        thumbColor={enabled ? "#fff" : "#f4f3f4"}
+        trackColor={{
+          false: COLORS.border,
+          true: COLORS.gold,
+        }}
+        thumbColor="#FFFFFF"
+        ios_backgroundColor={COLORS.border}
       />
     </View>
   );

@@ -1,17 +1,34 @@
 import { Alert, Linking, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const ANGELUS_MODE_KEY = "angelus_mode";
+export type AngelusMode = "noon_only" | "all_three";
+
+export async function getAngelusMode(): Promise<AngelusMode> {
+  const value = await AsyncStorage.getItem(ANGELUS_MODE_KEY);
+  return (value as AngelusMode) ?? "all_three";
+}
+
+export async function setAngelusMode(mode: AngelusMode) {
+  await AsyncStorage.setItem(ANGELUS_MODE_KEY, mode);
+}
 
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!Device.isDevice) {
-    Alert.alert("Simulator Detected", "Push notifications only work on a real device.");
+    Alert.alert(
+      "Simulator Detected",
+      "Push notifications only work on a real device.",
+    );
     return false;
   }
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
 
   if (existingStatus === "granted") {
-    await scheduleAngelusNotifications();
+    const mode = await getAngelusMode();
+    await scheduleAngelusNotifications(mode);
     return true;
   }
 
@@ -22,7 +39,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
       [
         { text: "Not Now", style: "cancel" },
         { text: "Open Settings", onPress: () => Linking.openSettings() },
-      ]
+      ],
     );
     return false;
   }
@@ -40,21 +57,27 @@ export async function requestNotificationPermission(): Promise<boolean> {
         vibrationPattern: [0, 250, 250, 250],
       });
     }
-    await scheduleAngelusNotifications();
+    const mode = await getAngelusMode();
+    await scheduleAngelusNotifications(mode);
     return true;
   }
 
   return false;
 }
 
-export async function scheduleAngelusNotifications(): Promise<void> {
+export async function scheduleAngelusNotifications(
+  mode: AngelusMode,
+): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 
-  const times = [
-    { hour: 6,  minute: 0, label: "Morning Angelus" },
-    { hour: 12, minute: 0, label: "Noon Angelus"    },
-    { hour: 18, minute: 0, label: "Evening Angelus" },
-  ];
+  const times =
+    mode === "noon_only"
+      ? [{ hour: 12, minute: 0, label: "Noon Angelus" }]
+      : [
+          { hour: 6, minute: 0, label: "Morning Angelus" },
+          { hour: 12, minute: 0, label: "Noon Angelus" },
+          { hour: 18, minute: 0, label: "Evening Angelus" },
+        ];
 
   for (const { hour, minute, label } of times) {
     await Notifications.scheduleNotificationAsync({
@@ -62,7 +85,7 @@ export async function scheduleAngelusNotifications(): Promise<void> {
         title: "🔔 " + label,
         body: "The bells are calling you to prayer. Tap to pray the Angelus.",
         sound: "default",
-        data: { screen: "Prayer", autoPlay: true },
+        data: { timeSlot: label }, // optional but useful for navigation
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
