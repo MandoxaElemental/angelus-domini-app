@@ -38,34 +38,13 @@
     "plugins": [
       "expo-secure-store",
       "expo-splash-screen",
-      [
-        "expo-font",
-        {
-          "fonts": [
-            "./assets/fonts/Cormorant.ttf",
-            "./assets/fonts/Cormorant-Italic.ttf",
-            "./assets/fonts/CormorantGaramond.ttf",
-            "./assets/fonts/CormorantGaramond-Italic.ttf",
-            "./assets/fonts/Inter.ttf",
-            "./assets/fonts/Inter-Italic.ttf",
-            "./assets/fonts/EBGaramond.ttf",
-            "./assets/fonts/EBGaramond-Regular.ttf",
-            "./assets/fonts/EBGaramond-Italic.ttf",
-            "./assets/fonts/EBGaramond-Bold.ttf",
-            "./assets/fonts/EBGaramond-Medium.ttf"
-          ]
-        }
-      ],
       "expo-audio",
       "expo-notifications",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/bell.png",
-          "color": "#C9A24A",
-          "sounds": "./assets/audio/triple-bell.mp3"
-        }
-      ],
+      {
+        "icon": "./assets/bell.png",
+        "color": "#C9A24A",
+        "sounds": "./assets/audio/triple-bell.mp3"
+      },
       "expo-router"
     ],
     "extra": {
