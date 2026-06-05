@@ -21,6 +21,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { logout } from "../store/auth";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
+import {
+  AngelusMode,
+  getAngelusMode,
+  setAngelusMode,
+} from "../services/notificationService";
 
 const COLORS = {
   navy: "#2F4A7A",
@@ -244,6 +249,64 @@ export default function SettingsScreen({ onLogout }: Props) {
   const [selectedLang, setSelectedLang] = useState("en");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+
+  const [angelusMode, setAngelusModeState] = useState<AngelusMode>("all_three");
+  useEffect(() => {
+    (async () => {
+      const mode = await getAngelusMode();
+      setAngelusModeState(mode);
+    })();
+  }, []);
+
+  const handleAngelusModeChange = async (mode: AngelusMode) => {
+    await setAngelusMode(mode);
+    setAngelusModeState(mode);
+
+    if (mode === "noon_only") {
+      // Cancel morning + evening
+
+      await cancelNotif(notifIds.morning ?? null);
+      await cancelNotif(notifIds.evening ?? null);
+
+      let noonId = notifIds.noon;
+
+      if (!noonId) {
+        noonId = await scheduleAngelus("noon");
+      }
+
+      const updatedIds = {
+        noon: noonId,
+      };
+
+      setNotifIds(updatedIds);
+
+      setToggles({
+        morning: false,
+        noon: true,
+        evening: false,
+      });
+
+      await saveStoredIds(updatedIds);
+    } else {
+      // Re-enable all three
+
+      const freshIds: StoredIds = {};
+
+      freshIds.morning = await scheduleAngelus("morning");
+      freshIds.noon = await scheduleAngelus("noon");
+      freshIds.evening = await scheduleAngelus("evening");
+
+      setNotifIds(freshIds);
+
+      setToggles({
+        morning: true,
+        noon: true,
+        evening: true,
+      });
+
+      await saveStoredIds(freshIds);
+    }
+  };
 
   // On mount: request permissions + auto-enable all on first launch,
   // or restore saved toggle state for returning users
@@ -651,7 +714,42 @@ export default function SettingsScreen({ onLogout }: Props) {
               </View>
             </View>
           </View>
+          <View style={styles.card}>
+            <View style={styles.cardTitleRow}>
+              <Ionicons name="time-outline" size={20} color={COLORS.gold} />
+              <Text style={styles.cardTitle}>Angelus Schedule</Text>
+            </View>
 
+            <View style={styles.cardDivider} />
+
+            <TouchableOpacity
+              style={[
+                styles.modeOption,
+                angelusMode === "all_three" && styles.modeOptionSelected,
+              ]}
+              onPress={() => handleAngelusModeChange("all_three")}
+            >
+              <Text style={styles.modeTitle}>Traditional</Text>
+
+              <Text style={styles.modeDescription}>
+                Morning, Noon, and Evening Angelus
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.modeOption,
+                angelusMode === "noon_only" && styles.modeOptionSelected,
+              ]}
+              onPress={() => handleAngelusModeChange("noon_only")}
+            >
+              <Text style={styles.modeTitle}>Noon Only</Text>
+
+              <Text style={styles.modeDescription}>
+                Receive only the noon Angelus reminder
+              </Text>
+            </TouchableOpacity>
+          </View>
           {/* NOTIFICATIONS */}
           <View style={styles.card}>
             <View style={styles.cardTitleRow}>
@@ -671,6 +769,7 @@ export default function SettingsScreen({ onLogout }: Props) {
                     time={ANGELUS_CONFIG[key].time}
                     enabled={toggles[key]}
                     onToggle={(val) => handleToggle(key, val)}
+                    disabled={angelusMode === "noon_only" && key !== "noon"}
                   />
                   {i < arr.length - 1 && <View style={styles.rowDivider} />}
                 </View>
@@ -775,11 +874,13 @@ function NotificationRow({
   time,
   enabled,
   onToggle,
+  disabled,
 }: {
   label: string;
   time: string;
   enabled: boolean;
   onToggle: (val: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <View style={styles.notifRow}>
@@ -794,6 +895,7 @@ function NotificationRow({
         <Text style={styles.notifTime}>{time}</Text>
       </View>
       <Switch
+        disabled={disabled}
         value={enabled}
         onValueChange={onToggle}
         trackColor={{
@@ -1115,6 +1217,33 @@ const styles = StyleSheet.create({
     color: COLORS.navy,
     fontSize: 17,
     fontWeight: "600",
+    fontFamily: "CormorantGaramond",
+  },
+  modeOption: {
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 10,
+  },
+
+  modeOptionSelected: {
+    borderColor: COLORS.gold,
+    backgroundColor: "#FFF3DC",
+  },
+
+  modeTitle: {
+    fontSize: 18,
+    color: COLORS.navy,
+    fontFamily: "CormorantGaramond",
+    fontWeight: "700",
+  },
+
+  modeDescription: {
+    marginTop: 4,
+    fontSize: 14,
+    color: COLORS.textSecondary,
     fontFamily: "CormorantGaramond",
   },
 });

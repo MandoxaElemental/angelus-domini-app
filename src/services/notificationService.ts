@@ -3,16 +3,26 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const ANGELUS_MODE_KEY = "angelus_mode";
-export type AngelusMode = "noon_only" | "all_three";
+export type AngelusMode = "all_three" | "noon_only";
+
+const MODE_KEY = "angelus_mode";
 
 export async function getAngelusMode(): Promise<AngelusMode> {
-  const value = await AsyncStorage.getItem(ANGELUS_MODE_KEY);
-  return (value as AngelusMode) ?? "all_three";
+  try {
+    const value = await AsyncStorage.getItem(MODE_KEY);
+
+    if (value === "noon_only") {
+      return "noon_only";
+    }
+
+    return "all_three";
+  } catch {
+    return "all_three";
+  }
 }
 
 export async function setAngelusMode(mode: AngelusMode) {
-  await AsyncStorage.setItem(ANGELUS_MODE_KEY, mode);
+  await AsyncStorage.setItem(MODE_KEY, mode);
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {

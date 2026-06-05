@@ -12,6 +12,7 @@ import { getPrayerStatus, PrayerStatus } from "../utils/prayer";
 import { getGlobalCount, startPrayer } from "../api/prayerApi";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
+import { AngelusMode, getAngelusMode } from "../services/notificationService";
 
 type Props = {
   onLogout: () => void;
@@ -140,6 +141,13 @@ export default function MenuScreen({ onLogout }: Props) {
     noon: false,
     evening: false,
   });
+  const [angelusMode, setAngelusModeState] = useState<AngelusMode>("all_three");
+  useEffect(() => {
+    (async () => {
+      const mode = await getAngelusMode();
+      setAngelusModeState(mode);
+    })();
+  }, []);
 
   const [weekMorning, setWeekMorning] = useState<Set<string>>(new Set());
   const [weekNoon, setWeekNoon] = useState<Set<string>>(new Set());
@@ -383,17 +391,21 @@ export default function MenuScreen({ onLogout }: Props) {
             <Ionicons name="flower-outline" size={14} color={COLORS.gold} />
             <View style={styles.sectionDividerLine} />
           </View>
-          <AngelusRow
-            title="Morning Angelus"
-            subtitle={getSubtitle(morningStatus)}
-            status={morningStatus}
-            imageSource={
-              morningStatus === "completed"
-                ? completeImages["Morning"]
-                : progressImages["Morning"]
-            }
-          />
-          <View style={styles.rowDivider} />
+          {angelusMode === "all_three" && (
+            <>
+              <AngelusRow
+                title="Morning Angelus"
+                subtitle={getSubtitle(morningStatus)}
+                status={morningStatus}
+                imageSource={
+                  morningStatus === "completed"
+                    ? completeImages["Morning"]
+                    : progressImages["Morning"]
+                }
+              />
+              <View style={styles.rowDivider} />
+            </>
+          )}
           <AngelusRow
             title="Noon Angelus"
             subtitle={getSubtitle(noonStatus)}
@@ -405,16 +417,20 @@ export default function MenuScreen({ onLogout }: Props) {
             }
           />
           <View style={styles.rowDivider} />
-          <AngelusRow
-            title="Evening Angelus"
-            subtitle={getSubtitle(eveningStatus)}
-            status={eveningStatus}
-            imageSource={
-              eveningStatus === "completed"
-                ? completeImages["Evening"]
-                : progressImages["Evening"]
-            }
-          />
+          {angelusMode === "all_three" && (
+            <>
+              <AngelusRow
+                title="Evening Angelus"
+                subtitle={getSubtitle(eveningStatus)}
+                status={eveningStatus}
+                imageSource={
+                  eveningStatus === "completed"
+                    ? completeImages["Evening"]
+                    : progressImages["Evening"]
+                }
+              />
+            </>
+          )}
         </View>
 
         {/* ── THIS WEEK IN PRAYER ── */}
@@ -439,24 +455,28 @@ export default function MenuScreen({ onLogout }: Props) {
             <View style={styles.weekCountPlaceholder} />
           </View>
 
-          <WeekRow
-            label="Morning"
-            imageSource={weekImages["Morning"]}
-            dots={morningDots}
-            count={morningCount}
-          />
+          {angelusMode === "all_three" && (
+            <WeekRow
+              label="Morning"
+              imageSource={weekImages["Morning"]}
+              dots={morningDots}
+              count={morningCount}
+            />
+          )}
           <WeekRow
             label="Noon"
             imageSource={weekImages["Noon"]}
             dots={noonDots}
             count={noonCount}
           />
-          <WeekRow
-            label="Evening"
-            imageSource={weekImages["Evening"]}
-            dots={eveningDots}
-            count={eveningCount}
-          />
+          {angelusMode === "all_three" && (
+            <WeekRow
+              label="Evening"
+              imageSource={weekImages["Evening"]}
+              dots={eveningDots}
+              count={eveningCount}
+            />
+          )}
         </View>
 
         {/* ── TOTAL PRAYERS OFFERED ── */}
@@ -501,15 +521,17 @@ function AngelusRow({
   const isCompleted = status === "completed";
   const isActive = status === "active";
   const isMissed = status === "missed";
+  const isDisabled = status === "disabled";
 
   return (
-    <View style={styles.angelusRow}>
+    <View style={[styles.angelusRow, isDisabled && styles.angelusRowDisabled]}>
       <View
         style={[
           styles.angelusIconWrap,
           isCompleted && { backgroundColor: "#F0EAD8" },
           isActive && { backgroundColor: "#FFF3D0" },
           isMissed && { backgroundColor: "#FFEDED" },
+          isDisabled && { backgroundColor: "#F2F2F2" },
         ]}
       >
         <Image
@@ -519,12 +541,15 @@ function AngelusRow({
         />
       </View>
       <View style={styles.angelusTextWrap}>
-        <Text style={styles.angelusTitle}>{title}</Text>
+        <Text style={[styles.angelusTitle, isDisabled && { color: "#A8A8A8" }]}>
+          {title}
+        </Text>
         <Text
           style={[
             styles.angelusSubtitle,
             isMissed && { color: "#C0605A" },
             isCompleted && { color: "#5A8A57" },
+            isDisabled && { color: "#A8A8A8" },
           ]}
         >
           {subtitle}
@@ -835,4 +860,7 @@ const styles = StyleSheet.create({
     borderColor: "#D4A017",
   },
   logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A" },
+  angelusRowDisabled: {
+    opacity: 0.45,
+  },
 });

@@ -76,6 +76,29 @@ function format12Hour(date: Date): string {
   return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
 }
 
+function getNextPrayerForMode(mode: AngelusMode) {
+  if (mode !== "noon_only") {
+    return getNextPrayer();
+  }
+
+  const now = new Date();
+
+  const nextNoon = new Date(now);
+  nextNoon.setHours(12, 0, 0, 0);
+
+  // If we've already passed noon today,
+  // schedule tomorrow's noon.
+  if (now >= nextNoon) {
+    nextNoon.setDate(nextNoon.getDate() + 1);
+  }
+
+  return {
+    title: "Noon Angelus",
+    icon: "Noon",
+    time: nextNoon,
+  };
+}
+
 const DAILY_VERSES = [
   { quote: "Be it done unto me according to your word.", ref: "Luke 1:38" },
   { quote: "The Lord is my shepherd; I shall not want.", ref: "Psalm 23:1" },
@@ -190,12 +213,14 @@ export default function MainApp({ onLogout }: Props) {
     noon: false,
     evening: false,
   });
-  const [currentPrayer, setCurrentPrayer] = useState(() => {
-    const n = getNextPrayer();
-    return { title: n.title, icon: n.icon, time: n.time };
-  });
+  const [currentPrayer, setCurrentPrayer] = useState(() =>
+    getNextPrayerForMode(angelusMode),
+  );
+  useEffect(() => {
+    setCurrentPrayer(getNextPrayerForMode(angelusMode));
+  }, [angelusMode]);
   const triggeredToday = useRef<Map<number, string>>(new Map());
-  const lastTriggeredPrayer = useRef<string | null>(null);
+  // const lastTriggeredPrayer = useRef<string | null>(null);
   const dailyVerse = useMemo(() => getDailyVerse(), []);
 
   const currentHour = new Date().getHours();
@@ -332,7 +357,7 @@ export default function MainApp({ onLogout }: Props) {
 
   useEffect(() => {
     const tick = () => {
-      const next = getNextPrayer();
+      const next = getNextPrayerForMode(angelusMode);
       setCurrentPrayer((prev) => {
         if (prev.time.getTime() !== next.time.getTime()) {
           return { title: next.title, icon: next.icon, time: next.time };
@@ -350,7 +375,15 @@ export default function MainApp({ onLogout }: Props) {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [angelusMode]);
+
+  const currentDayImage = useMemo(() => {
+    const hour = new Date().getHours();
+
+    if (hour < 12) return "Morning";
+    if (hour < 18) return "Noon";
+    return "Evening";
+  }, [currentHour]);
 
   useEffect(() => {
     const check = () => {
@@ -489,9 +522,7 @@ export default function MainApp({ onLogout }: Props) {
           <View style={styles.mainCard}>
             <View style={styles.cardImage}>
               <Image
-                source={
-                  prayerImages[currentPrayer.icon] ?? prayerImages.Morning
-                }
+                source={prayerImages[currentDayImage] ?? prayerImages.Morning}
                 style={{
                   width: IMAGE_WIDTH,
                   height: IMAGE_WIDTH * 1.3,
