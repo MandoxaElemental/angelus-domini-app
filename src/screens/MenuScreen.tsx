@@ -391,21 +391,21 @@ export default function MenuScreen({ onLogout }: Props) {
             <Ionicons name="flower-outline" size={14} color={COLORS.gold} />
             <View style={styles.sectionDividerLine} />
           </View>
-          {angelusMode === "all_three" && (
-            <>
-              <AngelusRow
-                title="Morning Angelus"
-                subtitle={getSubtitle(morningStatus)}
-                status={morningStatus}
-                imageSource={
-                  morningStatus === "completed"
-                    ? completeImages["Morning"]
-                    : progressImages["Morning"]
-                }
-              />
-              <View style={styles.rowDivider} />
-            </>
-          )}
+          <AngelusRow
+            title="Morning Angelus"
+            subtitle={
+              angelusMode === "noon_only"
+                ? "Disabled"
+                : getSubtitle(morningStatus)
+            }
+            status={angelusMode === "noon_only" ? "disabled" : morningStatus}
+            imageSource={
+              morningStatus === "completed"
+                ? completeImages["Morning"]
+                : progressImages["Morning"]
+            }
+          />
+          <View style={styles.rowDivider} />
           <AngelusRow
             title="Noon Angelus"
             subtitle={getSubtitle(noonStatus)}
@@ -417,20 +417,20 @@ export default function MenuScreen({ onLogout }: Props) {
             }
           />
           <View style={styles.rowDivider} />
-          {angelusMode === "all_three" && (
-            <>
-              <AngelusRow
-                title="Evening Angelus"
-                subtitle={getSubtitle(eveningStatus)}
-                status={eveningStatus}
-                imageSource={
-                  eveningStatus === "completed"
-                    ? completeImages["Evening"]
-                    : progressImages["Evening"]
-                }
-              />
-            </>
-          )}
+          <AngelusRow
+            title="Evening Angelus"
+            subtitle={
+              angelusMode === "noon_only"
+                ? "Disabled"
+                : getSubtitle(eveningStatus)
+            }
+            status={angelusMode === "noon_only" ? "disabled" : eveningStatus}
+            imageSource={
+              eveningStatus === "completed"
+                ? completeImages["Evening"]
+                : progressImages["Evening"]
+            }
+          />
         </View>
 
         {/* ── THIS WEEK IN PRAYER ── */}
@@ -455,28 +455,26 @@ export default function MenuScreen({ onLogout }: Props) {
             <View style={styles.weekCountPlaceholder} />
           </View>
 
-          {angelusMode === "all_three" && (
-            <WeekRow
-              label="Morning"
-              imageSource={weekImages["Morning"]}
-              dots={morningDots}
-              count={morningCount}
-            />
-          )}
+          <WeekRow
+            label="Morning"
+            imageSource={weekImages["Morning"]}
+            dots={morningDots}
+            count={morningCount}
+            disabled={angelusMode === "noon_only"}
+          />
           <WeekRow
             label="Noon"
             imageSource={weekImages["Noon"]}
             dots={noonDots}
             count={noonCount}
           />
-          {angelusMode === "all_three" && (
-            <WeekRow
-              label="Evening"
-              imageSource={weekImages["Evening"]}
-              dots={eveningDots}
-              count={eveningCount}
-            />
-          )}
+          <WeekRow
+            label="Evening"
+            imageSource={weekImages["Evening"]}
+            dots={eveningDots}
+            count={eveningCount}
+            disabled={angelusMode === "noon_only"}
+          />
         </View>
 
         {/* ── TOTAL PRAYERS OFFERED ── */}
@@ -571,14 +569,16 @@ function WeekRow({
   imageSource,
   dots,
   count,
+  disabled = false,
 }: {
   label: string;
   imageSource: any;
   dots: DotStatus[];
   count: number;
+  disabled?: boolean;
 }) {
   return (
-    <View style={styles.weekRow}>
+    <View style={[styles.weekRow, disabled && { opacity: 0.4 }]}>
       <Image
         source={imageSource}
         style={styles.weekIcon}
@@ -591,14 +591,18 @@ function WeekRow({
             key={i}
             style={[
               styles.dot,
-              status === "completed" && styles.dotFilled,
-              status === "missed" && styles.dotMissed,
-              status === "upcoming" && styles.dotEmpty,
+              disabled
+                ? { backgroundColor: "#D9D9D9" }
+                : status === "completed"
+                  ? styles.dotFilled
+                  : status === "missed"
+                    ? styles.dotMissed
+                    : styles.dotEmpty,
             ]}
           />
         ))}
       </View>
-      <Text style={styles.weekCount}>{count}/7</Text>
+      <Text style={styles.weekCount}>{disabled ? "—" : `${count}/7`}</Text>
     </View>
   );
 }
@@ -862,5 +866,9 @@ const styles = StyleSheet.create({
   logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A" },
   angelusRowDisabled: {
     opacity: 0.45,
+  },
+
+  disabledText: {
+    color: "#A8A8A8",
   },
 });
