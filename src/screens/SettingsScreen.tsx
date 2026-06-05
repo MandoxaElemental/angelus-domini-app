@@ -891,13 +891,16 @@ function NotificationRow({
         ]}
       />
       <View style={styles.notifText}>
-        <Text style={styles.notifLabel}>{label}</Text>
+        <Text style={[styles.notifLabel, disabled && { opacity: 0.5 }]}>
+          {label}
+        </Text>
         <Text style={styles.notifTime}>{time}</Text>
       </View>
       <Switch
-        disabled={disabled}
-        value={enabled}
-        onValueChange={onToggle}
+        value={disabled ? false : enabled}
+        onValueChange={(val) => {
+          if (!disabled) onToggle(val);
+        }}
         trackColor={{
           false: COLORS.border,
           true: COLORS.gold,
