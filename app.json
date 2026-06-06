@@ -25,6 +25,11 @@
         "foregroundImage": "./assets/Angelus-domini.png",
         "backgroundColor": "#ffffff"
       },
+      "notification": {
+        "icon": "./assets/bell.png",
+        "color": "#C9A24A",
+        "sound": "./assets/audio/triple-bell.mp3"
+      },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
@@ -40,11 +45,6 @@
       "expo-splash-screen",
       "expo-audio",
       "expo-notifications",
-      {
-        "icon": "./assets/bell.png",
-        "color": "#C9A24A",
-        "sounds": "./assets/audio/triple-bell.mp3"
-      },
       "expo-router"
     ],
     "extra": {
