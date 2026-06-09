@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/bell.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/bell.png",
       "resizeMode": "contain",
@@ -44,8 +44,7 @@
       "expo-secure-store",
       "expo-splash-screen",
       "expo-audio",
-      "expo-notifications",
-      "expo-router"
+      "expo-notifications"
     ],
     "extra": {
       "router": {},
