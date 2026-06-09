@@ -63,7 +63,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
       await Notifications.setNotificationChannelAsync("angelus-bells", {
         name: "Angelus Bells",
         importance: Notifications.AndroidImportance.HIGH,
-        sound: "default",
+        sound: "../../assets/audio/triple-bell.mp3",
         vibrationPattern: [0, 250, 250, 250],
       });
     }
