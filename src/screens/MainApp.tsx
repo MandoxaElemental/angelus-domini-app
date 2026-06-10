@@ -52,15 +52,15 @@ const COLORS = {
 };
 
 const prayerImages: Record<string, any> = {
-  Morning: require("../../assets/Morning.svg"),
-  Noon: require("../../assets/Noon.svg"),
-  Evening: require("../../assets/Evening.svg"),
+  Morning: require("../../assets/Morning.png"),
+  Noon: require("../../assets/Noon.png"),
+  Evening: require("../../assets/Evening.png"),
 };
 
 const progressImages: Record<string, any> = {
-  Morning: require("../../assets/Morning_Clear.svg"),
-  Noon: require("../../assets/Noon_Clear.svg"),
-  Evening: require("../../assets/Evening_Clear.svg"),
+  Morning: require("../../assets/Morning_Clear.png"),
+  Noon: require("../../assets/Noon_Clear.png"),
+  Evening: require("../../assets/Evening_Clear.png"),
 };
 const completeImages: Record<string, any> = {
   Morning: require("../../assets/1.png"),
@@ -539,7 +539,7 @@ export default function MainApp({ onLogout }: Props) {
               <Text style={styles.cardTime}>{currentPrayer.title}</Text>
 
               <Image
-                source={require("../../assets/Divider.svg")}
+                source={require("../../assets/Divider.png")}
                 style={styles.cardDivider}
                 resizeMode="contain"
               />
@@ -555,7 +555,7 @@ export default function MainApp({ onLogout }: Props) {
 
           <View style={styles.sectionHeader}>
             <Image
-              source={require("../../assets/DividerLeft.svg")}
+              source={require("../../assets/DividerLeft.png")}
               style={styles.dividerHalf}
               resizeMode="contain"
             />
@@ -563,7 +563,7 @@ export default function MainApp({ onLogout }: Props) {
             <Text style={styles.sectionHeaderText}>DAILY PRAYER PROGRESS</Text>
 
             <Image
-              source={require("../../assets/DividerRight.svg")}
+              source={require("../../assets/DividerRight.png")}
               style={styles.dividerHalf}
               resizeMode="contain"
             />
@@ -594,7 +594,7 @@ export default function MainApp({ onLogout }: Props) {
           <View style={styles.globalCard}>
             <View style={styles.globe}>
               <Image
-                source={require("../../assets/Global.svg")}
+                source={require("../../assets/Global.png")}
                 style={styles.globeIcon}
               />
             </View>
@@ -609,7 +609,7 @@ export default function MainApp({ onLogout }: Props) {
                 United in prayer around the world.
               </Text>
               <Image
-                source={require("../../assets/Divider.svg")}
+                source={require("../../assets/Divider.png")}
                 style={styles.globalDivider}
                 resizeMode="contain"
               />

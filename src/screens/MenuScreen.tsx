@@ -31,9 +31,9 @@ const COLORS = {
 };
 
 const progressImages: Record<string, any> = {
-  Morning: require("../../assets/Morning_Clear.svg"),
-  Noon: require("../../assets/Noon_Clear.svg"),
-  Evening: require("../../assets/Evening_Clear.svg"),
+  Morning: require("../../assets/Morning_Clear.png"),
+  Noon: require("../../assets/Noon_Clear.png"),
+  Evening: require("../../assets/Evening_Clear.png"),
 };
 
 const completeImages: Record<string, any> = {
