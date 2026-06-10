@@ -47,17 +47,16 @@ import LoginScreen from "./src/screens/LoginScreen";
 
 // SplashScreen.preventAutoHideAsync();
 
-useEffect(() => {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
-}, []);
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
@@ -254,7 +253,7 @@ export default function App() {
     };
   }, [initialInsets, initialFrame]);
 
-  if (!isReady || (!fontsLoaded && !fontError)) {
+  if (!isReady) {
     return (
       <View
         style={{
