@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "react-native-get-random-values";
-import * as SplashScreen from "expo-splash-screen";
+// import * as SplashScreen from "expo-splash-screen";
 import {
   ActivityIndicator,
   AppState,
@@ -34,7 +34,7 @@ import {
 import { NavigationContainer } from "@react-navigation/native";
 import * as Notifications from "expo-notifications";
 
-import type { RootStackParamList } from "./src/navigation/types";
+// import type { RootStackParamList } from "./src/navigation/types";
 import { supabase } from "./src/lib/supabaseClient";
 import {
   getAngelusMode,
@@ -45,17 +45,19 @@ import OnboardingScreen from "./src/screens/OnboardingScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 
-SplashScreen.preventAutoHideAsync();
+// SplashScreen.preventAutoHideAsync();
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+useEffect(() => {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}, []);
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
@@ -89,9 +91,6 @@ export default function App() {
   const notificationResponseId = useRef<string | null>(null);
 
   const [fontsLoaded, fontError] = useFonts({
-    PlayfairDisplay_400Regular,
-    PlayfairDisplay_400Regular_Italic,
-    PlayfairDisplay_600SemiBold,
     "Cormorant-Regular": require("./assets/fonts/Cormorant.ttf"),
     "Cormorant-SemiBold": require("./assets/fonts/CormorantGaramond-SemiBold.ttf"),
     "Cormorant-Bold": require("./assets/fonts/CormorantGaramond-Bold.ttf"),
@@ -216,11 +215,21 @@ export default function App() {
   }, [screen]);
 
   // ── Hide splash ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (isReady && (fontsLoaded || fontError)) {
-      SplashScreen.hideAsync();
-    }
-  }, [isReady, fontsLoaded, fontError]);
+  // useEffect(() => {
+  //   console.log("isReady:", isReady);
+  //   console.log("fontsLoaded:", fontsLoaded);
+  //   console.log("fontError:", fontError);
+
+  //   if (isReady && (fontsLoaded || fontError)) {
+  //     console.log("Hiding splash");
+  //     SplashScreen.hideAsync();
+  //   }
+  // }, [isReady, fontsLoaded, fontError]);
+  // useEffect(() => {
+  //   if (isReady && (fontsLoaded || fontError)) {
+  //     SplashScreen.hideAsync();
+  //   }
+  // }, [isReady, fontsLoaded, fontError]);
 
   const [queryClient] = useState(
     () =>
