@@ -104,17 +104,26 @@ export default function App() {
 
   // ── Auth + initial screen ─────────────────────────────────────────────────
   useEffect(() => {
+    let mounted = true;
+
     async function prepareApp() {
       try {
-        const result = (await Promise.race([
-          supabase.auth.getSession(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Supabase timeout")), 5000),
-          ),
-        ])) as any;
-
-        const session = result?.data?.session ?? null;
         const onboarded = await AsyncStorage.getItem("onboarded");
+
+        const sessionPromise = supabase.auth.getSession();
+
+        const timeoutPromise = new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), 5000),
+        );
+
+        const result = await Promise.race([sessionPromise, timeoutPromise]);
+
+        const session =
+          result && typeof result === "object" && "data" in result
+            ? (result as any).data?.session
+            : null;
+
+        if (!mounted) return;
 
         if (session?.user) {
           setScreen("main");
@@ -124,28 +133,23 @@ export default function App() {
           setScreen("onboarding");
         }
       } catch (e) {
-        console.warn("prepareApp error:", e);
+        console.log("startup error:", e);
+
         const onboarded = await AsyncStorage.getItem("onboarded");
+
+        if (!mounted) return;
+
         setScreen(onboarded === "true" ? "login" : "onboarding");
       } finally {
-        setIsReady(true);
+        if (mounted) setIsReady(true);
       }
     }
 
     prepareApp();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        setScreen("main");
-      } else {
-        const onboarded = await AsyncStorage.getItem("onboarded");
-        setScreen(onboarded === "true" ? "login" : "onboarding");
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // ── Reschedule notifications on every app foreground ──────────────────────
