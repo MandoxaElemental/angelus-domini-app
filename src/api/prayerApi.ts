@@ -2,6 +2,10 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "../lib/supabaseClient";
 import { getSlot } from "../utils/prayer";
+import {
+  getCurrentPrayerWindow
+} from "../utils/prayer";
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,11 +72,27 @@ export const completePrayer = async (
   userId: string,
   sessionId: string
 ): Promise<void> => {
-  const { error } = await supabase
-    .from("PrayerSessions")
-    .update({ Completed: true, CompletedAt: new Date().toISOString() })
-    .eq("SessionId", sessionId)
-    .eq("UserId", userId);
+
+  const window =
+    getCurrentPrayerWindow();
+
+  if (!window) {
+
+    throw new Error(
+      "Prayer window expired"
+    );
+  }
+
+  const { error } =
+    await supabase
+      .from("PrayerSessions")
+      .update({
+        Completed: true,
+        CompletedAt:
+          new Date().toISOString(),
+      })
+      .eq("SessionId", sessionId)
+      .eq("UserId", userId);
 
   if (error) throw error;
 };

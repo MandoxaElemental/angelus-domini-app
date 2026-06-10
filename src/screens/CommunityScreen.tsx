@@ -83,20 +83,20 @@ function GlobeIcon({ size }: { size: number }) {
 
 type CountryRow = { country: string; count: number };
 
-// ── Shared helper: rolling 24-hour window, unique users who completed a prayer ──
-// Same logic as MainApp so both screens always show the same number.
+// ── Uses today's local calendar midnight, not a rolling 24-hour window ──────
 async function fetchGlobalStats(): Promise<{
   totalPrayedToday: number;
   countries: CountryRow[];
 }> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const now = new Date();
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
 
-  // 1. All completed sessions in the last 24 hours
+  // 1. All completed sessions since today's midnight
   const { data: sessions, error: sessErr } = await supabase
     .from("PrayerSessions")
     .select("UserId")
     .eq("Completed", true)
-    .gte("CompletedAt", since);
+    .gte("CompletedAt", midnight);
 
   if (sessErr) throw sessErr;
 
@@ -214,7 +214,6 @@ export default function CommunityScreen() {
         schema: "public",
         table: "PrayerSessions",
       }, () => {
-        // Any insert/update anywhere in the world triggers a refresh
         refresh();
       })
       .subscribe();
@@ -337,7 +336,7 @@ export default function CommunityScreen() {
             <GlobeIcon size={sizes.globeSize} />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: fs(11), color: C.muted, marginBottom: 1 }}>
-                Last 24 hours · Live
+                Today · Live
               </Text>
               <Text style={{ fontSize: fs(11), color: C.muted, marginBottom: s(4) }}>
                 {today}
@@ -444,7 +443,7 @@ export default function CommunityScreen() {
             color: C.brown, letterSpacing: 0.2,
           }}>
             {activeTab === "country"
-              ? `Top Countries · Last 24 hours`
+              ? `Top Countries · Today`
               : "By Region · Coming Soon"}
           </Text>
           {activeTab === "country" && !loading && (
@@ -475,7 +474,7 @@ export default function CommunityScreen() {
             textAlign: "center", color: C.muted,
             fontSize: fs(13), marginTop: s(20),
           }}>
-            No prayers recorded in the last 24 hours.
+            No prayers recorded today.
           </Text>
         ) : (
           <View style={{ paddingHorizontal: hp, gap: sizes.rowGap }}>

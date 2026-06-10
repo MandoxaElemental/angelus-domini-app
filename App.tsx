@@ -1,19 +1,7 @@
-/**
- * App.tsx — Complete fixed file
- *
- * Fixes:
- *  1. setNotificationHandler stays here only (not in notificationService)
- *  2. Removed AppState "active" listener that caused notification delays
- *  3. scheduleAngelusNotifications called only when screen becomes "main"
- *  4. All notification imports from ONE place: src/services/notificationService
- *  5. ✅ Fixed Supabase invalid refresh token error — signs out cleanly
- *  6. ✅ Android custom notification sound channel added
- */
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import "react-native-get-random-values";
 import * as SplashScreen from "expo-splash-screen";
-import { ActivityIndicator, Platform, View } from "react-native";
+import { ActivityIndicator, Platform, View, Alert } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -34,19 +22,21 @@ import {
 import { NavigationContainer } from "@react-navigation/native";
 import * as Notifications from "expo-notifications";
 
-import LoginScreen    from "./src/screens/LoginScreen";
-import RegisterScreen from "./src/screens/RegisterScreen";
+import LoginScreen      from "./src/screens/LoginScreen";
+import RegisterScreen   from "./src/screens/RegisterScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
-import TabLayout      from "./src/navigation/TabLayout";
-import { supabase }  from "./src/lib/supabaseClient";
+import TabLayout        from "./src/navigation/TabLayout";
+import { supabase, isJwtExpiredError } from "./src/lib/supabaseClient";
+import { requestNotificationPermission } from "./src/services/notificationService";
+import { startPrayer, completePrayer }   from "./src/api/prayerApi";
 import {
-  requestNotificationPermission,
-} from "./src/services/notificationService";
+  isWithinPrayerWindow,
+  PRAYER_WINDOW_MINUTES,
+  getCurrentPrayerWindow,
+} from "./src/utils/prayer";
 
 SplashScreen.preventAutoHideAsync();
 
-// ✅ Notification handler — lives HERE only, nowhere else.
-// Tells the OS to show banners + play sound even when app is open.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert:  true,
@@ -60,6 +50,8 @@ Notifications.setNotificationHandler({
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME:  Rect       = { x: 0, y: 0, width: 0, height: 0 };
 
+const GRACE_MS = PRAYER_WINDOW_MINUTES * 60 * 1000;
+
 type Screen = "onboarding" | "register" | "login" | "main";
 
 export default function App() {
@@ -71,6 +63,14 @@ export default function App() {
 
   const navigationRef          = useRef<any>(null);
   const notificationResponseId = useRef<string | null>(null);
+
+  // ── Store pending cold-launch notification so we can replay it once
+  //    navigationRef is ready and screen === "main"
+  const pendingNotificationResponse = useRef<Notifications.NotificationResponse | null>(null);
+  const navigationReadyRef          = useRef(false);
+
+  // ── Track which prayer hour we already auto-navigated for this session ─────
+  const autoNavigatedHour = useRef<number>(-1);
 
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_400Regular,
@@ -88,6 +88,79 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [screen,  setScreen]  = useState<Screen>("onboarding");
 
+  // ── Shared sign-out helper ─────────────────────────────────────────────────
+  const handleExpiredSession = async () => {
+    try { await supabase.auth.signOut(); } catch {}
+    const onboarded = await AsyncStorage.getItem("onboarded");
+    setScreen(onboarded === "true" ? "login" : "onboarding");
+  };
+
+  // ── Build onComplete for notification taps ─────────────────────────────────
+  const buildNotificationOnComplete = () => async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user?.id;
+      if (!uid) return;
+      const sess = await startPrayer(uid);
+      await completePrayer(uid, sess.sessionId);
+      console.log("[Angelus] Prayer completed via notification tap.");
+    } catch (err: any) {
+      if (isJwtExpiredError(err)) {
+        console.warn("[Angelus] JWT expired in notification onComplete — signing out.");
+        await handleExpiredSession();
+        return;
+      }
+      console.error("[Angelus] onComplete (notification) error:", err);
+    }
+  };
+
+  // ── Core navigate-to-Prayer logic (used by both tap cases) ────────────────
+  const navigateToPrayer = (response: Notifications.NotificationResponse) => {
+    const id = response.notification.request.identifier;
+    if (notificationResponseId.current === id) return;
+    notificationResponseId.current = id;
+
+    const prayerHour = response.notification.request.content.data
+      ?.prayerHour as number | undefined;
+
+    if (prayerHour === undefined || !isWithinPrayerWindow(prayerHour)) {
+      Alert.alert(
+        "Prayer Window Closed",
+        "This Angelus prayer has already ended."
+      );
+      return;
+    }
+
+    const onComplete = buildNotificationOnComplete();
+
+    const tryNavigate = (attempts = 0) => {
+      if (navigationRef.current && navigationReadyRef.current) {
+        navigationRef.current.navigate("Prayer", { autoPlay: true, onComplete });
+      } else if (attempts < 30) {
+        setTimeout(() => tryNavigate(attempts + 1), 200);
+      }
+    };
+    tryNavigate();
+  };
+
+  // ── Shared in-app auto-navigate logic ─────────────────────────────────────
+  // Uses getCurrentPrayerWindow() — covers the full 5-minute grace window,
+  // not just the exact top-of-hour second.
+  // autoNavigatedHour ref ensures we only navigate once per prayer slot.
+  const tryAutoNavigatePrayerWindow = () => {
+    const window = getCurrentPrayerWindow();
+    if (!window) return;
+
+    const hour = window.prayer.hour;
+    if (autoNavigatedHour.current === hour) return; // already navigated this slot
+    if (!navigationRef.current || !navigationReadyRef.current) return;
+
+    autoNavigatedHour.current = hour;
+    const onComplete = buildNotificationOnComplete();
+    navigationRef.current.navigate("Prayer", { autoPlay: true, onComplete });
+    console.log(`[Angelus] In-app auto-navigate to PrayerScreen for ${window.prayer.title}`);
+  };
+
   // ── Auth + initial screen ──────────────────────────────────────────────────
   useEffect(() => {
     async function prepareApp() {
@@ -102,12 +175,26 @@ export default function App() {
         const session   = result?.data?.session ?? null;
         const onboarded = await AsyncStorage.getItem("onboarded");
 
-        // ✅ FIX: If token is missing or expired, sign out cleanly
         if (session && (!session.access_token || !session.refresh_token)) {
           console.warn("[Auth] Invalid session tokens — signing out.");
-          await supabase.auth.signOut();
-          setScreen(onboarded === "true" ? "login" : "onboarding");
+          await handleExpiredSession();
           return;
+        }
+
+        if (session?.access_token) {
+          const expiresAt = session.expires_at ?? 0;
+          const nowSec = Math.floor(Date.now() / 1000);
+          if (expiresAt < nowSec) {
+            console.warn("[Auth] Token expired at startup — attempting refresh.");
+            const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+            if (refreshErr || !refreshed.session) {
+              console.warn("[Auth] Refresh failed at startup — signing out.");
+              await handleExpiredSession();
+              return;
+            }
+            setScreen("main");
+            return;
+          }
         }
 
         if (session?.user) {
@@ -117,13 +204,9 @@ export default function App() {
         } else {
           setScreen("onboarding");
         }
-      } catch (e) {
+      } catch (e: any) {
         console.warn("prepareApp error:", e);
-        // ✅ FIX: On ANY auth error (e.g. "Refresh Token Not Found"),
-        //    sign out cleanly instead of crashing or staying stuck
-        try { await supabase.auth.signOut(); } catch {}
-        const onboarded = await AsyncStorage.getItem("onboarded");
-        setScreen(onboarded === "true" ? "login" : "onboarding");
+        await handleExpiredSession();
       } finally {
         setIsReady(true);
       }
@@ -131,17 +214,32 @@ export default function App() {
 
     prepareApp();
 
+    // ── Check for cold-launch notification tap (app was killed) ─────────────
+    // Store it — do NOT try to navigate yet; nav isn't mounted.
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const prayerHour = response.notification.request.content.data
+        ?.prayerHour as number | undefined;
+      if (prayerHour === undefined || !isWithinPrayerWindow(prayerHour)) {
+        console.log("[Angelus] Ignoring stale cold-launch notification.");
+        return;
+      }
+      console.log("[Angelus] Cold-launch notification stored — will navigate when ready.");
+      pendingNotificationResponse.current = response;
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        // ✅ FIX: Handle failed token refresh from the auth listener too
         if (_event === "TOKEN_REFRESHED" && !session) {
           console.warn("[Auth] Token refresh failed — signing out.");
-          try { await supabase.auth.signOut(); } catch {}
+          await handleExpiredSession();
+          return;
+        }
+        if (_event === "SIGNED_OUT") {
           const onboarded = await AsyncStorage.getItem("onboarded");
           setScreen(onboarded === "true" ? "login" : "onboarding");
           return;
         }
-
         if (session?.user) {
           setScreen("main");
         } else {
@@ -155,58 +253,69 @@ export default function App() {
   }, []);
 
   // ── Schedule notifications when user reaches main screen ──────────────────
-  // Runs once when screen becomes "main".
-  // requestNotificationPermission internally checks if already scheduled
-  // and skips if all 3 triggers exist — safe to call on every login.
- useEffect(() => {
-  if (screen !== "main") return;
-
-  const setupNotifications = async () => {
-    try {
-      await requestNotificationPermission();
-    } catch (err) {
-      console.warn("[Angelus] Notification setup error:", err);
-    }
-  };
-
-  setupNotifications();
-}, [screen]);
-
-  // ── Notification tap → navigate to Prayer ─────────────────────────────────
   useEffect(() => {
-    const navigateToPrayer = () => {
-      if (screen !== "main") return;
-      const tryNavigate = (attempts = 0) => {
-        if (navigationRef.current) {
-          navigationRef.current.navigate("Prayer", { autoPlay: true });
-        } else if (attempts < 20) {
-          setTimeout(() => tryNavigate(attempts + 1), 150);
-        }
-      };
-      tryNavigate();
+    if (screen !== "main") return;
+    const setupNotifications = async () => {
+      console.log("[App] Scheduling notifications");
+      try {
+        await requestNotificationPermission();
+      } catch (err) {
+        console.warn("[Angelus] Notification setup error:", err);
+      }
     };
+    setupNotifications();
+  }, [screen]);
 
-    // Case 1: App is open, user taps notification banner
-    const tapSub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const id = response.notification.request.identifier;
-      if (notificationResponseId.current === id) return;
-      notificationResponseId.current = id;
-      navigateToPrayer();
-    });
-
-    // Case 2: App was killed, user tapped notification to open it
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (!response) return;
-      const id = response.notification.request.identifier;
-      const notificationDate = new Date(response.notification.date * 1000);
-      const ageMs = Date.now() - notificationDate.getTime();
-      if (ageMs > 30_000) return; // ignore stale taps older than 30 seconds
-      notificationResponseId.current = id;
-      navigateToPrayer();
-    });
-
+  // ── Live notification tap listener (app is open/backgrounded) ─────────────
+  useEffect(() => {
+    const tapSub = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        if (screen !== "main") return;
+        navigateToPrayer(response);
+      }
+    );
     return () => tapSub.remove();
   }, [screen]);
+
+  // ── Auto-navigate to PrayerScreen within the 5-min grace window ───────────
+  //  Case 1 — App opened mid-window (e.g. user opens at 6:02, grace still on):
+  //            500ms mount timer fires, getCurrentPrayerWindow() returns the
+  //            active slot, navigates immediately.
+  //  Case 2 — App already open when time hits (e.g. sitting on MainApp at 6:00):
+  //            setInterval fires every second, catches the window the moment
+  //            it opens, navigates once.
+  //  autoNavigatedHour ref prevents double-navigation in both cases.
+  useEffect(() => {
+    if (screen !== "main") return;
+
+    // Case 1: already mid-window when screen becomes "main"
+    const mountTimer = setTimeout(() => {
+      tryAutoNavigatePrayerWindow();
+    }, 500);
+
+    // Case 2: app is open when the prayer time hits
+    const id = setInterval(() => {
+      tryAutoNavigatePrayerWindow();
+    }, 1000);
+
+    return () => {
+      clearTimeout(mountTimer);
+      clearInterval(id);
+    };
+  }, [screen]);
+
+  // ── Replay cold-launch notification once navigation is ready ──────────────
+  //    Called from NavigationContainer's onReady callback (see below).
+  const onNavigationReady = () => {
+    navigationReadyRef.current = true;
+    if (pendingNotificationResponse.current) {
+      console.log("[Angelus] Navigation ready — replaying cold-launch notification.");
+      const response = pendingNotificationResponse.current;
+      pendingNotificationResponse.current = null;
+      // Small delay so TabLayout finishes mounting
+      setTimeout(() => navigateToPrayer(response), 400);
+    }
+  };
 
   // ── Hide splash ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -275,7 +384,7 @@ export default function App() {
 
       case "main":
         return (
-          <NavigationContainer ref={navigationRef}>
+          <NavigationContainer ref={navigationRef} onReady={onNavigationReady}>
             <TabLayout onLogout={() => setScreen("login")} />
           </NavigationContainer>
         );

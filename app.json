@@ -25,9 +25,10 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
-         "android.permission.RECEIVE_BOOT_COMPLETED",
-  "android.permission.SCHEDULE_EXACT_ALARM",
-  "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
@@ -44,9 +45,7 @@
         {
           "icon": "./assets/bell.png",
           "color": "#2F4A7A",
-           "sounds": [
-      "./assets/audio/triple_bell.mp3"
-    ]
+          "sounds": [ "./assets/audio/triple_bell.mp3" ]
         }
       ],
       "expo-asset",
@@ -54,7 +53,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "6da1a91f-2298-44e8-af97-b23b170f3b2d"
+       "projectId": "e71945d2-0b4b-437b-addf-cf297d63f144"
       }
     }
   }

@@ -1,16 +1,30 @@
+/**
+ * Fixes vs previous version:
+ *  1. handleComplete calls getSlot() fresh at press time, not session.slot from mount.
+ *  2. completedPrayers update uses fresh slotToKey(getSlot()) not stale session.slot.
+ *  3. Supabase realtime channel picks up completions from notification-tap automatically.
+ *  4. JWT expired errors caught in mount, fetchGlobalPrayedToday, and all queries.
+ *  5. Explicit token expiry check before mount queries so stale tokens are refreshed first.
+ *  6. FIXED: users table queried with correct capital column names (Id, Username).
+ */
+
 import {
   useEffect, useRef, useState, useCallback, useMemo,
 } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, SafeAreaView,
-  ScrollView, Image, Animated, Easing, Modal, StatusBar,
+  ScrollView, Image, Animated, Easing, StatusBar, Alert
 } from "react-native";
 import { useNavigation }        from "@react-navigation/native";
 import { createAudioPlayer }    from "expo-audio";
 import { Ionicons }             from "@expo/vector-icons";
-import { getNextPrayer, getPrayerStatus, PrayerStatus } from "../utils/prayer";
+import { getNextPrayer, getPrayerStatus, getSlot, PrayerStatus } from "../utils/prayer";
 import { completePrayer, startPrayer, PrayerSession } from "../api/prayerApi";
-import { supabase }             from "../lib/supabaseClient";
+import { supabase, isJwtExpiredError }  from "../lib/supabaseClient";
+import {
+  getCurrentPrayerWindow
+} from "../utils/prayer";
+
 
 type Props = { onLogout: () => void };
 
@@ -93,23 +107,26 @@ function slotToKey(slot: string): "morning" | "noon" | "evening" | null {
   return null;
 }
 
-function hourToSlotKey(h: number): "morning" | "noon" | "evening" {
-  if (h === 6)  return "morning";
-  if (h === 12) return "noon";
-  return "evening";
-}
-
-// ── Global prayer count: unique users who completed a prayer in last 24 hours ──
+// ── Uses today's local calendar midnight, not a rolling 24-hour window ──────
 async function fetchGlobalPrayedToday(): Promise<number> {
   try {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+
     const { data, error } = await supabase
       .from("PrayerSessions")
       .select("UserId")
       .eq("Completed", true)
-      .gte("CompletedAt", since);
+      .gte("CompletedAt", midnight);
 
-    if (error) throw error;
+    if (error) {
+      if (isJwtExpiredError(error)) {
+        console.warn("[fetchGlobalPrayedToday] JWT expired — skipping count update.");
+        return 0;
+      }
+      throw error;
+    }
+
     const uniqueUsers = new Set((data ?? []).map((s: any) => s.UserId));
     return uniqueUsers.size;
   } catch (err) {
@@ -130,7 +147,6 @@ export default function MainApp({ onLogout }: Props) {
   const [count,            setCount]            = useState(0);
   const [userId,           setUserId]           = useState("");
   const [username,         setUsername]         = useState("");
-  const [showPrayerPopup,  setShowPrayerPopup]  = useState(false);
   const [completedPrayers, setCompletedPrayers] = useState({
     morning: false, noon: false, evening: false,
   });
@@ -139,27 +155,36 @@ export default function MainApp({ onLogout }: Props) {
     return { title: n.title, icon: n.icon, time: n.time };
   });
 
-  const triggeredToday = useRef<Map<number, string>>(new Map());
-  const dailyVerse     = useMemo(() => getDailyVerse(), []);
-  const currentHour    = new Date().getHours();
-  const greeting       = currentHour < 12 ? "Morning" : currentHour < 18 ? "Afternoon" : "Evening";
+  const dailyVerse  = useMemo(() => getDailyVerse(), []);
+  const currentHour = new Date().getHours();
+  const greeting    = currentHour < 12 ? "Morning" : currentHour < 18 ? "Afternoon" : "Evening";
 
-  // ── Refresh global count ──────────────────────────────────────────────────
   const refreshGlobalCount = useCallback(async () => {
     const n = await fetchGlobalPrayedToday();
     setCount(n);
   }, []);
 
-  // ── Fetch today's completed prayers from Supabase ─────────────────────────
   const fetchTodayPrayers = useCallback(async (uid: string) => {
     try {
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const { data } = await supabase
+      const now    = new Date();
+      const yyyy   = now.getFullYear();
+      const mm     = String(now.getMonth() + 1).padStart(2, "0");
+      const dd     = String(now.getDate()).padStart(2, "0");
+      const todayPrefix = `${yyyy}-${mm}-${dd}_`;
+
+      const { data, error } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
         .eq("UserId", uid)
-        .gte("ScheduledTime", `${todayStr}T00:00:00+00:00`)
-        .lte("ScheduledTime", `${todayStr}T23:59:59+00:00`);
+        .like("Slot", `${todayPrefix}%`);
+
+      if (error) {
+        if (isJwtExpiredError(error)) {
+          console.warn("[fetchTodayPrayers] JWT expired — skipping.");
+          return;
+        }
+        throw error;
+      }
 
       if (data) {
         const updated = { morning: false, noon: false, evening: false };
@@ -178,10 +203,28 @@ export default function MainApp({ onLogout }: Props) {
   // ── Auth + session init ───────────────────────────────────────────────────
   useEffect(() => {
     let channel: any = null;
+    let globalChannel: any = null;
 
     (async () => {
       try {
         let { data: { session: auth } } = await supabase.auth.getSession();
+
+        // ── Explicit token expiry check before any DB query ───────────────
+        if (auth) {
+          const expiresAt = auth.expires_at ?? 0;
+          const nowSec = Math.floor(Date.now() / 1000);
+          if (expiresAt < nowSec) {
+            console.warn("[MainApp] Token expired on mount — attempting refresh.");
+            const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+            if (refreshErr || !refreshed.session) {
+              console.warn("[MainApp] Refresh failed — signing out.");
+              await supabase.auth.signOut();
+              return;
+            }
+            auth = refreshed.session;
+          }
+        }
+        // ─────────────────────────────────────────────────────────────────
 
         if (!auth?.user?.id) {
           await new Promise<void>((resolve) => {
@@ -196,50 +239,77 @@ export default function MainApp({ onLogout }: Props) {
         const uid = auth.user.id;
         setUserId(uid);
 
+        // Try user_metadata first (fastest, no DB call)
         const meta = auth.user.user_metadata?.username || auth.user.user_metadata?.name;
         if (meta) {
           setUsername(meta);
         } else {
-          const { data: u } = await supabase
-            .from("users").select("username").eq("id", uid).single();
-          if (u?.username) setUsername(u.username);
+          // ── FIXED: use capital column names matching the actual Supabase table ──
+          const { data: u, error: userErr } = await supabase
+            .from("users").select("Username").eq("Id", uid).single();
+          if (userErr && isJwtExpiredError(userErr)) {
+            console.warn("[MainApp] JWT expired fetching username — signing out.");
+            await supabase.auth.signOut();
+            return;
+          }
+          if (u?.Username) setUsername(u.Username);
         }
 
-        const sess = await startPrayer(uid);
-        setSession(sess);
+        // startPrayer can also throw JWT errors — catch and sign out
+        let sess: PrayerSession;
+        try {
+          sess = await startPrayer(uid);
+          setSession(sess);
+        } catch (err: any) {
+          if (isJwtExpiredError(err)) {
+            console.warn("[MainApp] JWT expired on startPrayer — signing out.");
+            await supabase.auth.signOut();
+            return;
+          }
+          throw err;
+        }
 
-        // Use new global count function
         await refreshGlobalCount();
         await fetchTodayPrayers(uid);
 
-        // Real-time: listen to ANY PrayerSession change globally
+        // ── Per-user channel: updates personal prayer progress cards ─────
         channel = supabase
           .channel(`main-prayers-${uid}`)
           .on("postgres_changes", {
-            event: "*", schema: "public",
-            table: "PrayerSessions",
+            event: "*", schema: "public", table: "PrayerSessions",
           }, async (payload: any) => {
-            // Refresh global count on any change worldwide
-            await refreshGlobalCount();
-
-            // Refresh personal prayer status only if it's this user's record
-            const changedUserId =
-              payload?.new?.UserId ?? payload?.old?.UserId ?? null;
-            if (changedUserId === uid) {
-              await fetchTodayPrayers(uid);
-            }
+            const changedUserId = payload?.new?.UserId ?? payload?.old?.UserId ?? null;
+            if (changedUserId === uid) await fetchTodayPrayers(uid);
           })
           .subscribe();
 
-      } catch (err) {
+        // ── Global channel: updates "Global Prayer Today" count live ──────
+        globalChannel = supabase
+          .channel("main-global-count")
+          .on("postgres_changes", {
+            event: "*", schema: "public", table: "PrayerSessions",
+          }, async () => {
+            await refreshGlobalCount();
+          })
+          .subscribe();
+
+      } catch (err: any) {
+        if (isJwtExpiredError(err)) {
+          console.warn("[MainApp] JWT expired caught in mount catch-all — signing out.");
+          try { await supabase.auth.signOut(); } catch {}
+          return;
+        }
         console.error("Mount error:", err);
       }
     })();
 
-    return () => { if (channel) supabase.removeChannel(channel); };
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+      if (globalChannel) supabase.removeChannel(globalChannel);
+    };
   }, [fetchTodayPrayers, refreshGlobalCount]);
 
-  // ── Poll global count every 60 seconds as a safety net ───────────────────
+  // ── Poll global count every 60 seconds ───────────────────────────────────
   useEffect(() => {
     const id = setInterval(refreshGlobalCount, 60_000);
     return () => clearInterval(id);
@@ -280,7 +350,7 @@ export default function MainApp({ onLogout }: Props) {
     return () => { cancelled = true; clearTimeout(t); };
   }, []);
 
-  // ── Countdown timer to next prayer ───────────────────────────────────────
+  // ── Countdown timer ───────────────────────────────────────────────────────
   useEffect(() => {
     const tick = () => {
       const next = getNextPrayer();
@@ -303,106 +373,54 @@ export default function MainApp({ onLogout }: Props) {
     return () => clearInterval(id);
   }, []);
 
-  // ── In-app prayer trigger ─────────────────────────────────────────────────
-  useEffect(() => {
-    const check = () => {
-      const now  = new Date();
-      const h    = now.getHours();
-      const m    = now.getMinutes();
-      const date = now.toDateString();
-
-      const isPrayerHour = h === 6 || h === 12 || h === 18;
-      if (!isPrayerHour || m !== 0) return;
-
-      const alreadyFired = triggeredToday.current.get(h);
-      if (alreadyFired === date) return;
-      triggeredToday.current.set(h, date);
-
-      const slotKey = hourToSlotKey(h);
-      setShowPrayerPopup(true);
-      playTripleBell();
-
-      setTimeout(async () => {
-        setShowPrayerPopup(false);
-
-        let freshSession = session;
-        if (userId) {
-          try { freshSession = await startPrayer(userId); setSession(freshSession); }
-          catch {}
-        }
-
-        navigation.navigate("Prayer", {
-          autoPlay: true,
-          onComplete: async () => {
-            try {
-              if (!freshSession || !userId) return;
-              await completePrayer(userId, freshSession.sessionId);
-              await refreshGlobalCount();
-              setCompletedPrayers(prev => ({ ...prev, [slotKey]: true }));
-            } catch (err) {
-              console.error("Auto-trigger complete error:", err);
-            }
-          },
-        });
-      }, 7000);
-    };
-
-    const id = setInterval(check, 1000);
-    return () => clearInterval(id);
-  }, [session, userId, navigation, refreshGlobalCount]);
-
-  // ── Audio bell ────────────────────────────────────────────────────────────
-  const playTripleBell = async () => {
-    for (let i = 0; i < 3; i++) {
-      try {
-        const player = createAudioPlayer(require("../../assets/audio/bell.mp3"));
-        player.play();
-        await new Promise(r => setTimeout(r, 2200));
-        player.remove();
-      } catch {}
-    }
-  };
-
   // ── Manual pray button ────────────────────────────────────────────────────
   const handleComplete = async () => {
-    if (!session || !userId) return;
+
+     const prayerWindow =
+    getCurrentPrayerWindow();
+
+  if (!prayerWindow) {
+
+    Alert.alert(
+      "Prayer Unavailable",
+      "There is no active Angelus prayer right now."
+    );
+
+    return;
+  }
+    if (!userId) return;
+
+    let currentSession = session;
+    try {
+      currentSession = await startPrayer(userId);
+      setSession(currentSession);
+    } catch (err: any) {
+      if (isJwtExpiredError(err)) {
+        console.warn("[handleComplete] JWT expired — signing out.");
+        try { await supabase.auth.signOut(); } catch {}
+        return;
+      }
+      console.error("handleComplete startPrayer error:", err);
+      if (!currentSession) return;
+    }
+
+    const capturedSession = currentSession;
+
     navigation.navigate("Prayer", {
       autoPlay: false,
       onComplete: async () => {
         try {
-          await completePrayer(userId, session.sessionId);
+          await completePrayer(userId, capturedSession!.sessionId);
           await refreshGlobalCount();
-          const key = slotToKey(session.slot);
+          const key = slotToKey(getSlot());
           if (key) setCompletedPrayers(prev => ({ ...prev, [key]: true }));
-        } catch (err) {
+        } catch (err: any) {
+          if (isJwtExpiredError(err)) {
+            console.warn("[onComplete] JWT expired — signing out.");
+            try { await supabase.auth.signOut(); } catch {}
+            return;
+          }
           console.error("onComplete error:", err);
-        }
-      },
-    });
-  };
-
-  // ── Popup "Pray Now" button ───────────────────────────────────────────────
-  const navigateToPrayerFromPopup = async () => {
-    setShowPrayerPopup(false);
-    const h       = new Date().getHours();
-    const slotKey = hourToSlotKey(h);
-
-    let freshSession = session;
-    if (userId) {
-      try { freshSession = await startPrayer(userId); setSession(freshSession); }
-      catch {}
-    }
-
-    navigation.navigate("Prayer", {
-      autoPlay: true,
-      onComplete: async () => {
-        try {
-          if (!freshSession || !userId) return;
-          await completePrayer(userId, freshSession.sessionId);
-          await refreshGlobalCount();
-          setCompletedPrayers(prev => ({ ...prev, [slotKey]: true }));
-        } catch (err) {
-          console.error("Popup complete error:", err);
         }
       },
     });
@@ -415,20 +433,6 @@ export default function MainApp({ onLogout }: Props) {
   return (
     <>
       <StatusBar hidden />
-
-      {/* IN-APP PRAYER POPUP */}
-      <Modal visible={showPrayerPopup} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Ionicons name="notifications" size={42} color={COLORS.gold} />
-            <Text style={styles.modalTitle}>Angelus Time</Text>
-            <Text style={styles.modalText}>The bells are calling you to prayer.</Text>
-            <TouchableOpacity style={styles.modalButton} onPress={navigateToPrayerFromPopup}>
-              <Text style={styles.modalButtonText}>Pray Now</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       <SafeAreaView style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -519,6 +523,7 @@ export default function MainApp({ onLogout }: Props) {
               <Text style={styles.scriptureRef}>— {dailyVerse.ref}</Text>
             </View>
           </View>
+        
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -570,10 +575,10 @@ function ProgressCard({ title, status }: { title: string; status: PrayerStatus }
         isActive    && styles.progressBoxActive,
         isMissed    && styles.progressBoxMissed,
       ]}>
-        {isCompleted && <Ionicons name="checkmark-circle"    size={13} color="#4A7A48" style={{ marginRight: 3 }} />}
+        {isCompleted && <Ionicons name="checkmark-circle"     size={13} color="#4A7A48" style={{ marginRight: 3 }} />}
         {isActive    && <View style={styles.activeDot} />}
-        {isMissed    && <Ionicons name="close-circle-outline" size={13} color="#A04040" style={{ marginRight: 3 }} />}
-        {isUpcoming  && <Ionicons name="time-outline"         size={13} color={COLORS.muted}  style={{ marginRight: 3 }} />}
+        {isMissed    && <Ionicons name="close-circle-outline"  size={13} color="#A04040" style={{ marginRight: 3 }} />}
+        {isUpcoming  && <Ionicons name="time-outline"          size={13} color={COLORS.muted}  style={{ marginRight: 3 }} />}
         <Text style={[
           styles.progressSubtitle,
           isCompleted && { color: "#4A7A48" },
@@ -585,7 +590,11 @@ function ProgressCard({ title, status }: { title: string; status: PrayerStatus }
       </View>
     </View>
   );
+
+  
 }
+
+
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
@@ -648,10 +657,4 @@ const styles = StyleSheet.create({
   scriptureContent:      { flex: 1, padding: 16, justifyContent: "center" },
   scriptureQuote:        { fontSize: 12, color: COLORS.textPrimary, fontStyle: "italic", lineHeight: 18, fontFamily: "EBGaramond-Regular" },
   scriptureRef:          { marginTop: 7, fontSize: 13, color: COLORS.navy, fontFamily: "Cormorant-SemiBold" },
-  modalOverlay:          { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
-  modalCard:             { width: "100%", backgroundColor: COLORS.card, borderRadius: 28, padding: 28, alignItems: "center", borderWidth: 3, borderColor: COLORS.border },
-  modalTitle:            { marginTop: 16, fontSize: 32, color: COLORS.navy, fontFamily: "Cormorant-SemiBold" },
-  modalText:             { marginTop: 10, textAlign: "center", color: COLORS.textSecondary, fontSize: 18, lineHeight: 26, fontFamily: "Cormorant-Regular" },
-  modalButton:           { marginTop: 18, backgroundColor: COLORS.gold, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 30 },
-  modalButtonText:       { color: "#fff", fontSize: 18, fontWeight: "600", fontFamily: "Cormorant-SemiBold" },
 });

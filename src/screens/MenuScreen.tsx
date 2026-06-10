@@ -125,8 +125,6 @@ function formatDayOfWeek(d: Date): string {
   return DAY_NAMES[d.getDay()];
 }
 
-
-
 export default function MenuScreen({ onLogout }: Props) {
   const ringScale   = useRef(new Animated.Value(1)).current;
   const ringOpacity = useRef(new Animated.Value(0.4)).current;
@@ -154,16 +152,18 @@ export default function MenuScreen({ onLogout }: Props) {
   // ── Fetch personal prayer data ────────────────────────────────────────────
   const fetchData = useCallback(async (uid: string) => {
     try {
-      const nowSnap  = new Date();
-      const todayStr = toDateStr(nowSnap);
+      const nowSnap = new Date();
+      const yyyy    = nowSnap.getFullYear();
+      const mm      = String(nowSnap.getMonth() + 1).padStart(2, "0");
+      const dd      = String(nowSnap.getDate()).padStart(2, "0");
+      const todayPrefix = `${yyyy}-${mm}-${dd}_`;
 
-      // Today's completed prayers
+      // ── Today's prayers: filter by Slot prefix (local date), not ScheduledTime ──
       const { data: todaySessions } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
         .eq("UserId", uid)
-        .gte("ScheduledTime", `${todayStr}T00:00:00+00:00`)
-        .lte("ScheduledTime", `${todayStr}T23:59:59+00:00`);
+        .like("Slot", `${todayPrefix}%`);
 
       if (todaySessions) {
         const updated = { morning: false, noon: false, evening: false };
@@ -175,19 +175,27 @@ export default function MenuScreen({ onLogout }: Props) {
         setCompletedPrayers(updated);
       }
 
-      // This week's completed prayers
+      // ── Week range: query by Slot prefix for Mon–Sun ──────────────────────
       const monday = getWeekMonday(nowSnap);
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      sunday.setHours(23, 59, 59, 999);
+
+      const weekPrefixes: string[] = [];
+      for (let i = 0; i < 7; i++) {
+        const d  = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const y  = d.getFullYear();
+        const mo = String(d.getMonth() + 1).padStart(2, "0");
+        const da = String(d.getDate()).padStart(2, "0");
+        weekPrefixes.push(`${y}-${mo}-${da}_`);
+      }
+
+      const likeFilters = weekPrefixes.map(p => `Slot.like.${p}%`).join(",");
 
       const { data: weekSessions } = await supabase
         .from("PrayerSessions")
-        .select("Slot, Completed, ScheduledTime")
+        .select("Slot, Completed")
         .eq("UserId", uid)
         .eq("Completed", true)
-        .gte("ScheduledTime", monday.toISOString())
-        .lte("ScheduledTime", sunday.toISOString());
+        .or(likeFilters);
 
       if (weekSessions) {
         const morningDays = new Set<string>();
@@ -195,14 +203,13 @@ export default function MenuScreen({ onLogout }: Props) {
         const eveningDays = new Set<string>();
 
         weekSessions.forEach((s: any) => {
-          const scheduledDate = s.ScheduledTime ? new Date(s.ScheduledTime) : null;
-          if (!scheduledDate) return;
-          const day = toDateStr(scheduledDate);
+          if (!s.Slot) return;
+          const datePart = s.Slot.substring(0, 10); // "YYYY-MM-DD"
           const key = slotToKey(s.Slot);
           if (!key) return;
-          if (key === "morning") morningDays.add(day);
-          if (key === "noon")    noonDays.add(day);
-          if (key === "evening") eveningDays.add(day);
+          if (key === "morning") morningDays.add(datePart);
+          if (key === "noon")    noonDays.add(datePart);
+          if (key === "evening") eveningDays.add(datePart);
         });
 
         setWeekMorning(morningDays);
@@ -210,7 +217,7 @@ export default function MenuScreen({ onLogout }: Props) {
         setWeekEvening(eveningDays);
       }
 
-      // Monthly count
+      // ── Month/year counts ─────────────────────────────────────────────────
       const firstOfMonth = new Date(nowSnap.getFullYear(), nowSnap.getMonth(), 1).toISOString();
       const { count: monthCount } = await supabase
         .from("PrayerSessions")
@@ -220,7 +227,6 @@ export default function MenuScreen({ onLogout }: Props) {
         .gte("ScheduledTime", firstOfMonth);
       setTotalMonth(monthCount ?? 0);
 
-      // Yearly count
       const firstOfYear = new Date(nowSnap.getFullYear(), 0, 1).toISOString();
       const { count: yearCount } = await supabase
         .from("PrayerSessions")
@@ -260,7 +266,6 @@ export default function MenuScreen({ onLogout }: Props) {
         await startPrayer(uid);
         await fetchData(uid);
 
-        // Personal channel: only this user's rows
         personalChannel = supabase
           .channel(`menu-personal-${uid}`)
           .on("postgres_changes", {
@@ -322,11 +327,6 @@ export default function MenuScreen({ onLogout }: Props) {
   const morningStatus = getPrayerStatus("morning", completedPrayers.morning);
   const noonStatus    = getPrayerStatus("noon",    completedPrayers.noon);
   const eveningStatus = getPrayerStatus("evening", completedPrayers.evening);
-
-  const getSubtitle = (status: PrayerStatus) =>
-    status === "completed" ? "Prayed"   :
-    status === "active"    ? "Active"   :
-    status === "missed"    ? "Missed"   : "Awaiting";
 
   const monday = getWeekMonday(now);
 
@@ -397,11 +397,11 @@ export default function MenuScreen({ onLogout }: Props) {
             <Ionicons name="flower-outline" size={14} color={COLORS.gold} />
             <View style={styles.sectionDividerLine} />
           </View>
-          <AngelusRow title="Morning Angelus" subtitle={getSubtitle(morningStatus)} status={morningStatus} imageSource={progressImages["Morning"]} />
+          <AngelusRow title="Morning Angelus" status={morningStatus} imageSource={progressImages["Morning"]} />
           <View style={styles.rowDivider} />
-          <AngelusRow title="Noon Angelus"    subtitle={getSubtitle(noonStatus)}    status={noonStatus}    imageSource={progressImages["Noon"]} />
+          <AngelusRow title="Noon Angelus"    status={noonStatus}    imageSource={progressImages["Noon"]} />
           <View style={styles.rowDivider} />
-          <AngelusRow title="Evening Angelus" subtitle={getSubtitle(eveningStatus)} status={eveningStatus} imageSource={progressImages["Evening"]} />
+          <AngelusRow title="Evening Angelus" status={eveningStatus} imageSource={progressImages["Evening"]} />
         </View>
 
         {/* ── THIS WEEK IN PRAYER ── */}
@@ -463,12 +463,17 @@ export default function MenuScreen({ onLogout }: Props) {
 }
 
 // ─── AngelusRow ───────────────────────────────────────────────────────────────
-function AngelusRow({ title, subtitle, status, imageSource }: {
-  title: string; subtitle: string; status: PrayerStatus; imageSource: any;
+function AngelusRow({ title, status, imageSource }: {
+  title: string; status: PrayerStatus; imageSource: any;
 }) {
   const isCompleted = status === "completed";
   const isActive    = status === "active";
   const isMissed    = status === "missed";
+
+  const subtitle =
+    isCompleted ? "Prayed"   :
+    isActive    ? "Active"   :
+    isMissed    ? "Missed"   : "Awaiting";
 
   return (
     <View style={styles.angelusRow}>

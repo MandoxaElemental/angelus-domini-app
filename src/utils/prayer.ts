@@ -23,8 +23,11 @@ export function getNextPrayer() {
   return { ...PRAYERS[0], time: tomorrow };
 }
 
-// Active window = 5 minutes after the prayer time
-const ACTIVE_WINDOW_MS = 5 * 60 * 1000;
+// Active window = 10 minutes after the prayer time
+export const PRAYER_WINDOW_MINUTES = 5;
+
+const ACTIVE_WINDOW_MS =
+  PRAYER_WINDOW_MINUTES * 60 * 1000;
 
 export function getPrayerStatus(key: string, completed: boolean): PrayerStatus {
   if (completed) return "completed";
@@ -33,11 +36,11 @@ export function getPrayerStatus(key: string, completed: boolean): PrayerStatus {
   const prayer = PRAYERS.find((p) => p.key === key);
   if (!prayer) return "upcoming";
 
-  const start    = getPrayerDate(prayer.hour, prayer.minute);
+  const start     = getPrayerDate(prayer.hour, prayer.minute);
   const activeEnd = new Date(start.getTime() + ACTIVE_WINDOW_MS);
 
-  if (now < start)                        return "upcoming";
-  if (now >= start && now <= activeEnd)   return "active";
+  if (now < start)                       return "upcoming";
+  if (now >= start && now <= activeEnd)  return "active";
   return "missed";
 }
 
@@ -45,34 +48,82 @@ export function formatPrayerTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-/**
- * Returns slot string for the CURRENT prayer period.
- * Morning  = 06:00–11:59 → "_6"
- * Noon     = 12:00–17:59 → "_12"
- * Evening  = 18:00–05:59 → "_18"
- */
 export function getSlot(): string {
-  const now  = new Date();
-  const h    = now.getHours();
-  const date = now.toISOString().split("T")[0];
+  const now = new Date();
+  const h   = now.getHours();
 
-  let slot: number;
-  if (h >= 6  && h < 12) slot = 6;
-  else if (h >= 12 && h < 18) slot = 12;
-  else slot = 18; // 18:00–05:59 → evening slot
+  const localDateStr = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm   = String(d.getMonth() + 1).padStart(2, "0");
+    const dd   = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
-  // For evening slots that fall on the next calendar day (midnight–5:59am),
-  // attribute them to the previous day's evening slot date
-  let slotDate = date;
+  // midnight–5:59 AM belongs to the previous day's evening slot
   if (h < 6) {
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
-    slotDate = yesterday.toISOString().split("T")[0];
+    return `${localDateStr(yesterday)}_18`;
   }
 
-  return `${slotDate}_${slot}`;
+  let slot: number;
+  if      (h >= 6  && h < 12) slot = 6;
+  else if (h >= 12 && h < 18) slot = 12;
+  else                         slot = 18;
+
+  return `${localDateStr(now)}_${slot}`;
 }
 
 export function getNextPrayerTime(): Date {
   return getNextPrayer().time;
+}
+
+export function isWithinPrayerWindow(
+  prayerHour: number,
+  prayerMinute = 0
+): boolean {
+
+  const now = new Date();
+
+  const start = new Date();
+  start.setHours(
+    prayerHour,
+    prayerMinute,
+    0,
+    0
+  );
+
+  const end = new Date(
+    start.getTime() +
+    PRAYER_WINDOW_MINUTES * 60 * 1000
+  );
+
+  return now >= start && now <= end;
+}
+
+
+export function getCurrentPrayerWindow() {
+  const now = new Date();
+
+  for (const prayer of PRAYERS) {
+    const start = getPrayerDate(
+      prayer.hour,
+      prayer.minute
+    );
+
+    const end = new Date(
+      start.getTime() +
+      PRAYER_WINDOW_MINUTES * 60 * 1000
+    );
+
+    if (now >= start && now <= end) {
+      return {
+        prayer,
+        start,
+        end,
+      };
+    }
+  }
+
+  return null;
 }
