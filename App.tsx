@@ -89,15 +89,15 @@ export default function App() {
   const [frame] = useState<Rect>(initialFrame);
   const notificationResponseId = useRef<string | null>(null);
 
-  const [fontsLoaded, fontError] = useFonts({
-    "Cormorant-Regular": require("./assets/fonts/Cormorant.ttf"),
-    "Cormorant-SemiBold": require("./assets/fonts/CormorantGaramond-SemiBold.ttf"),
-    "Cormorant-Bold": require("./assets/fonts/CormorantGaramond-Bold.ttf"),
-    "Inter-Medium": require("./assets/fonts/Inter_18pt-Medium.ttf"),
-    "EBGaramond-Regular": require("./assets/fonts/EBGaramond-Regular.ttf"),
-    "EBGaramond-Medium": require("./assets/fonts/EBGaramond-Medium.ttf"),
-    "EBGaramond-Bold": require("./assets/fonts/EBGaramond-Bold.ttf"),
-  });
+  // const [fontsLoaded, fontError] = useFonts({
+  //   "Cormorant-Regular": require("./assets/fonts/Cormorant.ttf"),
+  //   "Cormorant-SemiBold": require("./assets/fonts/CormorantGaramond-SemiBold.ttf"),
+  //   "Cormorant-Bold": require("./assets/fonts/CormorantGaramond-Bold.ttf"),
+  //   "Inter-Medium": require("./assets/fonts/Inter_18pt-Medium.ttf"),
+  //   "EBGaramond-Regular": require("./assets/fonts/EBGaramond-Regular.ttf"),
+  //   "EBGaramond-Medium": require("./assets/fonts/EBGaramond-Medium.ttf"),
+  //   "EBGaramond-Bold": require("./assets/fonts/EBGaramond-Bold.ttf"),
+  // });
 
   const [isReady, setIsReady] = useState(false);
   const [screen, setScreen] = useState<Screen>("onboarding");
