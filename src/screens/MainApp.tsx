@@ -246,19 +246,19 @@ export default function MainApp({ onLogout }: Props) {
     {
       title: "MORNING ANGELUS",
       value: globalStats.morning,
-      subtitle: " prayers",
+      subtitle: " prayed this Morning",
       description: "6:00 AM",
     },
     {
       title: "NOON ANGELUS",
       value: globalStats.noon,
-      subtitle: " prayers",
+      subtitle: " prayed at Noon",
       description: "12:00 PM",
     },
     {
       title: "EVENING ANGELUS",
       value: globalStats.evening,
-      subtitle: " prayers",
+      subtitle: " prayed this Evening",
       description: "6:00 PM",
     },
   ];
@@ -267,16 +267,6 @@ export default function MainApp({ onLogout }: Props) {
 
   const greeting =
     currentHour < 12 ? "Morning" : currentHour < 18 ? "Afternoon" : "Evening";
-
-  // const currentPrayer = useMemo(() => {
-  //   const next = getNextPrayer();
-
-  //   return {
-  //     title: next.title,
-  //     icon: next.icon,
-  //     time: next.time,
-  //   };
-  // }, []);
 
   // ── Fetch today's completed prayers from DB ───────────────────────────────
   const fetchTodayPrayers = useCallback(async (uid: string) => {
