@@ -39,7 +39,8 @@
       "expo-secure-store",
       "expo-splash-screen",
       "expo-audio",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-asset"
     ],
     "extra": {
       "router": {},

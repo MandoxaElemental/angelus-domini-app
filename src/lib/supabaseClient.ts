@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = "https://tfkrxheixitapzjwngxe.supabase.co";
+const supabaseAnonKey = "sb_publishable_wTzox7eQLWxFV40WKZyfWg_mhul5m5G";
 
 if (!supabaseUrl) {
   throw new Error("EXPO_PUBLIC_SUPABASE_URL is missing");
