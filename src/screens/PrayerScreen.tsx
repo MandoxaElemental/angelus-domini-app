@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
     fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
+    fontWeight: "400",
   },
   imageContainer: { width: "100%", height: 220 },
   image: { width: "100%", height: "100%" },
@@ -955,7 +955,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 42,
     fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
+    fontWeight: "400",
   },
   responseItalic: {
     fontSize: 28,
@@ -964,7 +964,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 42,
     fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
+    fontWeight: "400",
   },
   prayer: {
     fontSize: 28,
@@ -972,7 +972,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#6F440A",
     fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
+    fontWeight: "400",
   },
   logo: { width: 140, height: 40, resizeMode: "contain" },
   dots: { flexDirection: "row", justifyContent: "center", gap: 8 },
@@ -998,7 +998,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 20,
     fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
+    fontWeight: "400",
   },
   buttonDisabled: { opacity: 0.5 },
   timeSelector: {
@@ -1029,12 +1029,12 @@ const styles = StyleSheet.create({
     color: "#C9A24A",
     fontSize: 14,
     fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
+    fontWeight: "400",
   },
   timeTextActive: {
     color: "#FFFFFF",
     fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
+    fontWeight: "400",
   },
   footerControls: {
     flexDirection: "row",
@@ -1046,7 +1046,7 @@ const styles = StyleSheet.create({
   footerAction: {
     color: "#6B5E52",
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "400",
     paddingHorizontal: 6,
     fontFamily: "Cormorant-SemiBold",
   },
@@ -1055,7 +1055,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginHorizontal: 2,
     fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
+    fontWeight: "400",
   },
   modalOverlay: {
     flex: 1,
@@ -1076,7 +1076,7 @@ const styles = StyleSheet.create({
     fontSize: 34,
     color: "#2F4A7A",
     fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
+    fontWeight: "400",
   },
   modalText: {
     marginTop: 12,
@@ -1085,7 +1085,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 28,
     fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
+    fontWeight: "400",
   },
   modalButton: {
     marginTop: 26,
@@ -1097,7 +1097,7 @@ const styles = StyleSheet.create({
   modalButtonText: {
     color: "#fff",
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "400",
     fontFamily: "Cormorant-SemiBold",
   },
   bellCardContent: {
@@ -1117,7 +1117,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#6F440A",
     fontFamily: "Cormorant-SemiBold",
-    fontWeight: "600",
+    fontWeight: "400",
   },
   fullCardBlur: {
     ...StyleSheet.absoluteFillObject,

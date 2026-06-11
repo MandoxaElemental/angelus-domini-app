@@ -190,6 +190,8 @@ function hourToSlotKey(h: number): "morning" | "noon" | "evening" {
 }
 
 export default function MainApp({ onLogout }: Props) {
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
   const [angelusMode, setAngelusMode] = useState<AngelusMode>("all_three");
 
   useEffect(() => {
@@ -203,6 +205,8 @@ export default function MainApp({ onLogout }: Props) {
   const [session, setSession] = useState<any>(null);
 
   const [count, setCount] = useState(0);
+
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   const [userId, setUserId] = useState("");
 
@@ -224,6 +228,42 @@ export default function MainApp({ onLogout }: Props) {
   const dailyVerse = useMemo(() => getDailyVerse(), []);
 
   const currentHour = new Date().getHours();
+
+  const [globalStats, setGlobalStats] = useState({
+    total: 0,
+    morning: 0,
+    noon: 0,
+    evening: 0,
+  });
+
+  const slides = [
+    {
+      title: "GLOBAL PRAYER TODAY",
+      value: globalStats.total,
+      subtitle: " prayed today",
+      description: "United in prayer around the world.",
+    },
+    {
+      title: "MORNING ANGELUS",
+      value: globalStats.morning,
+      subtitle: " prayers",
+      description: "6:00 AM",
+    },
+    {
+      title: "NOON ANGELUS",
+      value: globalStats.noon,
+      subtitle: " prayers",
+      description: "12:00 PM",
+    },
+    {
+      title: "EVENING ANGELUS",
+      value: globalStats.evening,
+      subtitle: " prayers",
+      description: "6:00 PM",
+    },
+  ];
+
+  const currentSlide = slides[carouselIndex];
 
   const greeting =
     currentHour < 12 ? "Morning" : currentHour < 18 ? "Afternoon" : "Evening";
@@ -267,15 +307,74 @@ export default function MainApp({ onLogout }: Props) {
     }
   }, []);
 
-  const finishPrayer = async () => {
-    if (!session || !userId) return;
+  // const finishPrayer = async () => {
+  //   if (!session || !userId) return;
 
-    await completePrayer(userId, session.sessionId);
+  //   await completePrayer(userId, session.sessionId);
 
-    const newCount = await getGlobalCount(session.slot);
+  //   const newCount = await getGlobalCount(session.slot);
 
-    setCount(newCount);
+  //   setCount(newCount);
+  // };
+
+  async function getGlobalPrayerStats() {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const { data, error } = await supabase
+      .from("PrayerSessions")
+      .select("Slot")
+      .eq("Completed", true)
+      .gte("ScheduledTime", `${today}T00:00:00+00:00`)
+      .lte("ScheduledTime", `${today}T23:59:59+00:00`);
+
+    if (error) throw error;
+
+    const stats = {
+      total: 0,
+      morning: 0,
+      noon: 0,
+      evening: 0,
+    };
+
+    data?.forEach((row) => {
+      stats.total++;
+
+      if (row.Slot.endsWith("_6")) stats.morning++;
+      else if (row.Slot.endsWith("_12")) stats.noon++;
+      else if (row.Slot.endsWith("_18")) stats.evening++;
+    });
+
+    return stats;
+  }
+
+  const refreshGlobalStats = async () => {
+    const stats = await getGlobalPrayerStats();
+
+    setGlobalStats(stats);
   };
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setCarouselIndex((prev) => (prev + 1) % 4);
+    }, 4000);
+
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [carouselIndex]);
 
   useEffect(() => {
     let channel: any = null;
@@ -320,6 +419,7 @@ export default function MainApp({ onLogout }: Props) {
 
         const sess = await startPrayer(uid);
         setSession(sess);
+        await refreshGlobalStats();
         setCount(await getGlobalCount(sess.slot));
         await fetchTodayPrayers(uid);
 
@@ -598,39 +698,37 @@ export default function MainApp({ onLogout }: Props) {
                 style={styles.globeIcon}
               />
             </View>
-            <View style={styles.globalRight}>
-              <Text style={styles.globalLabel}>GLOBAL PRAYER TODAY</Text>
-              <View style={styles.globalCountRow}>
-                <Text style={styles.globalCount}>{count.toLocaleString()}</Text>
+            <Animated.View style={[styles.globalRight, { opacity: fadeAnim }]}>
+              <Text style={styles.globalLabel}>{currentSlide.title}</Text>
 
-                <Text style={styles.globalPrayedToday}>prayed today</Text>
+              <View style={styles.globalCountRow}>
+                <Text style={styles.globalCount}>
+                  {currentSlide.value.toLocaleString()}
+                </Text>
+                <Text style={styles.globalPrayedToday}>
+                  {currentSlide.subtitle}
+                </Text>
               </View>
-              <Text style={styles.globalText}>
-                United in prayer around the world.
-              </Text>
               <Image
                 source={require("../../assets/Divider.png")}
                 style={styles.globalDivider}
                 resizeMode="contain"
               />
-              <View style={styles.nowPrayingRow}>
-                <Text style={styles.nowPrayingLabel}>Now praying:</Text>
 
-                <View style={styles.nowPrayingItem}>
-                  <Text style={styles.nowPrayingFlag}></Text>
-                  <Text style={styles.nowPrayingCountry}> </Text>
-                  <Text style={styles.nowPrayingCount}></Text>
-                </View>
-                <Text style={styles.nowPrayingDot}> </Text>
-                <View style={styles.nowPrayingItem}>
-                  <Text style={styles.nowPrayingFlag}></Text>
-                  <Text style={styles.nowPrayingCountry}> </Text>
-                  <Text style={styles.nowPrayingCount}> </Text>
-                </View>
-              </View>
-            </View>
+              <Text style={styles.globalText}>{currentSlide.description}</Text>
+            </Animated.View>
           </View>
-
+          <View style={styles.carouselDots}>
+            {slides.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.dot,
+                  carouselIndex === index && styles.dotActive,
+                ]}
+              />
+            ))}
+          </View>
           {/* SCRIPTURE */}
 
           <View style={styles.scriptureCard}>
@@ -672,7 +770,25 @@ export default function MainApp({ onLogout }: Props) {
     </>
   );
 }
+function PrayerStatChip({
+  label,
+  title,
+  count,
+}: {
+  label: string;
+  title: string;
+  count: number;
+}) {
+  return (
+    <View style={styles.prayerChip}>
+      <Text style={styles.prayerChipTime}>{label}</Text>
 
+      <Text style={styles.prayerChipTitle}>{title}</Text>
+
+      <Text style={styles.prayerChipCount}>{count.toLocaleString()}</Text>
+    </View>
+  );
+}
 // ─── ProgressCard ─────────────────────────────────────────────────────────────
 function ProgressCard({
   title,
@@ -1201,4 +1317,57 @@ const styles = StyleSheet.create({
     borderColor: "#D4A017",
   },
   logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A" },
+  prayerBreakdownRow: {
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+
+  prayerChip: {
+    minWidth: 95,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: "#FFF7E7",
+    borderWidth: 1,
+    borderColor: "#E7DCCB",
+    marginRight: 10,
+    alignItems: "center",
+  },
+
+  prayerChipTime: {
+    fontSize: 11,
+    color: COLORS.gold,
+    fontFamily: "Inter",
+  },
+
+  prayerChipTitle: {
+    fontSize: 14,
+    color: COLORS.navy,
+    fontFamily: "Cormorant",
+  },
+
+  prayerChipCount: {
+    fontSize: 20,
+    color: COLORS.navy,
+    fontFamily: "EBGaramond",
+  },
+  carouselDots: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#D9CCBA",
+    marginHorizontal: 4,
+  },
+
+  dotActive: {
+    width: 20,
+    backgroundColor: COLORS.gold,
+  },
 });
