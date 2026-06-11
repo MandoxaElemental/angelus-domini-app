@@ -17,6 +17,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFonts } from "expo-font";
 type PrayerItem =
   | {
       type: "versicle" | "response" | "prayer";
@@ -572,6 +573,15 @@ export default function PrayerScreen() {
       );
   };
 
+  const [fontsLoaded] = useFonts({
+    Cormorant: require("../../assets/fonts/Cormorant.ttf"),
+    Cormorant_Italic: require("../../assets/fonts/CormorantGaramond-Italic.ttf"),
+  });
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <>
       {/* HEADER */}
@@ -904,7 +914,7 @@ const styles = StyleSheet.create({
     color: "#2F4A7A",
     fontSize: 16,
     lineHeight: 20,
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant",
     fontWeight: "400",
   },
   imageContainer: { width: "100%", height: 220 },
@@ -954,7 +964,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     textAlign: "center",
     lineHeight: 42,
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant",
     fontWeight: "400",
   },
   responseItalic: {
@@ -963,7 +973,7 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     textAlign: "center",
     lineHeight: 42,
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant_Italic",
     fontWeight: "400",
   },
   prayer: {
@@ -971,7 +981,7 @@ const styles = StyleSheet.create({
     lineHeight: 42,
     textAlign: "center",
     color: "#6F440A",
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant",
     fontWeight: "400",
   },
   logo: { width: 140, height: 40, resizeMode: "contain" },
@@ -997,7 +1007,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontSize: 20,
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant",
     fontWeight: "400",
   },
   buttonDisabled: { opacity: 0.5 },
@@ -1028,12 +1038,12 @@ const styles = StyleSheet.create({
   timeText: {
     color: "#C9A24A",
     fontSize: 14,
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant",
     fontWeight: "400",
   },
   timeTextActive: {
     color: "#FFFFFF",
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant",
     fontWeight: "400",
   },
   footerControls: {
@@ -1048,13 +1058,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "400",
     paddingHorizontal: 6,
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant",
   },
   footerDivider: {
     color: "#B8AA96",
     fontSize: 14,
     marginHorizontal: 2,
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant",
     fontWeight: "400",
   },
   modalOverlay: {
@@ -1075,7 +1085,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     fontSize: 34,
     color: "#2F4A7A",
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant",
     fontWeight: "400",
   },
   modalText: {
@@ -1084,7 +1094,7 @@ const styles = StyleSheet.create({
     color: "#6B5E52",
     fontSize: 18,
     lineHeight: 28,
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant",
     fontWeight: "400",
   },
   modalButton: {
@@ -1098,7 +1108,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "400",
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant",
   },
   bellCardContent: {
     flex: 1,
@@ -1116,7 +1126,7 @@ const styles = StyleSheet.create({
     lineHeight: 42,
     textAlign: "center",
     color: "#6F440A",
-    fontFamily: "Cormorant-SemiBold",
+    fontFamily: "Cormorant",
     fontWeight: "400",
   },
   fullCardBlur: {
