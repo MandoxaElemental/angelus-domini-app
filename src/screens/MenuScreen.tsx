@@ -167,14 +167,18 @@ export default function MenuScreen({ onLogout }: Props) {
   const fetchData = useCallback(async (uid: string) => {
     try {
       const nowSnap = new Date();
-      const todayStr = nowSnap.toISOString().slice(0, 10);
+      const startOfDay = new Date(nowSnap);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(nowSnap);
+      endOfDay.setHours(23, 59, 59, 999);
 
       const { data: todaySessions } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
         .eq("UserId", uid)
-        .gte("ScheduledTime", `${todayStr}T00:00:00+00:00`)
-        .lte("ScheduledTime", `${todayStr}T23:59:59+00:00`);
+        .gte("ScheduledTime", startOfDay.toISOString())
+        .lte("ScheduledTime", endOfDay.toISOString());
 
       if (todaySessions) {
         const updated = { morning: false, noon: false, evening: false };

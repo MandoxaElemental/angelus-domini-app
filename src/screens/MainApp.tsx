@@ -25,8 +25,6 @@ import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
 import { getAngelusMode, AngelusMode } from "../services/notificationService";
 
-type Props = { onLogout: () => void };
-
 const { width } = Dimensions.get("window");
 const isSmallScreen = width < 390;
 
@@ -189,7 +187,7 @@ function hourToSlotKey(h: number): "morning" | "noon" | "evening" {
   return "evening";
 }
 
-export default function MainApp({ onLogout }: Props) {
+export default function MainApp() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const [angelusMode, setAngelusMode] = useState<AngelusMode>("all_three");
@@ -204,7 +202,7 @@ export default function MainApp({ onLogout }: Props) {
 
   const [session, setSession] = useState<any>(null);
 
-  const [count, setCount] = useState(0);
+  const [, setCount] = useState(0);
 
   const [carouselIndex, setCarouselIndex] = useState(0);
 
@@ -271,7 +269,9 @@ export default function MainApp({ onLogout }: Props) {
   // ── Fetch today's completed prayers from DB ───────────────────────────────
   const fetchTodayPrayers = useCallback(async (uid: string) => {
     try {
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const now = new Date();
+
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const { data } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
@@ -308,8 +308,9 @@ export default function MainApp({ onLogout }: Props) {
   // };
 
   async function getGlobalPrayerStats() {
-    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
 
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const { data, error } = await supabase
       .from("PrayerSessions")
       .select("Slot")
@@ -519,19 +520,6 @@ export default function MainApp({ onLogout }: Props) {
     const id = setInterval(check, 1000);
     return () => clearInterval(id);
   }, [session, userId, navigation]);
-
-  const playTripleBell = async () => {
-    for (let i = 0; i < 3; i++) {
-      try {
-        const player = createAudioPlayer(
-          require("../../assets/audio/bell.mp3"),
-        );
-        player.play();
-        await new Promise((r) => setTimeout(r, 2200));
-        player.remove();
-      } catch {}
-    }
-  };
 
   // ─────────────────────────────────────────────────────────────
   // COMPLETE PRAYER
@@ -773,25 +761,6 @@ export default function MainApp({ onLogout }: Props) {
         </ScrollView>
       </SafeAreaView>
     </>
-  );
-}
-function PrayerStatChip({
-  label,
-  title,
-  count,
-}: {
-  label: string;
-  title: string;
-  count: number;
-}) {
-  return (
-    <View style={styles.prayerChip}>
-      <Text style={styles.prayerChipTime}>{label}</Text>
-
-      <Text style={styles.prayerChipTitle}>{title}</Text>
-
-      <Text style={styles.prayerChipCount}>{count.toLocaleString()}</Text>
-    </View>
   );
 }
 // ─── ProgressCard ─────────────────────────────────────────────────────────────

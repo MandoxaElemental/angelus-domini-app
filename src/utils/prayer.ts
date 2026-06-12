@@ -47,15 +47,22 @@ export function getPrayerStatus(key: string, completed: boolean): PrayerStatus {
   if (completed) return "completed";
 
   const now = new Date();
-  const prayer = PRAYERS.find((p) => p.key === key);
+  const hour = now.getHours();
 
+  // Midnight → 5:59 AM
+  if (hour < 6) {
+    return "upcoming";
+  }
+
+  const prayer = PRAYERS.find((p) => p.key === key);
   if (!prayer) return "upcoming";
 
   const start = getPrayerDate(prayer.hour, prayer.minute);
   const activeEnd = new Date(start.getTime() + ACTIVE_WINDOW_MS);
 
   if (now < start) return "upcoming";
-  if (now >= start && now <= activeEnd) return "active";
+  if (now <= activeEnd) return "active";
+
   return "missed";
 }
 

@@ -132,17 +132,18 @@ export default function CommunityScreen() {
     isFetchingRef.current = true;
     try {
       const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
-      const todayStart = `${todayStr}T00:00:00+00:00`;
-      const todayEnd = `${todayStr}T23:59:59+00:00`;
+      const startOfDay = new Date(now);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(now);
+      endOfDay.setHours(23, 59, 59, 999);
 
       const { data: sessions, error: sessErr } = await supabase
         .from("PrayerSessions")
         .select("UserId")
         .eq("Completed", true)
-        .gte("ScheduledTime", todayStart)
-        .lte("ScheduledTime", todayEnd);
-
+        .gte("ScheduledTime", startOfDay.toISOString())
+        .lte("ScheduledTime", endOfDay.toISOString());
       if (sessErr) throw sessErr;
 
       if (!sessions || sessions.length === 0) {
@@ -182,6 +183,14 @@ export default function CommunityScreen() {
       isFetchingRef.current = false;
     }
   }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchCounts();
+    }, 60000);
+
+    return () => clearInterval(id);
+  }, [fetchCounts]);
 
   // ── On mount ──────────────────────────────────────────────────────────────
   useEffect(() => {
