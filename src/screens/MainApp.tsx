@@ -587,6 +587,21 @@ export default function MainApp({ onLogout }: Props) {
       <SafeAreaView style={styles.container}>
         {/* HEADER */}
         <AppHeader />
+        {/* <TouchableOpacity
+  style={{
+    marginHorizontal: 24,
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: "#C9A24A",
+    borderRadius: 12,
+    alignItems: "center",
+  }}
+  onPress={() => navigation.navigate("Prayer")}
+>
+  <Text style={{ color: "#fff", fontWeight: "600" }}>
+    Open Prayer Screen
+  </Text>
+</TouchableOpacity> */}
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* GREETING */}
 
