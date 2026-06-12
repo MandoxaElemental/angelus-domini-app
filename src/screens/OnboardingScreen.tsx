@@ -1,17 +1,9 @@
 import React, { useEffect } from "react";
 import { StatusBar, ScrollView, Dimensions } from "react-native";
-import {
-  useFonts,
-  PlayfairDisplay_400Regular,
-  PlayfairDisplay_400Regular_Italic,
-  PlayfairDisplay_600SemiBold,
-  PlayfairDisplay_700Bold,
-  PlayfairDisplay_700Bold_Italic,
-} from "@expo-google-fonts/playfair-display";
-
 import { ONBOARDING_SLIDES } from "../lib/config/onboardingData";
 import { useOnboarding } from "../lib/hooks/useOnboarding";
 import { SlideItem } from "../components/onboarding/slides/SlideItem";
+import { useFonts } from "expo-font";
 
 const { width } = Dimensions.get("window");
 
@@ -29,18 +21,16 @@ export default function OnboardingScreen({ onDone }: Props) {
   } = useOnboarding(onDone);
 
   const [fontsLoaded] = useFonts({
-    PlayfairDisplay_400Regular,
-    PlayfairDisplay_400Regular_Italic,
-    PlayfairDisplay_600SemiBold,
-    PlayfairDisplay_700Bold,
-    PlayfairDisplay_700Bold_Italic,
+    PlayfairDisplay: require("../../assets/fonts/PlayfairDisplay.ttf"),
+    PlayfairDisplay_Italic: require("../../assets/fonts/PlayfairDisplay-Italic.ttf"),
+    Inter: require("../../assets/fonts/Inter.ttf"),
   });
 
   // useEffect(() => {
   //   if (fontsLoaded) SplashScreen.hideAsync();
   // }, [fontsLoaded]);
 
-  // if (!fontsLoaded) return null;
+  if (!fontsLoaded) return null;
 
   return (
     <>

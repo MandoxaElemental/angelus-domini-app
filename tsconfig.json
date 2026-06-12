@@ -13,7 +13,7 @@
       [
         "expo-notifications",
         {
-          "sounds": ["./assets/audio/triple-bell.mp3"]
+          "sounds": ["./assets/audio/triple-bell.wav"]
         },
         "expo-font",
         {

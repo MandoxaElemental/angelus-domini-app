@@ -91,6 +91,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0.3,
     lineHeight: 40,
+    fontWeight: "600",
   },
   desc: {
     fontFamily: FONT_BODY,
@@ -114,12 +115,14 @@ const styles = StyleSheet.create({
     color: GOLD,
     letterSpacing: 0.5,
     marginBottom: 2,
+    fontWeight: "600",
   },
   counterLabel: {
     fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 15,
     color: IVORY,
     marginBottom: 4,
+    fontWeight: "500",
   },
   counterTagline: {
     fontFamily: FONT_TITLE_ITALIC,

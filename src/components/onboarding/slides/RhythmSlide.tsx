@@ -2,8 +2,17 @@ import React from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles } from "../styles/sharedStyles";
-import { BLUE, GOLD, IVORY, TEXT_SECONDARY } from "../../../lib/constants/colors";
-import { FONT_BODY, FONT_BODY_SEMIBOLD, FONT_TITLE_BOLD } from "../../../lib/constants/fonts";
+import {
+  BLUE,
+  GOLD,
+  IVORY,
+  TEXT_SECONDARY,
+} from "../../../lib/constants/colors";
+import {
+  FONT_BODY,
+  FONT_BODY_SEMIBOLD,
+  FONT_TITLE_BOLD,
+} from "../../../lib/constants/fonts";
 import { SlotItem } from "../../../lib/types/onboarding";
 
 type Props = {
@@ -14,7 +23,13 @@ type Props = {
   onNext: () => void;
 };
 
-export function RhythmSlide({ title, description, slots, isActive, onNext }: Props) {
+export function RhythmSlide({
+  title,
+  description,
+  slots,
+  isActive,
+  onNext,
+}: Props) {
   return (
     <View style={sharedStyles.slide}>
       <View style={sharedStyles.centerContent}>
@@ -32,7 +47,11 @@ export function RhythmSlide({ title, description, slots, isActive, onNext }: Pro
               isVisible={isActive}
               style={styles.cardWrap}
             >
-              <Image source={slot.image} style={styles.image} resizeMode="contain" />
+              <Image
+                source={slot.image}
+                style={styles.image}
+                resizeMode="contain"
+              />
               <View style={styles.textWrap}>
                 <Text style={styles.cardLabel}>{slot.label}</Text>
                 <Text style={styles.cardTime}>{slot.time}</Text>
@@ -47,7 +66,9 @@ export function RhythmSlide({ title, description, slots, isActive, onNext }: Pro
             onPress={onNext}
             style={[sharedStyles.primaryBtn, { backgroundColor: GOLD }]}
           >
-            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>Continue</Text>
+            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
+              Continue
+            </Text>
           </TouchableOpacity>
         </FadeIn>
       </View>
@@ -101,12 +122,13 @@ const styles = StyleSheet.create({
     color: IVORY,
     letterSpacing: 0.2,
     marginBottom: 3,
+    fontWeight: "600",
   },
   cardTime: {
     fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 15,
     color: GOLD,
-    fontWeight: "700",
+    fontWeight: "500",
     letterSpacing: 0.3,
   },
 });

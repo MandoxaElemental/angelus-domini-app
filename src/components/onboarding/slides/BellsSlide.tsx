@@ -1,5 +1,12 @@
 import React from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, ImageSourcePropType } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  ImageSourcePropType,
+} from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width, height } from "../styles/sharedStyles";
 import { BLUE, IVORY, TEXT_SECONDARY } from "../../../lib/constants/colors";
@@ -14,7 +21,14 @@ type Props = {
   onNext: () => void;
 };
 
-export function BellsSlide({ title, description, illustration, buttonText, isActive, onNext }: Props) {
+export function BellsSlide({
+  title,
+  description,
+  illustration,
+  buttonText,
+  isActive,
+  onNext,
+}: Props) {
   return (
     <View style={sharedStyles.slide}>
       <View style={sharedStyles.centerContent}>
@@ -38,7 +52,9 @@ export function BellsSlide({ title, description, illustration, buttonText, isAct
             onPress={onNext}
             style={[sharedStyles.primaryBtn, { backgroundColor: BLUE }]}
           >
-            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>{buttonText}</Text>
+            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
+              {buttonText}
+            </Text>
           </TouchableOpacity>
         </FadeIn>
       </View>
@@ -50,6 +66,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: FONT_TITLE_BOLD,
     fontSize: 40,
+    fontWeight: "600",
     color: BLUE,
     textAlign: "center",
     letterSpacing: 0.3,

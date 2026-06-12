@@ -2,8 +2,17 @@ import React from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles } from "../styles/sharedStyles";
-import { BLUE, GOLD, IVORY, TEXT_SECONDARY } from "../../../lib/constants/colors";
-import { FONT_BODY, FONT_BODY_SEMIBOLD, FONT_TITLE_BOLD } from "../../../lib/constants/fonts";
+import {
+  BLUE,
+  GOLD,
+  IVORY,
+  TEXT_SECONDARY,
+} from "../../../lib/constants/colors";
+import {
+  FONT_BODY,
+  FONT_BODY_SEMIBOLD,
+  FONT_TITLE_BOLD,
+} from "../../../lib/constants/fonts";
 
 type Props = {
   title: string;
@@ -14,7 +23,14 @@ type Props = {
   onSkip: () => void;
 };
 
-export function WelcomeSlide({ title, description, prayerTimes, isActive, onNext, onSkip }: Props) {
+export function WelcomeSlide({
+  title,
+  description,
+  prayerTimes,
+  isActive,
+  onNext,
+  onSkip,
+}: Props) {
   return (
     <View style={sharedStyles.slide}>
       <View style={sharedStyles.centerContent}>
@@ -41,11 +57,16 @@ export function WelcomeSlide({ title, description, prayerTimes, isActive, onNext
             onPress={onNext}
             style={[sharedStyles.primaryBtn, { backgroundColor: BLUE }]}
           >
-            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>Continue</Text>
+            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
+              Continue
+            </Text>
           </TouchableOpacity>
         </FadeIn>
         <FadeIn delay={1200} isVisible={isActive}>
-          <TouchableOpacity onPress={onSkip} style={sharedStyles.skipUnderlineWrap}>
+          <TouchableOpacity
+            onPress={onSkip}
+            style={sharedStyles.skipUnderlineWrap}
+          >
             <Text style={sharedStyles.skipUnderlineText}>Skip</Text>
           </TouchableOpacity>
         </FadeIn>
@@ -68,6 +89,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     lineHeight: 42,
     marginBottom: 10,
+    fontWeight: "600",
   },
   desc: {
     fontFamily: FONT_BODY,
@@ -82,7 +104,7 @@ const styles = StyleSheet.create({
     fontFamily: FONT_BODY_SEMIBOLD,
     color: GOLD,
     fontSize: 28,
-    fontWeight: "700",
+    fontWeight: "500",
     marginTop: 80,
     textAlign: "center",
   },

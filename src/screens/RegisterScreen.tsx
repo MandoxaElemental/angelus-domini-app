@@ -538,25 +538,28 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   glassContainer: {
+    height: 52,
     borderRadius: 6,
-    overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(200,170,90,0.7)",
     paddingHorizontal: 18,
-    paddingVertical: 0,
-    minHeight: 50,
-    justifyContent: "center",
+
+    flexDirection: "row",
+    alignItems: "center",
+
     backgroundColor: "rgba(150,175,215,0.45)",
   },
   glassAndroid: {
     backgroundColor: "rgba(150,175,215,0.68)",
   },
   textInput: {
-    height: 42,
-    fontSize: 12,
+    flex: 1,
+    fontSize: 14,
     fontWeight: "400",
     letterSpacing: 0.2,
+    color: "#FFE6A7",
     textAlignVertical: "center",
+    includeFontPadding: false, // Android
   },
   filledText: {
     color: "#FFE6A7",

@@ -27,17 +27,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SplashScreen from "expo-splash-screen";
 
 SplashScreen.preventAutoHideAsync();
-
-// import {
-//   PlayfairDisplay_400Regular,
-//   PlayfairDisplay_400Regular_Italic,
-//   PlayfairDisplay_600SemiBold,
-//   useFonts,
-// } from "@expo-google-fonts/playfair-display";
 import { NavigationContainer } from "@react-navigation/native";
 import * as Notifications from "expo-notifications";
 
-// import type { RootStackParamList } from "./src/navigation/types";
 import { supabase } from "./src/lib/supabaseClient";
 import {
   getAngelusMode,
@@ -47,8 +39,6 @@ import TabLayout from "./src/navigation/TabLayout";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import LoginScreen from "./src/screens/LoginScreen";
-
-// SplashScreen.preventAutoHideAsync();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -118,6 +108,7 @@ export default function App() {
     async function prepareApp() {
       try {
         const onboarded = await AsyncStorage.getItem("onboarded");
+        console.log("onboarded:", onboarded);
 
         const sessionPromise = supabase.auth.getSession();
 

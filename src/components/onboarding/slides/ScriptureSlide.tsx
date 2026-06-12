@@ -1,9 +1,19 @@
 import React from "react";
-import { TouchableOpacity, Text, View, ImageBackground, StyleSheet } from "react-native";
+import {
+  TouchableOpacity,
+  Text,
+  View,
+  ImageBackground,
+  StyleSheet,
+} from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width, height } from "../styles/sharedStyles";
 import { BLUE } from "../../../lib/constants/colors";
-import { FONT_TITLE_BOLD } from "../../../lib/constants/fonts";
+import {
+  FONT_BODY,
+  FONT_TITLE_BOLD,
+  FONT_TITLE_ITALIC,
+} from "../../../lib/constants/fonts";
 
 type Props = {
   title: string;
@@ -14,7 +24,11 @@ type Props = {
 
 export function ScriptureSlide({ title, subtitle, isActive, onPress }: Props) {
   return (
-    <TouchableOpacity activeOpacity={1} onPress={onPress} style={{ width, height }}>
+    <TouchableOpacity
+      activeOpacity={1}
+      onPress={onPress}
+      style={{ width, height }}
+    >
       <ImageBackground
         source={require("../../../../assets/bgsone.png")}
         style={sharedStyles.slide}
@@ -42,8 +56,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     marginTop: 70,
     lineHeight: 46,
+    fontWeight: "600",
   },
   scriptureItalic: {
+    fontFamily: FONT_TITLE_ITALIC,
     fontSize: 34,
     fontStyle: "italic",
     color: "#FFE6A7",

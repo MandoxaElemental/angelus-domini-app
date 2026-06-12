@@ -1,9 +1,18 @@
 import React from "react";
-import { View, Text, TouchableOpacity, ImageBackground, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ImageBackground,
+  StyleSheet,
+} from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles } from "../styles/sharedStyles";
-import { GOLD, IVORY, BLUE } from "../../../lib/constants/colors";
-import { FONT_TITLE_BOLD } from "../../../lib/constants/fonts";
+import { GOLD, IVORY } from "../../../lib/constants/colors";
+import {
+  FONT_TITLE_BOLD,
+  FONT_TITLE_ITALIC,
+} from "../../../lib/constants/fonts";
 
 type Props = {
   title: string;
@@ -33,7 +42,9 @@ export function BeginSlide({ title, tagline, isActive, onGetStarted }: Props) {
             onPress={onGetStarted}
             style={[sharedStyles.primaryBtn, { backgroundColor: GOLD }]}
           >
-            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>Get Started</Text>
+            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
+              Get Started
+            </Text>
           </TouchableOpacity>
         </FadeIn>
       </View>
@@ -48,16 +59,17 @@ const styles = StyleSheet.create({
     paddingTop: 72,
     paddingHorizontal: 32,
   },
-title: {
-  fontFamily: "PlayfairDisplay_400Regular",  // hardcoded to test
-  fontSize: 36,
-  color: "#1F3A6E",
-  paddingTop: 70,
-  textAlign: "center",
-  letterSpacing: 0.3,
-  lineHeight: 48,
-},
+  title: {
+    fontFamily: FONT_TITLE_BOLD,
+    fontSize: 36,
+    color: "#1F3A6E",
+    paddingTop: 70,
+    textAlign: "center",
+    letterSpacing: 0.3,
+    lineHeight: 48,
+  },
   tagline: {
+    fontFamily: FONT_TITLE_ITALIC,
     fontSize: 30,
     fontStyle: "italic",
     color: "#FFE6A7",

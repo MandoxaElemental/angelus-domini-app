@@ -12,14 +12,21 @@ type Props = {
   onNext: () => void;
 };
 
-export function MeditationSlide({ title, description, isActive, onNext }: Props) {
+export function MeditationSlide({
+  title,
+  description,
+  isActive,
+  onNext,
+}: Props) {
   const titleFontSize = width < 375 ? 30 : 34;
 
   return (
     <View style={sharedStyles.slide}>
       <View style={styles.topSection}>
         <FadeIn delay={120} isVisible={isActive}>
-          <Text style={[styles.title, { fontSize: titleFontSize }]}>{title}</Text>
+          <Text style={[styles.title, { fontSize: titleFontSize }]}>
+            {title}
+          </Text>
         </FadeIn>
       </View>
       <View style={{ alignItems: "center" }}>
@@ -47,7 +54,9 @@ export function MeditationSlide({ title, description, isActive, onNext }: Props)
             onPress={onNext}
             style={[sharedStyles.primaryBtn, { backgroundColor: BLUE }]}
           >
-            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>Continue</Text>
+            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
+              Continue
+            </Text>
           </TouchableOpacity>
         </FadeIn>
       </View>
@@ -69,6 +78,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0.3,
     lineHeight: 44,
+    fontWeight: "600",
   },
   desc: {
     fontFamily: FONT_BODY,

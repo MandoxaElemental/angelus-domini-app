@@ -63,7 +63,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
       await Notifications.setNotificationChannelAsync("angelus-bells", {
         name: "Angelus Bells",
         importance: Notifications.AndroidImportance.HIGH,
-        sound: "../../assets/audio/triple-bell.mp3",
+        sound: "triple-bell.wav",
         vibrationPattern: [0, 250, 250, 250],
       });
     }
@@ -94,7 +94,7 @@ export async function scheduleAngelusNotifications(
       content: {
         title: "🔔 " + label,
         body: "The bells are calling you to prayer. Tap to pray the Angelus.",
-        sound: "default",
+        sound: "triple-bell.wav",
         data: { timeSlot: label }, // optional but useful for navigation
       },
       trigger: {
