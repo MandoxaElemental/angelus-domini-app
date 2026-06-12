@@ -68,7 +68,7 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
   {
     type: "response",
     text: HAIL_MARY_PART_2,
-    duration: 6500,
+    duration: 6900,
     audio: require("../../assets/audio/HolyMaryV1.mp3"),
   },
   { type: "bell", text: "", count: 3, duration: 9900 },
@@ -93,7 +93,7 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
   {
     type: "response",
     text: HAIL_MARY_PART_2,
-    duration: 6500,
+    duration: 6900,
     audio: require("../../assets/audio/HolyMaryV2.mp3"),
   },
   { type: "bell", text: "", count: 3, duration: 9900 },
@@ -118,7 +118,7 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
   {
     type: "response",
     text: HAIL_MARY_PART_2,
-    duration: 6500,
+    duration: 6900,
     audio: require("../../assets/audio/HolyMaryV3.mp3"),
   },
   {
@@ -197,7 +197,6 @@ export default function PrayerScreen() {
   const bellRotate = useRef(new Animated.Value(0)).current;
   const audioRef = useRef<any>(null);
 
-  // ✅ FIX: Always start as false — only set true when route params say so
   const [autoPlay, setAutoPlay] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const isTransitioning = useRef(false);
@@ -259,10 +258,10 @@ export default function PrayerScreen() {
 
       if (item.audio) {
         const player = createAudioPlayer(item.audio);
-
         audioRef.current = player;
-
-        player.play();
+        setTimeout(() => {
+          player.play();
+        }, 100);
       }
     };
 
@@ -388,8 +387,7 @@ export default function PrayerScreen() {
   // Bell sequence: only runs when autoPlay is true
   useEffect(() => {
     if (item.type !== "bell") return;
-    if (!autoPlay) return; // ← bells don't fire on manual open
-
+    if (!audioEnabled) return;
     let cancelled = false;
 
     const runBell = async () => {
@@ -486,13 +484,8 @@ export default function PrayerScreen() {
 
   // Auto-advance timer: only when autoPlay is true
   useEffect(() => {
-    if (!autoPlay) return;
-
+    if (!audioEnabled) return;
     if (item.type === "bell") return;
-    if (currentStep >= PRAYER_SEQUENCE.length - 1) {
-      setAutoPlay(false);
-      return;
-    }
     const timeout = setTimeout(() => {
       transitionToNext();
     }, item.duration);
@@ -530,6 +523,28 @@ export default function PrayerScreen() {
       setCurrentStep((p) => p + 1);
     }
   };
+
+  useEffect(() => {
+    if (item.type === "bell") return;
+    if (!audioEnabled) return;
+
+    const run = async () => {
+      audioRef.current?.remove?.();
+
+      if (item.audio) {
+        const player = createAudioPlayer(item.audio);
+        audioRef.current = player;
+
+        setTimeout(() => {
+          player.play();
+        }, 50);
+      }
+    };
+
+    run();
+
+    return () => audioRef.current?.remove?.();
+  }, [currentStep, audioEnabled]);
 
   const handleRestart = () => {
     // Stop any currently playing voice audio
@@ -704,12 +719,12 @@ export default function PrayerScreen() {
                   {renderPrayer()}
                 </ScrollView>
                 <LinearGradient
-                  colors={["#FFFAF2", "transparent"]}
+                  colors={["#FFFAF2", "rgba(255,250,242,0)"]}
                   style={styles.topFade}
                   pointerEvents="none"
                 />
                 <LinearGradient
-                  colors={["transparent", "#FFFAF2"]}
+                  colors={["rgba(255,250,242,0)", "#FFFAF2"]}
                   style={styles.bottomFade}
                   pointerEvents="none"
                 />
@@ -783,7 +798,7 @@ export default function PrayerScreen() {
             ))}
           </View>
           {/* 🟡 BUTTON */}
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={[
               styles.button,
               (autoPlay || item.type === "bell") && styles.buttonDisabled,
@@ -805,7 +820,7 @@ export default function PrayerScreen() {
                     : "Continue"}
               </Text>
             </LinearGradient>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           {/* ⚙️ CONTROLS */}
           <View style={styles.footerControls}>
             <TouchableOpacity
@@ -827,7 +842,9 @@ export default function PrayerScreen() {
 
                     audioRef.current = player;
 
-                    player.play();
+                    setTimeout(() => {
+                      player.play();
+                    }, 100);
                   }
                 }
               }}
@@ -900,8 +917,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#2F4A7A",
     paddingRight: 24,
     paddingLeft: 12,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",

@@ -353,18 +353,13 @@ export default function MainApp() {
   }, []);
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    fadeAnim.setValue(0);
+
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
   }, [carouselIndex]);
 
   useEffect(() => {
@@ -471,9 +466,9 @@ export default function MainApp() {
   const currentDayImage = useMemo(() => {
     const hour = new Date().getHours();
 
-    if (hour < 12) return "Morning";
-    if (hour < 18) return "Noon";
-    return "Evening";
+    if (hour < 12) return "Noon";
+    if (hour < 18) return "Evening";
+    return "Morning";
   }, [currentHour]);
 
   useEffect(() => {
@@ -575,21 +570,21 @@ export default function MainApp() {
       <SafeAreaView style={styles.container}>
         {/* HEADER */}
         <AppHeader />
-        {/* <TouchableOpacity
-  style={{
-    marginHorizontal: 24,
-    marginTop: 20,
-    padding: 16,
-    backgroundColor: "#C9A24A",
-    borderRadius: 12,
-    alignItems: "center",
-  }}
-  onPress={() => navigation.navigate("Prayer")}
->
-  <Text style={{ color: "#fff", fontWeight: "600" }}>
-    Open Prayer Screen
-  </Text>
-</TouchableOpacity> */}
+        <TouchableOpacity
+          style={{
+            marginHorizontal: 24,
+            marginTop: 20,
+            padding: 16,
+            backgroundColor: "#C9A24A",
+            borderRadius: 12,
+            alignItems: "center",
+          }}
+          onPress={() => navigation.navigate("Prayer")}
+        >
+          <Text style={{ color: "#fff", fontWeight: "600" }}>
+            Open Prayer Screen
+          </Text>
+        </TouchableOpacity>
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* GREETING */}
 
@@ -957,7 +952,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 10,
+    padding: 5,
     flexDirection: "row",
     shadowColor: "#3B2E22",
     shadowOpacity: 0.08,
@@ -1005,7 +1000,7 @@ const styles = StyleSheet.create({
     color: "#6F440A",
     fontSize: 20,
     lineHeight: 20,
-    fontWeight: "700",
+    fontWeight: "600",
     fontFamily: "Cormorant",
   },
   dividerHalf: {
@@ -1040,8 +1035,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     alignItems: "center",
-    paddingVertical: 18,
-    paddingHorizontal: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
     position: "relative",
     shadowColor: "#3B2E22",
     shadowOpacity: 0.08,
@@ -1088,7 +1083,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3EFE7",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 2,
   },
   progressTitle: {
     fontSize: 17,
@@ -1139,7 +1134,7 @@ const styles = StyleSheet.create({
     fontFamily: "Cormorant",
   },
   progressImage: { width: 75, height: 75 },
-  progressImageU: { width: 60, height: 75 },
+  // progressImageU: { width: 60, height: 75 },
   globalCard: {
     marginHorizontal: 24,
     marginTop: 10,
