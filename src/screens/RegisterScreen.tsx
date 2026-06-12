@@ -10,8 +10,10 @@ import {
   StyleSheet,
   Platform,
   StatusBar,
+  Keyboard,
+  KeyboardAvoidingView, // ← ADDED
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -51,6 +53,8 @@ type Country = {
   flag: string;
 };
 
+type ActiveField = "username" | "email" | "password" | null;
+
 function GlassInput({
   children,
   style,
@@ -86,10 +90,15 @@ export default function RegisterScreen({
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
+
+  const [activeField, setActiveField] = useState<ActiveField>(null);
+  const [tempValue, setTempValue] = useState("");
+  const [showTempPassword, setShowTempPassword] = useState(false);
+
+  const floatInputRef = useRef<TextInput>(null);
 
   const [fontsLoaded] = useFonts({
     PlayfairDisplay_400Regular,
@@ -101,7 +110,44 @@ export default function RegisterScreen({
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
+  useEffect(() => {
+    if (activeField) {
+      const timer = setTimeout(() => {
+        floatInputRef.current?.focus();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [activeField]);
+
   if (!fontsLoaded) return null;
+
+  const openField = (field: ActiveField) => {
+    if (field === "username") setTempValue(username);
+    else if (field === "email") setTempValue(email);
+    else if (field === "password") setTempValue(password);
+    setShowTempPassword(false);
+    setActiveField(field);
+  };
+
+  const confirmField = () => {
+    if (activeField === "username") setUsername(tempValue);
+    else if (activeField === "email") setEmail(tempValue);
+    else if (activeField === "password") setPassword(tempValue);
+    Keyboard.dismiss();
+    setActiveField(null);
+  };
+
+  const cancelField = () => {
+    Keyboard.dismiss();
+    setActiveField(null);
+  };
+
+  const getFieldLabel = () => {
+    if (activeField === "username") return "Username";
+    if (activeField === "email") return "Email";
+    if (activeField === "password") return "Password";
+    return "";
+  };
 
   const handleRegister = async () => {
     if (!email || !username || !password) {
@@ -120,7 +166,6 @@ export default function RegisterScreen({
         password,
         selectedCountry.name,
       );
-
       if (data.session) {
         goToHome();
       } else {
@@ -128,6 +173,7 @@ export default function RegisterScreen({
         goToLogin();
       }
     } catch (err: any) {
+      console.log("REGISTER ERROR:", err);
       alert(err.message || "Something went wrong");
     } finally {
       setLoading(false);
@@ -146,6 +192,7 @@ export default function RegisterScreen({
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           <View style={styles.heroSection}>
             <Text style={styles.heroTitle}>Begin with the{"\n"}Angelus</Text>
@@ -159,54 +206,68 @@ export default function RegisterScreen({
           </View>
 
           <View style={styles.formSection}>
-            <GlassInput>
-              <TextInput
-                placeholder="Username"
-                placeholderTextColor="rgba(255,230,167,0.7)"
-                value={username}
-                onChangeText={setUsername}
-                style={styles.textInput}
-              />
-            </GlassInput>
-
-            <GlassInput>
-              <TextInput
-                placeholder="Email"
-                placeholderTextColor="rgba(255,230,167,0.7)"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                style={styles.textInput}
-              />
-            </GlassInput>
-
-            <GlassInput
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-              }}
+            {/* Username */}
+            <TouchableOpacity
+              onPress={() => openField("username")}
+              activeOpacity={0.8}
             >
-              <TextInput
-                placeholder="Password"
-                placeholderTextColor="rgba(255,230,167,0.7)"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                style={[styles.textInput, { flex: 1 }]}
-              />
+              <GlassInput>
+                <Text
+                  style={[
+                    styles.textInput,
+                    username ? styles.filledText : styles.placeholderText,
+                  ]}
+                >
+                  {username || "Username"}
+                </Text>
+              </GlassInput>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
+            {/* Email */}
+            <TouchableOpacity
+              onPress={() => openField("email")}
+              activeOpacity={0.8}
+            >
+              <GlassInput>
+                <Text
+                  style={[
+                    styles.textInput,
+                    email ? styles.filledText : styles.placeholderText,
+                  ]}
+                >
+                  {email || "Email"}
+                </Text>
+              </GlassInput>
+            </TouchableOpacity>
+
+            {/* Password */}
+            <TouchableOpacity
+              onPress={() => openField("password")}
+              activeOpacity={0.8}
+            >
+              <GlassInput
+                style={{ flexDirection: "row", alignItems: "center" }}
               >
+                <Text
+                  style={[
+                    styles.textInput,
+                    { flex: 1 },
+                    password ? styles.filledText : styles.placeholderText,
+                  ]}
+                >
+                  {password
+                    ? "•".repeat(Math.min(password.length, 20))
+                    : "Password"}
+                </Text>
                 <Ionicons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
-                  size={22}
-                  color="#FFE6A7"
+                  name="lock-closed-outline"
+                  size={18}
+                  color="rgba(255,230,167,0.5)"
                 />
-              </TouchableOpacity>
-            </GlassInput>
+              </GlassInput>
+            </TouchableOpacity>
 
+            {/* Country picker */}
             <TouchableOpacity
               onPress={() => setCountryModalVisible(true)}
               activeOpacity={0.8}
@@ -243,34 +304,134 @@ export default function RegisterScreen({
               </Text>
             </TouchableOpacity>
 
-          {/* Login Text Button */}
-<TouchableOpacity
-  onPress={goToLogin}
-  activeOpacity={0.7}
-  style={{
-    alignItems: "center",
-    marginTop: 12,
-  }}
->
-  <Text
-    style={{
-      color: "#FFE6A7",
-      fontSize: 14,
-      fontWeight: "600",
-      textDecorationLine: "underline",
-      letterSpacing: 0.3,
-    }}
-  >
-    Sign in to your account
-  </Text>
-</TouchableOpacity>
+            <TouchableOpacity
+              onPress={goToLogin}
+              activeOpacity={0.7}
+              style={{ alignItems: "center", marginTop: 12 }}
+            >
+              <Text
+                style={{
+                  color: "#FFE6A7",
+                  fontSize: 14,
+                  fontWeight: "600",
+                  textDecorationLine: "underline",
+                  letterSpacing: 0.3,
+                }}
+              >
+                Sign in to your account
+              </Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
 
+        {/* ✅ FIXED FLOATING INPUT BOTTOM SHEET */}
+        <Modal
+          visible={activeField !== null}
+          transparent
+          animationType="slide"
+          statusBarTranslucent // ← ADDED
+          onRequestClose={cancelField}
+        >
+          {/* ← ADDED: fixes keyboard pushing sheet correctly in APK */}
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={cancelField}
+              style={styles.floatBackdrop}
+            >
+              <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+                <View style={styles.floatSheet}>
+                  {/* Drag Handle */}
+                  <View style={styles.modalHandle} />
+
+                  {/* Header */}
+                  <View style={styles.floatHeader}>
+                    <TouchableOpacity
+                      onPress={cancelField}
+                      style={styles.floatHeaderBtn}
+                    >
+                      <Text style={styles.floatCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.floatTitle}>{getFieldLabel()}</Text>
+
+                    <TouchableOpacity
+                      onPress={confirmField}
+                      style={[
+                        styles.floatHeaderBtn,
+                        { alignItems: "flex-end" },
+                      ]}
+                    >
+                      <Text style={styles.floatDoneText}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.modalDivider} />
+
+                  {/* Input */}
+                  <View style={styles.floatInputRow}>
+                    <TextInput
+                      ref={floatInputRef}
+                      value={tempValue}
+                      onChangeText={setTempValue}
+                      style={styles.floatTextInput}
+                      placeholder={`Enter ${getFieldLabel()}`}
+                      placeholderTextColor="#C0B8A8"
+                      secureTextEntry={
+                        activeField === "password" && !showTempPassword
+                      }
+                      keyboardType={
+                        activeField === "email" ? "email-address" : "default"
+                      }
+                      autoCapitalize={
+                        activeField === "email" || activeField === "password"
+                          ? "none"
+                          : "words"
+                      }
+                      returnKeyType="done"
+                      onSubmitEditing={confirmField}
+                      autoCorrect={false}
+                    />
+
+                    {activeField === "password" && (
+                      <TouchableOpacity
+                        onPress={() => setShowTempPassword((prev) => !prev)}
+                        style={styles.eyeBtn}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons
+                          name={
+                            showTempPassword ? "eye-outline" : "eye-off-outline"
+                          }
+                          size={24}
+                          color="#C8922A"
+                        />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {activeField === "password" && (
+                    <Text style={styles.floatHelperText}>
+                      {showTempPassword
+                        ? "Password is visible"
+                        : "Password is hidden"}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* ✅ FIXED COUNTRY PICKER MODAL */}
         <Modal
           visible={countryModalVisible}
           transparent
           animationType="slide"
+          statusBarTranslucent // ← ADDED
           onRequestClose={() => setCountryModalVisible(false)}
         >
           <TouchableOpacity
@@ -392,10 +553,16 @@ const styles = StyleSheet.create({
   },
   textInput: {
     height: 42,
-    color: "#FFE6A7",
     fontSize: 12,
     fontWeight: "400",
     letterSpacing: 0.2,
+    textAlignVertical: "center",
+  },
+  filledText: {
+    color: "#FFE6A7",
+  },
+  placeholderText: {
+    color: "rgba(255,230,167,0.7)",
   },
   nextBtn: {
     backgroundColor: "#C8922A",
@@ -416,21 +583,75 @@ const styles = StyleSheet.create({
     fontSize: 16,
     letterSpacing: 0.6,
   },
-  loginBtn: {
-    backgroundColor: "transparent",
-    borderRadius: 50,
-    height: 56,
+  floatBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  floatSheet: {
+    backgroundColor: "#FFFDF7",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === "ios" ? 50 : 48,
+  },
+  floatHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  floatHeaderBtn: {
+    minWidth: 64,
+  },
+  floatTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1F3A6E",
+    textAlign: "center",
+    flex: 1,
+  },
+  floatCancelText: {
+    fontSize: 14,
+    color: "#888",
+    fontWeight: "500",
+  },
+  floatDoneText: {
+    fontSize: 14,
+    color: "#C8922A",
+    fontWeight: "700",
+    textAlign: "right",
+  },
+  floatInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginTop: 16,
+    borderWidth: 1.5,
+    borderColor: "#D4A017",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    backgroundColor: "#FFF8EE",
+  },
+  floatTextInput: {
+    flex: 1,
+    height: 48,
+    fontSize: 16,
+    color: "#1C1C1C",
+    fontWeight: "400",
+  },
+  eyeBtn: {
+    paddingLeft: 8,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#D4A017",
-    marginTop: 4,
   },
-  loginBtnText: {
-    color: "#FFE6A7",
-    fontWeight: "700",
-    fontSize: 14,
-    letterSpacing: 0.4,
+  floatHelperText: {
+    fontSize: 11,
+    color: "#AAA",
+    marginTop: 6,
+    marginLeft: 22,
   },
   modalBackdrop: {
     flex: 1,
