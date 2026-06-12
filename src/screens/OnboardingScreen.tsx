@@ -8,13 +8,10 @@ import {
   PlayfairDisplay_700Bold,
   PlayfairDisplay_700Bold_Italic,
 } from "@expo-google-fonts/playfair-display";
-import * as SplashScreen from "expo-splash-screen";
 
 import { ONBOARDING_SLIDES } from "../lib/config/onboardingData";
-import { useOnboarding }     from "../lib/hooks/useOnboarding";
-import { SlideItem }         from "../components/onboarding/slides/SlideItem";
-
-SplashScreen.preventAutoHideAsync();
+import { useOnboarding } from "../lib/hooks/useOnboarding";
+import { SlideItem } from "../components/onboarding/slides/SlideItem";
 
 const { width } = Dimensions.get("window");
 
@@ -39,15 +36,19 @@ export default function OnboardingScreen({ onDone }: Props) {
     PlayfairDisplay_700Bold_Italic,
   });
 
-  useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync();
-  }, [fontsLoaded]);
+  // useEffect(() => {
+  //   if (fontsLoaded) SplashScreen.hideAsync();
+  // }, [fontsLoaded]);
 
-  if (!fontsLoaded) return null;
+  // if (!fontsLoaded) return null;
 
   return (
     <>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="light-content"
+      />
       <ScrollView
         ref={scrollRef}
         horizontal

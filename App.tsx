@@ -24,6 +24,9 @@ import {
 import type { EdgeInsets, Rect } from "react-native-safe-area-context";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SplashScreen from "expo-splash-screen";
+
+SplashScreen.preventAutoHideAsync();
 
 // import {
 //   PlayfairDisplay_400Regular,
@@ -100,6 +103,12 @@ export default function App() {
   // });
 
   const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    if (isReady) {
+      SplashScreen.hideAsync();
+    }
+  }, [isReady]);
   const [screen, setScreen] = useState<Screen>("onboarding");
 
   // ── Auth + initial screen ─────────────────────────────────────────────────
