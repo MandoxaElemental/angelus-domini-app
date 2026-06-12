@@ -25,12 +25,12 @@ import type { EdgeInsets, Rect } from "react-native-safe-area-context";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import {
-  PlayfairDisplay_400Regular,
-  PlayfairDisplay_400Regular_Italic,
-  PlayfairDisplay_600SemiBold,
-  useFonts,
-} from "@expo-google-fonts/playfair-display";
+// import {
+//   PlayfairDisplay_400Regular,
+//   PlayfairDisplay_400Regular_Italic,
+//   PlayfairDisplay_600SemiBold,
+//   useFonts,
+// } from "@expo-google-fonts/playfair-display";
 import { NavigationContainer } from "@react-navigation/native";
 import * as Notifications from "expo-notifications";
 
