@@ -4,7 +4,7 @@
     "slug": "angelus-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Angelus-domini.png",
+    "icon": "./assets/mobile_icon_1.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -14,12 +14,13 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.angelusapp"
+      "bundleIdentifier": "com.anonymous.angelusapp",
+      "icon": "./assets/mobile_icon.png"
     },
     "android": {
       "package": "com.annieann.angelusapp",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/Angelus-domini.png",
+        "foregroundImage": "./assets/mobile_icon_1.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -45,7 +46,9 @@
         {
           "icon": "./assets/bell.png",
           "color": "#2F4A7A",
-          "sounds": [ "./assets/audio/triple_bell.mp3" ]
+          "sounds": [
+            "./assets/audio/triple_bell.mp3"
+          ]
         }
       ],
       "expo-asset",
@@ -53,7 +56,7 @@
     ],
     "extra": {
       "eas": {
-       "projectId": "e71945d2-0b4b-437b-addf-cf297d63f144"
+        "projectId": "5ecbc0b7-313d-4ab7-b556-0b647de87bbc"
       }
     }
   }

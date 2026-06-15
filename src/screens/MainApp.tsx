@@ -6,6 +6,8 @@
  *  4. JWT expired errors caught in mount, fetchGlobalPrayedToday, and all queries.
  *  5. Explicit token expiry check before mount queries so stale tokens are refreshed first.
  *  6. FIXED: users table queried with correct capital column names (Id, Username).
+ *  7. NEW: First-time users (account created today) never see "Missed" on Daily Prayer
+ *     Progress for slots that already passed earlier today — shown as "Upcoming" instead.
  */
 
 import {
@@ -40,9 +42,9 @@ const COLORS = {
 };
 
 const prayerImages: Record<string, any> = {
-  Morning: require("../../assets/Morning.png"),
-  Noon:    require("../../assets/Noon.png"),
-  Evening: require("../../assets/Evening.png"),
+  Morning: require("../../assets/Morning_icon.png"),
+  Noon:    require("../../assets/Noon_icon.png"),
+  Evening: require("../../assets/Evening_icon.png"),
 };
 
 const progressImages: Record<string, any> = {
@@ -147,6 +149,7 @@ export default function MainApp({ onLogout }: Props) {
   const [count,            setCount]            = useState(0);
   const [userId,           setUserId]           = useState("");
   const [username,         setUsername]         = useState("");
+  const [isFirstTimeUser,  setIsFirstTimeUser]  = useState(false);
   const [completedPrayers, setCompletedPrayers] = useState({
     morning: false, noon: false, evening: false,
   });
@@ -238,6 +241,28 @@ export default function MainApp({ onLogout }: Props) {
         if (!auth?.user?.id) return;
         const uid = auth.user.id;
         setUserId(uid);
+
+        // ── Determine first-time user based on account creation date ──────
+        // If the account was created "today" (same local calendar date),
+        // suppress "Missed" status for any prayer slot that already passed
+        // earlier today, since the user couldn't have prayed for it yet.
+        try {
+          const createdAtStr = auth.user.created_at; // ISO string from Supabase Auth
+          if (createdAtStr) {
+            const createdAt = new Date(createdAtStr);
+            const now = new Date();
+
+            const isSameDay =
+              createdAt.getFullYear() === now.getFullYear() &&
+              createdAt.getMonth()    === now.getMonth() &&
+              createdAt.getDate()     === now.getDate();
+
+            setIsFirstTimeUser(isSameDay);
+          }
+        } catch (err) {
+          console.error("first-time user check error:", err);
+        }
+        // ─────────────────────────────────────────────────────────────────
 
         // Try user_metadata first (fastest, no DB call)
         const meta = auth.user.user_metadata?.username || auth.user.user_metadata?.name;
@@ -426,9 +451,10 @@ export default function MainApp({ onLogout }: Props) {
     });
   };
 
-  const morningStatus = getPrayerStatus("morning", completedPrayers.morning);
-  const noonStatus    = getPrayerStatus("noon",    completedPrayers.noon);
-  const eveningStatus = getPrayerStatus("evening", completedPrayers.evening);
+  // ── Suppress "Missed" status on Daily Prayer Progress for first-time users ──
+  const morningStatus = getPrayerStatus("morning", completedPrayers.morning, isFirstTimeUser);
+  const noonStatus    = getPrayerStatus("noon",    completedPrayers.noon,    isFirstTimeUser);
+  const eveningStatus = getPrayerStatus("evening", completedPrayers.evening, isFirstTimeUser);
 
   return (
     <>
@@ -502,7 +528,7 @@ export default function MainApp({ onLogout }: Props) {
           {/* GLOBAL COUNT */}
           <View style={styles.globalCard}>
             <View style={styles.globe}>
-              <Image source={require("../../assets/globe.png")} style={styles.globeIcon} />
+              <Image source={require("../../assets/Global_icon.png")} style={styles.globeIcon} />
             </View>
             <View style={styles.globalRight}>
               <Text style={styles.globalLabel}>GLOBAL PRAYER TODAY</Text>
@@ -526,6 +552,8 @@ export default function MainApp({ onLogout }: Props) {
         
 
           <View style={{ height: 40 }} />
+
+          
         </ScrollView>
       </SafeAreaView>
     </>

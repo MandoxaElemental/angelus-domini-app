@@ -29,7 +29,7 @@ export const PRAYER_WINDOW_MINUTES = 5;
 const ACTIVE_WINDOW_MS =
   PRAYER_WINDOW_MINUTES * 60 * 1000;
 
-export function getPrayerStatus(key: string, completed: boolean): PrayerStatus {
+export function getPrayerStatus(key: string, completed: boolean, suppressMissed = false): PrayerStatus {
   if (completed) return "completed";
 
   const now    = new Date();
@@ -41,6 +41,7 @@ export function getPrayerStatus(key: string, completed: boolean): PrayerStatus {
 
   if (now < start)                       return "upcoming";
   if (now >= start && now <= activeEnd)  return "active";
+  if (suppressMissed)                    return "upcoming";
   return "missed";
 }
 

@@ -55,10 +55,9 @@ const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
 };
 
 // ── Week helpers ──────────────────────────────────────────────────────────────
-function getWeekMonday(now: Date): Date {
+function getWeekSunday(now: Date): Date {
   const d = new Date(now);
-  const diff = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - diff);
+  d.setDate(d.getDate() - d.getDay()); // Sunday = 0, so this lands on Sun
   d.setHours(0, 0, 0, 0);
   return d;
 }
@@ -72,12 +71,13 @@ type DotStatus = "completed" | "missed" | "active" | "upcoming";
 function getDotStatus(
   dayIndex: number,
   prayerHour: number,
-  monday: Date,
+  weekStart: Date,
   now: Date,
-  completedDays: Set<string>
+  completedDays: Set<string>,
+  suppressMissed = false
 ): DotStatus {
-  const slotDate = new Date(monday);
-  slotDate.setDate(monday.getDate() + dayIndex);
+  const slotDate = new Date(weekStart);
+  slotDate.setDate(weekStart.getDate() + dayIndex);
   const dateStr = toDateStr(slotDate);
 
   if (completedDays.has(dateStr)) return "completed";
@@ -94,11 +94,11 @@ function getDotStatus(
 
   if (isToday) {
     if (now >= windowStart && now <= windowEnd) return "active";
-    if (now > windowEnd)                        return "missed";
+    if (now > windowEnd)                        return suppressMissed ? "upcoming" : "missed";
     return "upcoming";
   }
 
-  if (slotDate < now && now > windowEnd) return "missed";
+  if (slotDate < now && now > windowEnd) return suppressMissed ? "upcoming" : "missed";
   return "upcoming";
 }
 
@@ -131,6 +131,7 @@ export default function MenuScreen({ onLogout }: Props) {
   const bellRotate  = useRef(new Animated.Value(0)).current;
 
   const [userId,           setUserId]           = useState("");
+  const [isFirstTimeUser,  setIsFirstTimeUser]  = useState(false);
   const [completedPrayers, setCompletedPrayers] = useState({
     morning: false, noon: false, evening: false,
   });
@@ -175,13 +176,13 @@ export default function MenuScreen({ onLogout }: Props) {
         setCompletedPrayers(updated);
       }
 
-      // ── Week range: query by Slot prefix for Mon–Sun ──────────────────────
-      const monday = getWeekMonday(nowSnap);
+      // ── Week range: query by Slot prefix for Sun–Sat ──────────────────────
+      const weekStart = getWeekSunday(nowSnap);
 
       const weekPrefixes: string[] = [];
       for (let i = 0; i < 7; i++) {
-        const d  = new Date(monday);
-        d.setDate(monday.getDate() + i);
+        const d  = new Date(weekStart);
+        d.setDate(weekStart.getDate() + i);
         const y  = d.getFullYear();
         const mo = String(d.getMonth() + 1).padStart(2, "0");
         const da = String(d.getDate()).padStart(2, "0");
@@ -263,6 +264,28 @@ export default function MenuScreen({ onLogout }: Props) {
         const uid = authSession.user.id;
         setUserId(uid);
 
+        // ── Determine first-time user based on account creation date ──────
+        // If the account was created "today" (same local calendar date),
+        // suppress "Missed" status for any prayer slot that already passed
+        // earlier today, since the user couldn't have prayed for it yet.
+        try {
+          const createdAtStr = authSession.user.created_at; // ISO string from Supabase Auth
+          if (createdAtStr) {
+            const createdAt = new Date(createdAtStr);
+            const nowDate = new Date();
+
+            const isSameDay =
+              createdAt.getFullYear() === nowDate.getFullYear() &&
+              createdAt.getMonth()    === nowDate.getMonth() &&
+              createdAt.getDate()     === nowDate.getDate();
+
+            setIsFirstTimeUser(isSameDay);
+          }
+        } catch (err) {
+          console.error("first-time user check error:", err);
+        }
+        // ─────────────────────────────────────────────────────────────────
+
         await startPrayer(uid);
         await fetchData(uid);
 
@@ -324,27 +347,28 @@ export default function MenuScreen({ onLogout }: Props) {
   }, []);
 
   // ── Derived state ─────────────────────────────────────────────────────────
-  const morningStatus = getPrayerStatus("morning", completedPrayers.morning);
-  const noonStatus    = getPrayerStatus("noon",    completedPrayers.noon);
-  const eveningStatus = getPrayerStatus("evening", completedPrayers.evening);
+  const morningStatus = getPrayerStatus("morning", completedPrayers.morning, isFirstTimeUser);
+  const noonStatus    = getPrayerStatus("noon",    completedPrayers.noon,    isFirstTimeUser);
+  const eveningStatus = getPrayerStatus("evening", completedPrayers.evening, isFirstTimeUser);
 
-  const monday = getWeekMonday(now);
+  const weekStart = getWeekSunday(now);
 
   const morningDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
-    getDotStatus(i, 6,  monday, now, weekMorning)
+    getDotStatus(i, 6,  weekStart, now, weekMorning, isFirstTimeUser)
   );
   const noonDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
-    getDotStatus(i, 12, monday, now, weekNoon)
+    getDotStatus(i, 12, weekStart, now, weekNoon, isFirstTimeUser)
   );
   const eveningDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
-    getDotStatus(i, 18, monday, now, weekEvening)
+    getDotStatus(i, 18, weekStart, now, weekEvening, isFirstTimeUser)
   );
 
   const morningCount = morningDots.filter((d) => d === "completed").length;
   const noonCount    = noonDots.filter((d) => d === "completed").length;
   const eveningCount = eveningDots.filter((d) => d === "completed").length;
 
-  const todayColIndex = (now.getDay() + 6) % 7;
+  // Sunday=0 maps directly to column 0 (first column is Sunday)
+  const todayColIndex = now.getDay();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -417,7 +441,7 @@ export default function MenuScreen({ onLogout }: Props) {
             <View style={styles.weekIconPlaceholder} />
             <View style={styles.weekLabelPlaceholder} />
             <View style={styles.weekDayLabels}>
-              {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+              {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
                 <View key={i} style={[
                   styles.weekDayLabelWrap,
                   i === todayColIndex && styles.weekDayLabelWrapToday,

@@ -350,7 +350,7 @@ export default function PrayerScreen() {
           ) : item.type === "bell" ? (
             <View style={styles.bellCardContent}>
               <Animated.View style={[StyleSheet.absoluteFillObject, styles.nextPrayerLayer, {
-                opacity: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] }),
+                opacity: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.15] }),
               }]}>
                 <Text style={styles.upcomingPrayer}>{nextItem?.text || ""}</Text>
               </Animated.View>
