@@ -244,19 +244,19 @@ export default function MainApp() {
     {
       title: "MORNING ANGELUS",
       value: globalStats.morning,
-      subtitle: " prayed this Morning",
+      subtitle: " prayed at this hour",
       description: "6:00 AM",
     },
     {
       title: "NOON ANGELUS",
       value: globalStats.noon,
-      subtitle: " prayed at Noon",
+      subtitle: " prayed at this hour",
       description: "12:00 PM",
     },
     {
       title: "EVENING ANGELUS",
       value: globalStats.evening,
-      subtitle: " prayed this Evening",
+      subtitle: " prayed at this hour",
       description: "6:00 PM",
     },
   ];
@@ -337,6 +337,27 @@ export default function MainApp() {
 
     return stats;
   }
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("global-prayer-stats")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "PrayerSessions",
+        },
+        async () => {
+          await refreshGlobalStats();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const refreshGlobalStats = async () => {
     const stats = await getGlobalPrayerStats();
@@ -1142,7 +1163,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 14,
+    padding: 10,
     flexDirection: "row",
     alignItems: "flex-start",
     shadowColor: "#3B2E22",
@@ -1152,14 +1173,12 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   globe: {
-    width: 110,
-    height: 110,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 14,
+    marginRight: 6,
     alignSelf: "center",
   },
-  globeIcon: { width: 110, height: 110 },
+  globeIcon: { width: 130, height: 130 },
   globalRight: { flex: 1, justifyContent: "center" },
   globalLabel: {
     color: COLORS.navy,

@@ -1073,7 +1073,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 26,
-    marginTop: -4,
+    marginTop: 10,
   },
   footerAction: {
     color: "#6B5E52",
