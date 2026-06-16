@@ -13,6 +13,7 @@ import { getGlobalCount, startPrayer } from "../api/prayerApi";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
 import { AngelusMode, getAngelusMode } from "../services/notificationService";
+import { useFonts } from "expo-font";
 
 type Props = {
   onLogout: () => void;
@@ -56,11 +57,9 @@ const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
   return null;
 };
 
-function getWeekMonday(now: Date): Date {
+function getWeekSunday(now: Date): Date {
   const d = new Date(now);
-  const day = d.getDay();
-  const diff = (day + 6) % 7;
-  d.setDate(d.getDate() - diff);
+  d.setDate(d.getDate() - d.getDay());
   d.setHours(0, 0, 0, 0);
   return d;
 }
@@ -134,6 +133,14 @@ function formatDayOfWeek(d: Date): string {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export default function MenuScreen({ onLogout }: Props) {
+  const [fontsLoaded] = useFonts({
+    CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
+    EBGaramond_Medium: require("../../assets/fonts/EBGaramond-Medium.ttf"),
+  });
+
+  if (!fontsLoaded) {
+    return null;
+  }
   const [count, setCount] = useState(0);
   const [userId, setUserId] = useState("");
   const [completedPrayers, setCompletedPrayers] = useState({
@@ -190,19 +197,19 @@ export default function MenuScreen({ onLogout }: Props) {
         setCompletedPrayers(updated);
       }
 
-      const monday = getWeekMonday(nowSnap);
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      sunday.setHours(23, 59, 59, 999);
+      const weekStart = getWeekSunday(nowSnap);
+
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
 
       const { data: weekSessions } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed, ScheduledTime")
         .eq("UserId", uid)
         .eq("Completed", true)
-        .gte("ScheduledTime", monday.toISOString())
-        .lte("ScheduledTime", sunday.toISOString());
-
+        .gte("ScheduledTime", weekStart.toISOString())
+        .lte("ScheduledTime", weekEnd.toISOString());
       if (weekSessions) {
         const morningDays = new Set<string>();
         const noonDays = new Set<string>();
@@ -331,21 +338,22 @@ export default function MenuScreen({ onLogout }: Props) {
           ? "Missed"
           : "Awaiting";
 
-  const monday = getWeekMonday(now);
+  const weekStart = getWeekSunday(now);
 
   const morningDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
-    getDotStatus(i, 6, monday, now, weekMorning),
+    getDotStatus(i, 6, weekStart, now, weekMorning),
   );
   const noonDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
-    getDotStatus(i, 12, monday, now, weekNoon),
+    getDotStatus(i, 6, weekStart, now, weekNoon),
   );
   const eveningDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
-    getDotStatus(i, 18, monday, now, weekEvening),
+    getDotStatus(i, 6, weekStart, now, weekEvening),
   );
 
   const morningCount = morningDots.filter((d) => d === "completed").length;
   const noonCount = noonDots.filter((d) => d === "completed").length;
   const eveningCount = eveningDots.filter((d) => d === "completed").length;
+  const todayColIndex = now.getDay();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -449,13 +457,28 @@ export default function MenuScreen({ onLogout }: Props) {
           <View style={styles.weekDayHeader}>
             <View style={styles.weekIconPlaceholder} />
             <View style={styles.weekLabelPlaceholder} />
+
             <View style={styles.weekDayLabels}>
-              {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-                <Text key={i} style={styles.weekDayLabel}>
-                  {d}
-                </Text>
+              {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.weekDayLabelWrap,
+                    i === todayColIndex && styles.weekDayLabelWrapToday,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.weekDayLabel,
+                      i === todayColIndex && styles.weekDayLabelToday,
+                    ]}
+                  >
+                    {d}
+                  </Text>
+                </View>
               ))}
             </View>
+
             <View style={styles.weekCountPlaceholder} />
           </View>
 
@@ -591,19 +614,20 @@ function WeekRow({
       <Text style={styles.weekLabel}>{label}</Text>
       <View style={styles.dotsRow}>
         {dots.map((status, i) => (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              disabled
-                ? { backgroundColor: "#D9D9D9" }
-                : status === "completed"
-                  ? styles.dotFilled
-                  : status === "missed"
-                    ? styles.dotMissed
-                    : styles.dotEmpty,
-            ]}
-          />
+          <View key={i} style={styles.dotWrap}>
+            <View
+              style={[
+                styles.dot,
+                disabled
+                  ? { backgroundColor: "#D9D9D9" }
+                  : status === "completed"
+                    ? styles.dotFilled
+                    : status === "missed"
+                      ? styles.dotMissed
+                      : styles.dotEmpty,
+              ]}
+            />
+          </View>
         ))}
       </View>
       <Text style={styles.weekCount}>{disabled ? "—" : `${count}/7`}</Text>
@@ -660,7 +684,7 @@ const styles = StyleSheet.create({
   dateTimeDate: {
     fontSize: 13,
     color: COLORS.navy,
-    fontFamily: "EBGaramond-Medium",
+    fontFamily: "EBGaramond_Medium",
     fontWeight: "600",
     flexShrink: 1,
   },
@@ -672,7 +696,7 @@ const styles = StyleSheet.create({
   dateTimeDay: {
     fontSize: 13,
     color: COLORS.navy,
-    fontFamily: "EBGaramond-Medium",
+    fontFamily: "EBGaramond_Medium",
     fontWeight: "500",
     flexShrink: 0,
   },
@@ -694,7 +718,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 32,
     color: COLORS.navy,
-    fontFamily: "EBGaramond-Medium",
+    fontFamily: "EBGaramond_Medium",
     fontWeight: "600",
     textAlign: "center",
   },
@@ -724,7 +748,7 @@ const styles = StyleSheet.create({
   sectionCardTitle: {
     fontSize: 22,
     color: COLORS.gold,
-    fontFamily: "EBGaramond-Medium",
+    fontFamily: "EBGaramond_Medium",
     fontWeight: "600",
     textAlign: "center",
     marginBottom: 8,
@@ -755,7 +779,7 @@ const styles = StyleSheet.create({
   angelusTitle: {
     fontSize: 18,
     color: COLORS.textPrimary,
-    fontFamily: "EBGaramond-Medium",
+    fontFamily: "EBGaramond_Medium",
     fontWeight: "600",
   },
   angelusSubtitle: {
@@ -774,18 +798,34 @@ const styles = StyleSheet.create({
   weekIconPlaceholder: { width: 40, marginRight: 10 },
   weekLabelPlaceholder: { width: 64 },
   weekDayLabels: {
-    marginLeft: 10,
     flex: 1,
     flexDirection: "row",
-    justifyContent: "space-between",
+  },
+
+  weekDayLabelWrap: {
+    flex: 1,
     alignItems: "center",
   },
+
+  weekDayLabelWrapToday: {
+    backgroundColor: COLORS.gold,
+    borderRadius: 99,
+    width: 14,
+    height: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
   weekDayLabel: {
-    width: 10,
     fontSize: 10,
     color: COLORS.muted,
     fontFamily: "CormorantGaramond",
     textAlign: "center",
+  },
+
+  weekDayLabelToday: {
+    color: "#FFF",
+    fontWeight: "700",
   },
   weekCountPlaceholder: { width: 30, marginLeft: 8 },
 
@@ -795,14 +835,17 @@ const styles = StyleSheet.create({
     width: 64,
     fontSize: 16,
     color: COLORS.textPrimary,
-    fontFamily: "EBGaramond-Medium",
+    fontFamily: "EBGaramond_Medium",
   },
   dotsRow: {
-    marginLeft: 10,
     flex: 1,
     flexDirection: "row",
-    justifyContent: "space-between",
+  },
+
+  dotWrap: {
+    flex: 1,
     alignItems: "center",
+    justifyContent: "center",
   },
   dot: { width: 10, height: 10, borderRadius: 5 },
   dotFilled: { backgroundColor: COLORS.gold },
@@ -856,7 +899,7 @@ const styles = StyleSheet.create({
   statsCaption: {
     fontSize: 13,
     color: COLORS.textSecondary,
-    fontFamily: "EBGaramond-Medium",
+    fontFamily: "EBGaramond_Medium",
     marginTop: 4,
   },
 
