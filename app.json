@@ -2,7 +2,7 @@
   "expo": {
     "name": "Angelus Domini",
     "slug": "angelus-domini",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/bell.png",
     "userInterfaceStyle": "light",
@@ -39,7 +39,12 @@
       "expo-secure-store",
       "expo-splash-screen",
       "expo-audio",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/audio/triple-bell.wav"]
+        }
+      ],
       "expo-asset"
     ],
     "extra": {

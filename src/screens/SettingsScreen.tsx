@@ -26,6 +26,7 @@ import {
   getAngelusMode,
   setAngelusMode,
 } from "../services/notificationService";
+import { useFonts } from "expo-font";
 
 const COLORS = {
   navy: "#2F4A7A",
@@ -233,6 +234,10 @@ type Props = { onLogout: () => void };
 type TogglesState = Record<AngelusTime, boolean>;
 
 export default function SettingsScreen({ onLogout }: Props) {
+  useFonts({
+    CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
+    EBGaramond_Medium: require("../../assets/fonts/EBGaramond-Medium.ttf"),
+  });
   const ringScale = useRef(new Animated.Value(1)).current;
   const ringOpacity = useRef(new Animated.Value(0.4)).current;
   const bellRotate = useRef(new Animated.Value(0)).current;
@@ -947,7 +952,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     letterSpacing: 1.5,
     marginHorizontal: 12,
-    fontFamily: "EBGaramond-Medium",
+    fontFamily: "EBGaramond_Medium",
   },
   line: { flex: 1, height: 1, backgroundColor: COLORS.border },
   card: {
@@ -975,7 +980,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     color: COLORS.navy,
-    fontFamily: "EBGaramond-Medium",
+    fontFamily: "EBGaramond_Medium",
     fontWeight: "600",
   },
   cardDivider: {

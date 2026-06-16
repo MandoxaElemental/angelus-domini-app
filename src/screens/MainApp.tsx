@@ -12,7 +12,7 @@ import {
   Dimensions,
 } from "react-native";
 
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { createAudioPlayer } from "expo-audio";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
@@ -192,9 +192,23 @@ export default function MainApp() {
 
   const [angelusMode, setAngelusMode] = useState<AngelusMode>("all_three");
 
-  useEffect(() => {
-    getAngelusMode().then(setAngelusMode);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+
+      (async () => {
+        const mode = await getAngelusMode();
+
+        if (mounted) {
+          setAngelusMode(mode);
+        }
+      })();
+
+      return () => {
+        mounted = false;
+      };
+    }, []),
+  );
 
   const navigation = useNavigation<any>();
 
@@ -499,7 +513,9 @@ export default function MainApp() {
       const m = now.getMinutes();
       const date = now.toDateString();
 
-      const isPrayerHour = h === 6 || h === 12 || h === 18;
+      const allowedHours = angelusMode === "noon_only" ? [12] : [6, 12, 18];
+
+      const isPrayerHour = allowedHours.includes(h);
       if (!isPrayerHour || m !== 0) return;
 
       const alreadyFired = triggeredToday.current.get(h);
@@ -535,7 +551,7 @@ export default function MainApp() {
 
     const id = setInterval(check, 1000);
     return () => clearInterval(id);
-  }, [session, userId, navigation]);
+  }, [session, userId, navigation, angelusMode]);
 
   // ─────────────────────────────────────────────────────────────
   // COMPLETE PRAYER

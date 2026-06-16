@@ -14,6 +14,7 @@ import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
 import { AngelusMode, getAngelusMode } from "../services/notificationService";
 import { useFonts } from "expo-font";
+import { useFocusEffect } from "@react-navigation/native";
 
 type Props = {
   onLogout: () => void;
@@ -133,14 +134,11 @@ function formatDayOfWeek(d: Date): string {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export default function MenuScreen({ onLogout }: Props) {
-  const [fontsLoaded] = useFonts({
+  useFonts({
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
-    EBGaramond_Medium: require("../../assets/fonts/EBGaramond-Medium.ttf"),
+    EBGaramond: require("../../assets/fonts/EBGaramond-Medium.ttf"),
   });
 
-  if (!fontsLoaded) {
-    return null;
-  }
   const [count, setCount] = useState(0);
   const [userId, setUserId] = useState("");
   const [completedPrayers, setCompletedPrayers] = useState({
@@ -148,28 +146,6 @@ export default function MenuScreen({ onLogout }: Props) {
     noon: false,
     evening: false,
   });
-  const [angelusMode, setAngelusModeState] = useState<AngelusMode>("all_three");
-  useEffect(() => {
-    (async () => {
-      const mode = await getAngelusMode();
-      setAngelusModeState(mode);
-    })();
-  }, []);
-
-  const [weekMorning, setWeekMorning] = useState<Set<string>>(new Set());
-  const [weekNoon, setWeekNoon] = useState<Set<string>>(new Set());
-  const [weekEvening, setWeekEvening] = useState<Set<string>>(new Set());
-
-  const [totalMonth, setTotalMonth] = useState(0);
-  const [totalYear, setTotalYear] = useState(0);
-
-  // ── Live clock ────────────────────────────────────────────────────────────
-  const [now, setNow] = useState(new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  // ──────────────────────────────────────────────────────────────────────────
 
   const fetchData = useCallback(async (uid: string) => {
     try {
@@ -254,6 +230,43 @@ export default function MenuScreen({ onLogout }: Props) {
       console.error("❌ MenuScreen fetchData error:", err);
     }
   }, []);
+  const [angelusMode, setAngelusModeState] = useState<AngelusMode>("all_three");
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+
+      (async () => {
+        const mode = await getAngelusMode();
+
+        if (mounted) {
+          setAngelusModeState(mode);
+
+          if (userId) {
+            await fetchData(userId);
+          }
+        }
+      })();
+
+      return () => {
+        mounted = false;
+      };
+    }, [userId, fetchData]),
+  );
+
+  const [weekMorning, setWeekMorning] = useState<Set<string>>(new Set());
+  const [weekNoon, setWeekNoon] = useState<Set<string>>(new Set());
+  const [weekEvening, setWeekEvening] = useState<Set<string>>(new Set());
+
+  const [totalMonth, setTotalMonth] = useState(0);
+  const [totalYear, setTotalYear] = useState(0);
+
+  // ── Live clock ────────────────────────────────────────────────────────────
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  // ──────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     let channel: any = null;
@@ -412,9 +425,11 @@ export default function MenuScreen({ onLogout }: Props) {
             }
             status={angelusMode === "noon_only" ? "disabled" : morningStatus}
             imageSource={
-              morningStatus === "completed"
-                ? completeImages["Morning"]
-                : progressImages["Morning"]
+              angelusMode === "noon_only"
+                ? progressImages["Morning"]
+                : morningStatus === "completed"
+                  ? completeImages["Morning"]
+                  : progressImages["Morning"]
             }
           />
           <View style={styles.rowDivider} />
@@ -438,9 +453,11 @@ export default function MenuScreen({ onLogout }: Props) {
             }
             status={angelusMode === "noon_only" ? "disabled" : eveningStatus}
             imageSource={
-              eveningStatus === "completed"
-                ? completeImages["Evening"]
-                : progressImages["Evening"]
+              angelusMode === "noon_only"
+                ? progressImages["Evening"]
+                : eveningStatus === "completed"
+                  ? completeImages["Evening"]
+                  : progressImages["Evening"]
             }
           />
         </View>
@@ -684,7 +701,7 @@ const styles = StyleSheet.create({
   dateTimeDate: {
     fontSize: 13,
     color: COLORS.navy,
-    fontFamily: "EBGaramond_Medium",
+    fontFamily: "EBGaramond",
     fontWeight: "600",
     flexShrink: 1,
   },
@@ -696,7 +713,7 @@ const styles = StyleSheet.create({
   dateTimeDay: {
     fontSize: 13,
     color: COLORS.navy,
-    fontFamily: "EBGaramond_Medium",
+    fontFamily: "EBGaramond",
     fontWeight: "500",
     flexShrink: 0,
   },
@@ -718,7 +735,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 32,
     color: COLORS.navy,
-    fontFamily: "EBGaramond_Medium",
+    fontFamily: "EBGaramond",
     fontWeight: "600",
     textAlign: "center",
   },
@@ -748,7 +765,7 @@ const styles = StyleSheet.create({
   sectionCardTitle: {
     fontSize: 22,
     color: COLORS.gold,
-    fontFamily: "EBGaramond_Medium",
+    fontFamily: "EBGaramond",
     fontWeight: "600",
     textAlign: "center",
     marginBottom: 8,
@@ -779,7 +796,7 @@ const styles = StyleSheet.create({
   angelusTitle: {
     fontSize: 18,
     color: COLORS.textPrimary,
-    fontFamily: "EBGaramond_Medium",
+    fontFamily: "EBGaramond",
     fontWeight: "600",
   },
   angelusSubtitle: {
@@ -835,7 +852,7 @@ const styles = StyleSheet.create({
     width: 64,
     fontSize: 16,
     color: COLORS.textPrimary,
-    fontFamily: "EBGaramond_Medium",
+    fontFamily: "EBGaramond",
   },
   dotsRow: {
     flex: 1,
@@ -899,7 +916,7 @@ const styles = StyleSheet.create({
   statsCaption: {
     fontSize: 13,
     color: COLORS.textSecondary,
-    fontFamily: "EBGaramond_Medium",
+    fontFamily: "EBGaramond",
     marginTop: 4,
   },
 
