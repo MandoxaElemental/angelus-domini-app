@@ -165,7 +165,7 @@ export default function PrayerScreen() {
 
     imageHeight: isTinyScreen ? 160 : isSmallScreen ? 185 : 220,
 
-    cardHeight: isTinyScreen ? 220 : isSmallScreen ? 240 : 260,
+    cardHeight: isTinyScreen ? 220 : isSmallScreen ? 240 : 262,
 
     horizontalPadding: isTinyScreen ? 14 : 24,
 
@@ -216,9 +216,16 @@ export default function PrayerScreen() {
       navigation.setParams({ autoPlay: undefined });
     }
   }, []); // ← empty deps: intentionally runs only on mount
-  const [selectedTime, setSelectedTime] = useState(
-    initialSlot ?? getCurrentPrayerTime(),
-  );
+  const [selectedTime, setSelectedTime] = useState(getCurrentPrayerTime());
+
+  useEffect(() => {
+    const update = () => setSelectedTime(getCurrentPrayerTime());
+
+    update();
+    const interval = setInterval(update, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
   const transitionToNext = () => {
     if (isTransitioning.current) return;
 
@@ -521,14 +528,11 @@ export default function PrayerScreen() {
       );
   };
 
-  const [fontsLoaded] = useFonts({
-    Cormorant: require("../../assets/fonts/Cormorant.ttf"),
+  useFonts({
+    Cormorant: require("../../assets/fonts/CormorantGaramond.ttf"),
     Cormorant_Italic: require("../../assets/fonts/CormorantGaramond-Italic.ttf"),
+    EBGaramond: require("../../assets/fonts/EBGaramond-Medium.ttf"),
   });
-
-  if (!fontsLoaded) {
-    return null;
-  }
 
   return (
     <>
@@ -580,18 +584,17 @@ export default function PrayerScreen() {
             const active = selectedTime === t.value;
 
             return (
-              <TouchableOpacity
-                key={t.value}
-                onPress={() => setSelectedTime(t.value)}
-                activeOpacity={0.85}
-              >
+              <View key={t.value}>
                 <LinearGradient
                   colors={
                     active ? ["#3D5C97", "#2F4A7A"] : ["#FDF6EA", "#EEDFC4"]
                   }
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
-                  style={[styles.timeButton, active && styles.timeButtonActive]}
+                  style={[
+                    [styles.timeButton, !active && { opacity: 0.45 }],
+                    active && styles.timeButtonActive,
+                  ]}
                 >
                   <Text
                     style={[styles.timeText, active && styles.timeTextActive]}
@@ -599,7 +602,7 @@ export default function PrayerScreen() {
                     {t.label}
                   </Text>
                 </LinearGradient>
-              </TouchableOpacity>
+              </View>
             );
           })}
         </View>
@@ -754,7 +757,7 @@ export default function PrayerScreen() {
           </TouchableOpacity> */}
         {/* ⚙️ CONTROLS */}
         <View style={styles.footerControls}>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             onPress={() => {
               const next = !autoPlay;
 
@@ -790,7 +793,7 @@ export default function PrayerScreen() {
             </Text>
           </TouchableOpacity>
 
-          <Text style={styles.footerDivider}>•</Text>
+          <Text style={styles.footerDivider}>•</Text> */}
 
           <TouchableOpacity onPress={handleRestart}>
             <Text style={styles.footerAction}>Restart</Text>
@@ -900,6 +903,8 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: "#FFFAF2",
     borderRadius: 24,
+    borderColor: "#C9A24A",
+    borderWidth: 1,
     maxHeight: 260,
     minHeight: 260,
     justifyContent: "center",
@@ -916,8 +921,8 @@ const styles = StyleSheet.create({
     color: "#6F440A",
     marginBottom: 6,
     textAlign: "center",
-    lineHeight: 42,
-    fontFamily: "Cormorant",
+    lineHeight: 32,
+    fontFamily: "Cormorant-Garamond",
     fontWeight: "400",
   },
   responseItalic: {
@@ -925,13 +930,13 @@ const styles = StyleSheet.create({
     color: "#6F440A",
     fontStyle: "italic",
     textAlign: "center",
-    lineHeight: 42,
+    lineHeight: 32,
     fontFamily: "Cormorant_Italic",
     fontWeight: "400",
   },
   prayer: {
     fontSize: 24,
-    lineHeight: 42,
+    lineHeight: 32,
     textAlign: "center",
     color: "#6F440A",
     fontFamily: "Cormorant",
@@ -980,6 +985,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderColor: "#C9A24A",
     borderWidth: 2,
+    fontFamily: "EBGaramond",
   },
   timeButtonActive: {
     shadowColor: "#4B6FB0",
@@ -1076,7 +1082,7 @@ const styles = StyleSheet.create({
   },
   upcomingPrayer: {
     fontSize: 24,
-    lineHeight: 42,
+    lineHeight: 32,
     textAlign: "center",
     color: "#6F440A",
     fontFamily: "Cormorant",
