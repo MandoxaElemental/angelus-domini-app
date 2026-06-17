@@ -13,7 +13,6 @@ import {
 } from "react-native";
 
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import { createAudioPlayer } from "expo-audio";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 
@@ -84,8 +83,6 @@ function getNextPrayerForMode(mode: AngelusMode) {
   const nextNoon = new Date(now);
   nextNoon.setHours(12, 0, 0, 0);
 
-  // If we've already passed noon today,
-  // schedule tomorrow's noon.
   if (now >= nextNoon) {
     nextNoon.setDate(nextNoon.getDate() + 1);
   }
@@ -216,7 +213,7 @@ export default function MainApp() {
 
   const [session, setSession] = useState<any>(null);
 
-  const [, setCount] = useState(0);
+  const [count, setCount] = useState(0);
 
   const [carouselIndex, setCarouselIndex] = useState(0);
 
@@ -236,7 +233,6 @@ export default function MainApp() {
     setCurrentPrayer(getNextPrayerForMode(angelusMode));
   }, [angelusMode]);
   const triggeredToday = useRef<Map<number, string>>(new Map());
-  // const lastTriggeredPrayer = useRef<string | null>(null);
   const dailyVerse = useMemo(() => getDailyVerse(), []);
 
   const currentHour = new Date().getHours();
@@ -252,7 +248,7 @@ export default function MainApp() {
     {
       title: "GLOBAL PRAYER TODAY",
       value: globalStats.total,
-      subtitle: " prayed today",
+      subtitle: " prayers said today",
       description: "United in prayer around the world.",
     },
     {
@@ -311,16 +307,6 @@ export default function MainApp() {
     }
   }, []);
 
-  // const finishPrayer = async () => {
-  //   if (!session || !userId) return;
-
-  //   await completePrayer(userId, session.sessionId);
-
-  //   const newCount = await getGlobalCount(session.slot);
-
-  //   setCount(newCount);
-  // };
-
   async function getGlobalPrayerStats() {
     const now = new Date();
 
@@ -373,11 +359,11 @@ export default function MainApp() {
     };
   }, []);
 
-  const refreshGlobalStats = async () => {
+  const refreshGlobalStats = useCallback(async () => {
     const stats = await getGlobalPrayerStats();
 
     setGlobalStats(stats);
-  };
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -669,7 +655,7 @@ export default function MainApp() {
                 resizeMode="contain"
               />
               <View style={styles.timeRow}>
-                <Ionicons name="time-outline" size={30} color={COLORS.gold} />
+                <Ionicons name="time-outline" size={25} color={COLORS.gold} />
 
                 <Text style={styles.timeText}>in {timeLeft}</Text>
               </View>
@@ -769,26 +755,6 @@ export default function MainApp() {
               <Text style={styles.scriptureRef}>— {dailyVerse.ref}</Text>
             </View>
           </View>
-
-          {/* PRAY NOW BUTTON */}
-          {/* <TouchableOpacity activeOpacity={0.9} onPress={handleComplete} disabled={isPraying} style={styles.buttonWrapper}>
-            <LinearGradient colors={[COLORS.goldBright, COLORS.gold]} style={[styles.button, isPraying && { opacity: 0.7 }]}>
-              <View style={styles.buttonInner}>
-                <View style={styles.prayIcon}>
-                  <Ionicons name="heart" size={18} color="#fff" />
-                </View>
-                <Text style={styles.buttonText}>{isPraying ? "Praying..." : "Pray Now"}</Text>
-                <Ionicons name="chevron-forward" size={24} color="#fff" />
-              </View>
-            </LinearGradient>
-          </TouchableOpacity> */}
-
-          {/* LOGOUT */}
-          {/* 
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity> */}
-
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
@@ -970,7 +936,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   greetingTitle: {
-    fontSize: 28,
+    fontSize: 24,
     color: COLORS.textPrimary,
     fontWeight: "600",
     lineHeight: 20,
@@ -978,18 +944,19 @@ const styles = StyleSheet.create({
   },
   greetingSubtitle: {
     marginTop: 3,
-    fontSize: 25,
+    fontSize: 20,
     color: COLORS.navy,
     fontFamily: "Cormorant",
   },
   mainCard: {
+    minHeight: 154,
     marginHorizontal: 24,
-    marginTop: 10,
+    marginTop: 5,
     backgroundColor: COLORS.card,
     borderRadius: 28,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 5,
+    padding: 2,
     flexDirection: "row",
     shadowColor: "#3B2E22",
     shadowOpacity: 0.08,
@@ -999,7 +966,6 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: IMAGE_WIDTH,
-    height: IMAGE_WIDTH * 1.3,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
@@ -1008,8 +974,7 @@ const styles = StyleSheet.create({
   cardLabel: {
     color: COLORS.gold,
     letterSpacing: 2,
-    fontSize: 12,
-    marginBottom: 4,
+    fontSize: 11,
     fontFamily: "Inter",
     fontWeight: "500",
   },
@@ -1027,13 +992,13 @@ const styles = StyleSheet.create({
   timeRow: { flexDirection: "row", alignItems: "center" },
   timeText: {
     marginLeft: 6,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "500",
     color: COLORS.navy,
     fontFamily: "EBGaramond",
   },
   cardTime: {
-    marginTop: 6,
+    marginTop: 3,
     color: "#6F440A",
     fontSize: 20,
     lineHeight: 20,
@@ -1087,32 +1052,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     backgroundColor: "#FFF3F2",
   },
-  statusDot: {
-    position: "absolute",
-    top: 6,
-    right: 10,
-    width: 15,
-    height: 15,
-    borderRadius: 9,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.card,
-  },
-  statusDotCompleted: { backgroundColor: "#7BA87A", borderColor: "#7BA87A" },
-  statusDotActive: { backgroundColor: COLORS.gold, borderColor: COLORS.gold },
-  statusDotMissed: { backgroundColor: "transparent", borderColor: "#D8A3A0" },
-  statusDotUpcoming: {
-    backgroundColor: "transparent",
-    borderColor: COLORS.muted,
-  },
-  statusDotInner: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: "#fff",
-  },
   progressIcon: {
     width: 58,
     height: 58,
@@ -1134,14 +1073,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     fontFamily: "Cormorant",
   },
-
-  progressAngelus: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontFamily: "CormorantGaramond",
-    marginTop: 1,
-    marginBottom: 10,
-  },
   progressBox: {
     textAlign: "center",
     minWidth: "100%",
@@ -1155,23 +1086,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     backgroundColor: "transparent",
   },
-  progressBoxCompleted: { borderColor: "#7BA87A", backgroundColor: "#F2FAF1" },
-  progressBoxActive: { borderColor: COLORS.gold, backgroundColor: "#FFF6E0" },
-  progressBoxMissed: { borderColor: "#D8A3A0", backgroundColor: "#FFF0EF" },
-  activeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.gold,
-    marginRight: 5,
-  },
   progressSubtitle: {
     fontSize: width < 390 ? 11 : 12,
     color: COLORS.textSecondary,
     fontFamily: "Cormorant",
   },
-  progressImage: { width: 75, height: 75 },
-  // progressImageU: { width: 60, height: 75 },
+  progressImage: { width: 56, height: 56 },
   globalCard: {
     marginHorizontal: 24,
     marginTop: 10,

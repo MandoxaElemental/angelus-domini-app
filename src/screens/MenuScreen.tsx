@@ -52,9 +52,16 @@ const weekImages: Record<string, any> = {
 
 const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
   if (!slot) return null;
-  if (slot.includes("_6") && !slot.includes("_18")) return "morning";
-  if (slot.includes("_12")) return "noon";
-  if (slot.includes("_18") || slot.includes("_6p")) return "evening";
+
+  const match = slot.match(/_(6|12|18)$/);
+  if (!match) return null;
+
+  const hour = match[1];
+
+  if (hour === "6") return "morning";
+  if (hour === "12") return "noon";
+  if (hour === "18") return "evening";
+
   return null;
 };
 
@@ -63,6 +70,11 @@ function getWeekSunday(now: Date): Date {
   d.setDate(d.getDate() - d.getDay());
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+function toLocalDateKey(d: Date): string {
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
 }
 
 type DotStatus = "completed" | "missed" | "upcoming";
@@ -156,13 +168,12 @@ export default function MenuScreen({ onLogout }: Props) {
       const endOfDay = new Date(nowSnap);
       endOfDay.setHours(23, 59, 59, 999);
 
+      const todayKey = toLocalDateKey(new Date());
       const { data: todaySessions } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
         .eq("UserId", uid)
-        .gte("ScheduledTime", startOfDay.toISOString())
-        .lte("ScheduledTime", endOfDay.toISOString());
-
+        .like("Slot", `${todayKey}%`);
       if (todaySessions) {
         const updated = { morning: false, noon: false, evening: false };
         todaySessions.forEach((s: any) => {
@@ -173,28 +184,33 @@ export default function MenuScreen({ onLogout }: Props) {
         setCompletedPrayers(updated);
       }
 
-      const weekStart = getWeekSunday(nowSnap);
+      const weekStart = getWeekSunday(now);
+      weekStart.setHours(0, 0, 0, 0);
 
       const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
+      weekEnd.setDate(weekStart.getDate() + 7);
+      weekEnd.setHours(0, 0, 0, 0);
 
       const { data: weekSessions } = await supabase
         .from("PrayerSessions")
-        .select("Slot, Completed, ScheduledTime")
+        .select("Slot, ScheduledTime")
         .eq("UserId", uid)
         .eq("Completed", true)
         .gte("ScheduledTime", weekStart.toISOString())
-        .lte("ScheduledTime", weekEnd.toISOString());
+        .lt("ScheduledTime", weekEnd.toISOString());
+
       if (weekSessions) {
         const morningDays = new Set<string>();
         const noonDays = new Set<string>();
         const eveningDays = new Set<string>();
 
         weekSessions.forEach((s: any) => {
-          const day = s.ScheduledTime?.slice(0, 10);
           const key = slotToKey(s.Slot);
-          if (!day || !key) return;
+          if (!key) return;
+
+          const d = new Date(s.ScheduledTime);
+          const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
           if (key === "morning") morningDays.add(day);
           if (key === "noon") noonDays.add(day);
           if (key === "evening") eveningDays.add(day);
@@ -356,11 +372,12 @@ export default function MenuScreen({ onLogout }: Props) {
   const morningDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
     getDotStatus(i, 6, weekStart, now, weekMorning),
   );
-  const noonDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
-    getDotStatus(i, 6, weekStart, now, weekNoon),
+  const noonDots = Array.from({ length: 7 }, (_, i) =>
+    getDotStatus(i, 12, weekStart, now, weekNoon),
   );
-  const eveningDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
-    getDotStatus(i, 6, weekStart, now, weekEvening),
+
+  const eveningDots = Array.from({ length: 7 }, (_, i) =>
+    getDotStatus(i, 18, weekStart, now, weekEvening),
   );
 
   const morningCount = morningDots.filter((d) => d === "completed").length;
