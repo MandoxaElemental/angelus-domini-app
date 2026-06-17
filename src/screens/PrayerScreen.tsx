@@ -922,7 +922,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     textAlign: "center",
     lineHeight: 32,
-    fontFamily: "Cormorant-Garamond",
+    fontFamily: "Cormorant",
     fontWeight: "400",
   },
   responseItalic: {
