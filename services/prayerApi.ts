@@ -2,7 +2,6 @@ import { supabase } from "../src/lib/supabaseClient";
 import { getSlot } from "../src/utils/prayer";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type PrayerSession = {
@@ -16,14 +15,21 @@ export type PrayerSession = {
 
 export const startPrayer = async (userId: string): Promise<PrayerSession> => {
   const slot = getSlot();
-  const now = new Date().toISOString();
+  const now = new Date();
 
-  // Check if session already exists for this user + slot
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
   const { data: existing, error: fetchError } = await supabase
     .from("PrayerSessions")
     .select("*")
     .eq("UserId", userId)
     .eq("Slot", slot)
+    .gte("ScheduledTime", todayStart.toISOString())
+    .lt("ScheduledTime", tomorrowStart.toISOString())
     .maybeSingle();
 
   if (fetchError) {
@@ -71,7 +77,7 @@ export const startPrayer = async (userId: string): Promise<PrayerSession> => {
 
 export const completePrayer = async (
   userId: string,
-  sessionId: string
+  sessionId: string,
 ): Promise<void> => {
   const { error } = await supabase
     .from("PrayerSessions")

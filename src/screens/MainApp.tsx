@@ -207,6 +207,8 @@ export default function MainApp() {
     }, []),
   );
 
+  const [todayKey, setTodayKey] = useState(new Date().toDateString());
+
   const navigation = useNavigation<any>();
 
   const [timeLeft, setTimeLeft] = useState("00:00:00");
@@ -233,10 +235,16 @@ export default function MainApp() {
     setCurrentPrayer(getNextPrayerForMode(angelusMode));
   }, [angelusMode]);
   const triggeredToday = useRef<Map<number, string>>(new Map());
-  const dailyVerse = useMemo(() => getDailyVerse(), []);
+  const dailyVerse = useMemo(() => getDailyVerse(), [todayKey]);
+  const [currentHour, setCurrentHour] = useState(new Date().getHours());
 
-  const currentHour = new Date().getHours();
+  useEffect(() => {
+    const id = setInterval(() => {
+      setCurrentHour(new Date().getHours());
+    }, 60000);
 
+    return () => clearInterval(id);
+  }, []);
   const [globalStats, setGlobalStats] = useState({
     total: 0,
     morning: 0,
@@ -364,6 +372,30 @@ export default function MainApp() {
 
     setGlobalStats(stats);
   }, []);
+
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const newKey = new Date().toDateString();
+
+      if (newKey !== todayKey) {
+        setTodayKey(newKey);
+
+        setCompletedPrayers({
+          morning: false,
+          noon: false,
+          evening: false,
+        });
+
+        if (userId) {
+          await fetchTodayPrayers(userId);
+        }
+
+        await refreshGlobalStats();
+      }
+    }, 60000);
+
+    return () => clearInterval(id);
+  }, [todayKey, userId]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -593,7 +625,7 @@ export default function MainApp() {
       <SafeAreaView style={styles.container}>
         {/* HEADER */}
         <AppHeader />
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={{
             marginHorizontal: 24,
             marginTop: 20,
@@ -607,7 +639,7 @@ export default function MainApp() {
           <Text style={{ color: "#fff", fontWeight: "600" }}>
             Open Prayer Screen
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* GREETING */}
 
@@ -1012,7 +1044,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 24,
+    marginHorizontal: 10,
     marginTop: 10,
     marginBottom: 18,
   },
@@ -1053,8 +1085,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF3F2",
   },
   progressIcon: {
-    width: 58,
-    height: 58,
+    width: 55,
+    height: 55,
     borderRadius: 29,
     backgroundColor: "#F3EFE7",
     justifyContent: "center",
@@ -1091,7 +1123,10 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontFamily: "Cormorant",
   },
-  progressImage: { width: 56, height: 56 },
+  progressImage: {
+    width: 68,
+    height: 68,
+  },
   globalCard: {
     marginHorizontal: 24,
     marginTop: 10,

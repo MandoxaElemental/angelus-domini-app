@@ -30,6 +30,8 @@ type PrayerItem =
 const SIGN_OF_THE_CROSS = `In the name of the Father, and of the Son, and of the Holy Spirit. Amen.`;
 const HAIL_MARY_PART_1 = `Hail Mary, full of grace, the Lord is with thee. Blessed art thou amongst women, and blessed is the fruit of thy womb, Jesus.`;
 const HAIL_MARY_PART_2 = `Holy Mary, Mother of God, pray for us sinners now and at the hour of our death. Amen.`;
+const VERBUM = `And the Word was
+made flesh,`;
 const CLOSING_CALL = {
   versicle: "Pray for us, O Holy Mother of God.",
   response: "That we may be made worthy of the promises of Christ.",
@@ -37,7 +39,10 @@ const CLOSING_CALL = {
 
 const CLOSING_PRAYER = `Let us pray:
 Pour forth, we beseech Thee, O Lord, Thy grace into our hearts; that we, to whom the incarnation of Christ, Thy Son, was made known by the message of an angel, may by His Passion and Cross be brought to the glory of His Resurrection, through the same Christ Our Lord.
-Amen.`;
+Amen.
+
+
+`;
 
 const PRAYER_SEQUENCE: PrayerItem[] = [
   {
@@ -49,7 +54,7 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
   { type: "bell", text: "", count: 3, duration: 9900 },
   {
     type: "versicle",
-    text: "The Angel of the Lord declared unto Mary",
+    text: "The Angel of the Lord declared unto Mary,",
     duration: 3500,
     audio: require("../../assets/audio/Versicle1.mp3"),
   },
@@ -99,7 +104,7 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
   { type: "bell", text: "", count: 3, duration: 9900 },
   {
     type: "versicle",
-    text: "And the Word was made flesh",
+    text: VERBUM,
     duration: 3500,
     audio: require("../../assets/audio/Versicle3.mp3"),
   },
@@ -165,7 +170,7 @@ export default function PrayerScreen() {
 
     imageHeight: isTinyScreen ? 160 : isSmallScreen ? 185 : 220,
 
-    cardHeight: isTinyScreen ? 220 : isSmallScreen ? 240 : 262,
+    cardHeight: isTinyScreen ? 240 : isSmallScreen ? 280 : 300,
 
     horizontalPadding: isTinyScreen ? 14 : 24,
 
@@ -251,30 +256,18 @@ export default function PrayerScreen() {
   // Audio: only plays when autoPlay AND audioEnabled are both true
   useEffect(() => {
     if (item.type === "bell") return;
-    if (!autoPlay) {
-      audioRef.current?.remove?.();
-      return;
-    }
-    if (!audioEnabled) {
-      audioRef.current?.remove?.();
-      return;
-    }
+    if (!autoPlay || !audioEnabled) return;
 
-    const run = async () => {
-      audioRef.current?.remove?.();
+    const player = createAudioPlayer(item.audio);
+    audioRef.current = player;
 
-      if (item.audio) {
-        const player = createAudioPlayer(item.audio);
-        audioRef.current = player;
-        setTimeout(() => {
-          player.play();
-        }, 100);
-      }
-    };
+    const timer = setTimeout(() => {
+      player.play();
+    }, 100);
 
-    run();
     return () => {
-      audioRef.current?.remove?.();
+      clearTimeout(timer);
+      player.remove();
     };
   }, [currentStep, audioEnabled, autoPlay]);
 
@@ -336,7 +329,7 @@ export default function PrayerScreen() {
       animateBellSwing();
       player.play();
 
-      await new Promise((resolve) => setTimeout(resolve, 2200));
+      await new Promise((resolve) => setTimeout(resolve, 2500));
 
       player.remove();
     }
@@ -349,10 +342,8 @@ export default function PrayerScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Bell sequence: only runs when autoPlay is true
   useEffect(() => {
     if (item.type !== "bell") return;
-    if (!audioEnabled) return;
     let cancelled = false;
 
     const runBell = async () => {
@@ -372,6 +363,7 @@ export default function PrayerScreen() {
     };
 
     runBell();
+
     return () => {
       cancelled = true;
     };
@@ -447,13 +439,14 @@ export default function PrayerScreen() {
     }).start();
   }, [currentStep]);
 
-  // Auto-advance timer: only when autoPlay is true
   useEffect(() => {
-    if (!audioEnabled) return;
+    if (!autoPlay) return;
     if (item.type === "bell") return;
+
     const timeout = setTimeout(() => {
       transitionToNext();
     }, item.duration);
+
     return () => clearTimeout(timeout);
   }, [currentStep, autoPlay, item]);
 
@@ -492,6 +485,7 @@ export default function PrayerScreen() {
   const handleRestart = () => {
     audioRef.current?.remove?.();
     audioRef.current = null;
+    isTransitioning.current = false;
     setAutoPlay(false);
     scrollY.current = 0;
 
@@ -500,10 +494,8 @@ export default function PrayerScreen() {
       animated: false,
     });
 
-    // Reset animations
     fadeAnim.setValue(0);
 
-    // Go back to beginning
     setCurrentStep(0);
   };
 
@@ -528,11 +520,15 @@ export default function PrayerScreen() {
       );
   };
 
-  useFonts({
+  const [fontsLoaded] = useFonts({
     Cormorant: require("../../assets/fonts/CormorantGaramond.ttf"),
     Cormorant_Italic: require("../../assets/fonts/CormorantGaramond-Italic.ttf"),
     EBGaramond: require("../../assets/fonts/EBGaramond-Medium.ttf"),
   });
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <>
@@ -558,7 +554,7 @@ export default function PrayerScreen() {
                   {
                     rotate: bellRotate.interpolate({
                       inputRange: [-1, 1],
-                      outputRange: ["-12deg", "12deg"],
+                      outputRange: ["-18deg", "18deg"],
                     }),
                   },
                 ],
@@ -757,7 +753,7 @@ export default function PrayerScreen() {
           </TouchableOpacity> */}
         {/* ⚙️ CONTROLS */}
         <View style={styles.footerControls}>
-          {/* <TouchableOpacity
+          <TouchableOpacity
             onPress={() => {
               const next = !autoPlay;
 
@@ -793,7 +789,7 @@ export default function PrayerScreen() {
             </Text>
           </TouchableOpacity>
 
-          <Text style={styles.footerDivider}>•</Text> */}
+          <Text style={styles.footerDivider}>•</Text>
 
           <TouchableOpacity onPress={handleRestart}>
             <Text style={styles.footerAction}>Restart</Text>
@@ -905,7 +901,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderColor: "#C9A24A",
     borderWidth: 1,
-    maxHeight: 260,
     minHeight: 260,
     justifyContent: "center",
     shadowColor: "#4a392f",
@@ -917,30 +912,30 @@ const styles = StyleSheet.create({
   cardContent: { flexGrow: 1, justifyContent: "center", alignItems: "center" },
   prayerContent: { paddingTop: 50, paddingBottom: 60 },
   versicle: {
-    fontSize: 24,
-    color: "#6F440A",
+    fontSize: 32,
+    color: "#3F2E24",
     marginBottom: 6,
     textAlign: "center",
-    lineHeight: 32,
+    lineHeight: 45,
     fontFamily: "Cormorant",
-    fontWeight: "400",
+    fontWeight: "500",
   },
   responseItalic: {
-    fontSize: 24,
-    color: "#6F440A",
+    fontSize: 32,
+    color: "#3F2E24",
     fontStyle: "italic",
     textAlign: "center",
-    lineHeight: 32,
+    lineHeight: 45,
     fontFamily: "Cormorant_Italic",
-    fontWeight: "400",
+    fontWeight: "600",
   },
   prayer: {
-    fontSize: 24,
-    lineHeight: 32,
+    fontSize: 32,
+    lineHeight: 45,
     textAlign: "center",
-    color: "#6F440A",
+    color: "#3F2E24",
     fontFamily: "Cormorant",
-    fontWeight: "400",
+    fontWeight: "500",
   },
   logo: { width: 140, height: 40, resizeMode: "contain" },
   dots: { flexDirection: "row", justifyContent: "center", gap: 8 },
@@ -985,7 +980,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderColor: "#C9A24A",
     borderWidth: 2,
-    fontFamily: "EBGaramond",
   },
   timeButtonActive: {
     shadowColor: "#4B6FB0",
@@ -997,12 +991,12 @@ const styles = StyleSheet.create({
   timeText: {
     color: "#C9A24A",
     fontSize: 14,
-    fontFamily: "Cormorant",
+    fontFamily: "EBGaramond",
     fontWeight: "400",
   },
   timeTextActive: {
     color: "#FFFFFF",
-    fontFamily: "Cormorant",
+    fontFamily: "EBGaramond",
     fontWeight: "400",
   },
   footerControls: {
@@ -1081,10 +1075,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   upcomingPrayer: {
-    fontSize: 24,
-    lineHeight: 32,
+    fontSize: 32,
+    lineHeight: 45,
     textAlign: "center",
-    color: "#6F440A",
+    color: "#3F2E24",
     fontFamily: "Cormorant",
     fontWeight: "400",
   },
