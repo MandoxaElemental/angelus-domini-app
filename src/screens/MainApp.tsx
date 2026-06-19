@@ -700,15 +700,21 @@ export default function MainApp() {
             <Image
               source={require("../../assets/DividerLeft.png")}
               style={styles.dividerHalf}
-              resizeMode="contain"
+              resizeMode="stretch"
             />
 
-            <Text style={styles.sectionHeaderText}>DAILY PRAYER PROGRESS</Text>
+            <Text
+              style={styles.sectionHeaderText}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              DAILY PRAYER PROGRESS
+            </Text>
 
             <Image
               source={require("../../assets/DividerRight.png")}
               style={styles.dividerHalf}
-              resizeMode="contain"
+              resizeMode="stretch"
             />
           </View>
 
@@ -966,16 +972,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 24,
     marginTop: 10,
+    paddingTop: 5,
   },
   greetingTitle: {
     fontSize: 24,
     color: COLORS.textPrimary,
     fontWeight: "600",
-    lineHeight: 20,
     fontFamily: "Cormorant",
   },
   greetingSubtitle: {
-    marginTop: 3,
     fontSize: 20,
     color: COLORS.navy,
     fontFamily: "Cormorant",
@@ -1044,18 +1049,19 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 10,
+    marginHorizontal: 16,
     marginTop: 10,
     marginBottom: 18,
   },
+
   sectionHeaderText: {
-    textAlign: "center",
+    flexShrink: 0,
+    marginHorizontal: 10,
     color: COLORS.navy,
     fontSize: 15,
-    marginHorizontal: 12,
-    lineHeight: 20,
     fontFamily: "Cormorant",
     fontWeight: "600",
+    textAlign: "center",
   },
   line: { flex: 1, height: 1, backgroundColor: COLORS.border },
   progressRow: {
