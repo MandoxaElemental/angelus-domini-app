@@ -28,8 +28,6 @@ export const startPrayer = async (userId: string): Promise<PrayerSession> => {
     .select("*")
     .eq("UserId", userId)
     .eq("Slot", slot)
-    .gte("ScheduledTime", todayStart.toISOString())
-    .lt("ScheduledTime", tomorrowStart.toISOString())
     .maybeSingle();
 
   if (fetchError) {

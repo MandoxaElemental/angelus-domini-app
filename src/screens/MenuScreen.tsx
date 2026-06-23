@@ -1,12 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  Image,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { getPrayerStatus, PrayerStatus } from "../utils/prayer";
 import { getGlobalCount, startPrayer } from "../api/prayerApi";
@@ -77,7 +70,7 @@ function toLocalDateKey(d: Date): string {
   return local.toISOString().slice(0, 10);
 }
 
-type DotStatus = "completed" | "missed" | "upcoming";
+type DotStatus = "completed" | "missed" | "upcoming" | "loading";
 
 function getDotStatus(
   dayIndex: number,
@@ -145,12 +138,13 @@ function formatDayOfWeek(d: Date): string {
 }
 // ──────────────────────────────────────────────────────────────────────────────
 
-export default function MenuScreen({ onLogout }: Props) {
+export default function MenuScreen() {
   useFonts({
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
     EBGaramond: require("../../assets/fonts/EBGaramond-Medium.ttf"),
   });
-
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [count, setCount] = useState(0);
   const [userId, setUserId] = useState("");
   const [completedPrayers, setCompletedPrayers] = useState({
@@ -160,36 +154,37 @@ export default function MenuScreen({ onLogout }: Props) {
   });
 
   const fetchData = useCallback(async (uid: string) => {
+    setLoading(true);
+    setLoadError(false);
+
     try {
       const nowSnap = new Date();
-      const startOfDay = new Date(nowSnap);
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(nowSnap);
-      endOfDay.setHours(23, 59, 59, 999);
 
       const todayKey = toLocalDateKey(new Date());
+
       const { data: todaySessions } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
         .eq("UserId", uid)
         .like("Slot", `${todayKey}%`);
+
       if (todaySessions) {
         const updated = { morning: false, noon: false, evening: false };
+
         todaySessions.forEach((s: any) => {
           if (!s.Completed) return;
           const key = slotToKey(s.Slot);
           if (key) updated[key] = true;
         });
+
         setCompletedPrayers(updated);
       }
 
-      const weekStart = getWeekSunday(now);
+      const weekStart = getWeekSunday(nowSnap);
       weekStart.setHours(0, 0, 0, 0);
 
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 7);
-      weekEnd.setHours(0, 0, 0, 0);
 
       const { data: weekSessions } = await supabase
         .from("PrayerSessions")
@@ -226,24 +221,31 @@ export default function MenuScreen({ onLogout }: Props) {
         nowSnap.getMonth(),
         1,
       ).toISOString();
+
       const { count: monthCount } = await supabase
         .from("PrayerSessions")
         .select("*", { count: "exact", head: true })
         .eq("UserId", uid)
         .eq("Completed", true)
         .gte("ScheduledTime", firstOfMonth);
+
       setTotalMonth(monthCount ?? 0);
 
       const firstOfYear = new Date(nowSnap.getFullYear(), 0, 1).toISOString();
+
       const { count: yearCount } = await supabase
         .from("PrayerSessions")
         .select("*", { count: "exact", head: true })
         .eq("UserId", uid)
         .eq("Completed", true)
         .gte("ScheduledTime", firstOfYear);
+
       setTotalYear(yearCount ?? 0);
     } catch (err) {
       console.error("❌ MenuScreen fetchData error:", err);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
     }
   }, []);
   const [angelusMode, setAngelusModeState] = useState<AngelusMode>("all_three");
@@ -354,31 +356,47 @@ export default function MenuScreen({ onLogout }: Props) {
     };
   }, [fetchData]);
 
-  const morningStatus = getPrayerStatus("morning", completedPrayers.morning);
-  const noonStatus = getPrayerStatus("noon", completedPrayers.noon);
-  const eveningStatus = getPrayerStatus("evening", completedPrayers.evening);
+  const morningStatus = loading
+    ? "loading"
+    : getPrayerStatus("morning", completedPrayers.morning);
+
+  const noonStatus = loading
+    ? "loading"
+    : getPrayerStatus("noon", completedPrayers.noon);
+
+  const eveningStatus = loading
+    ? "loading"
+    : getPrayerStatus("evening", completedPrayers.evening);
 
   const getSubtitle = (status: PrayerStatus) =>
-    status === "completed"
-      ? "Prayed"
-      : status === "active"
-        ? "Active"
-        : status === "missed"
-          ? "Missed"
-          : "Awaiting";
+    status === "loading"
+      ? "Loading..."
+      : status === "completed"
+        ? "Prayed"
+        : status === "active"
+          ? "Active"
+          : status === "missed"
+            ? "Missed"
+            : "Awaiting";
 
   const weekStart = getWeekSunday(now);
 
-  const morningDots: DotStatus[] = Array.from({ length: 7 }, (_, i) =>
-    getDotStatus(i, 6, weekStart, now, weekMorning),
-  );
-  const noonDots = Array.from({ length: 7 }, (_, i) =>
-    getDotStatus(i, 12, weekStart, now, weekNoon),
-  );
+  const morningDots: DotStatus[] = loading
+    ? Array(7).fill("loading")
+    : Array.from({ length: 7 }, (_, i) =>
+        getDotStatus(i, 6, weekStart, now, weekMorning),
+      );
+  const noonDots: DotStatus[] = loading
+    ? Array(7).fill("loading")
+    : Array.from({ length: 7 }, (_, i) =>
+        getDotStatus(i, 6, weekStart, now, weekNoon),
+      );
 
-  const eveningDots = Array.from({ length: 7 }, (_, i) =>
-    getDotStatus(i, 18, weekStart, now, weekEvening),
-  );
+  const eveningDots: DotStatus[] = loading
+    ? Array(7).fill("loading")
+    : Array.from({ length: 7 }, (_, i) =>
+        getDotStatus(i, 6, weekStart, now, weekEvening),
+      );
 
   const morningCount = morningDots.filter((d) => d === "completed").length;
   const noonCount = noonDots.filter((d) => d === "completed").length;
@@ -386,7 +404,7 @@ export default function MenuScreen({ onLogout }: Props) {
   const todayColIndex = now.getDay();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <AppHeader />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -545,14 +563,14 @@ export default function MenuScreen({ onLogout }: Props) {
           <View style={styles.statsRow}>
             <View style={styles.statsHalf}>
               <Text style={styles.statsValue}>
-                {totalMonth.toLocaleString()}
+                {loading ? "—" : totalMonth.toLocaleString()}
               </Text>
               <Text style={styles.statsCaption}>This Month</Text>
             </View>
             <View style={styles.statsDividerV} />
             <View style={styles.statsHalf}>
               <Text style={styles.statsValue}>
-                {totalYear.toLocaleString()}
+                {loading ? "—" : totalYear.toLocaleString()}
               </Text>
               <Text style={styles.statsCaption}>This Year</Text>
             </View>
@@ -561,7 +579,7 @@ export default function MenuScreen({ onLogout }: Props) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -851,8 +869,8 @@ const styles = StyleSheet.create({
   },
 
   weekDayLabel: {
-    fontSize: 10,
-    color: COLORS.muted,
+    fontSize: 12,
+    color: COLORS.textSecondary,
     fontFamily: "CormorantGaramond",
     textAlign: "center",
   },
@@ -883,7 +901,11 @@ const styles = StyleSheet.create({
   },
   dot: { width: 10, height: 10, borderRadius: 5 },
   dotFilled: { backgroundColor: COLORS.gold },
-  dotMissed: { backgroundColor: "#D8A3A0" },
+  dotMissed: {
+    backgroundColor: "#00000000",
+    borderColor: "#D8A3A0",
+    borderWidth: 2,
+  },
   dotEmpty: { backgroundColor: "#E0D4BE" },
   weekCount: {
     fontSize: 15,

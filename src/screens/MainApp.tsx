@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   Image,
   Animated,
@@ -185,8 +184,6 @@ function hourToSlotKey(h: number): "morning" | "noon" | "evening" {
 }
 
 export default function MainApp() {
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-
   const [angelusMode, setAngelusMode] = useState<AngelusMode>("all_three");
 
   useFocusEffect(
@@ -217,11 +214,11 @@ export default function MainApp() {
 
   const [count, setCount] = useState(0);
 
-  const [carouselIndex, setCarouselIndex] = useState(0);
-
   const [userId, setUserId] = useState("");
 
   const [username, setUsername] = useState("");
+  const [prayersLoading, setPrayersLoading] = useState(true);
+  const [prayerLoadError, setPrayerLoadError] = useState(false);
 
   const [completedPrayers, setCompletedPrayers] = useState({
     morning: false,
@@ -252,66 +249,47 @@ export default function MainApp() {
     evening: 0,
   });
 
-  const slides = [
-    {
-      title: "GLOBAL PRAYER TODAY",
-      value: globalStats.total,
-      subtitle: " prayers said today",
-      description: "United in prayer around the world.",
-    },
-    {
-      title: "MORNING ANGELUS",
-      value: globalStats.morning,
-      subtitle: " prayed at this hour",
-      description: "6:00 AM",
-    },
-    {
-      title: "NOON ANGELUS",
-      value: globalStats.noon,
-      subtitle: " prayed at this hour",
-      description: "12:00 PM",
-    },
-    {
-      title: "EVENING ANGELUS",
-      value: globalStats.evening,
-      subtitle: " prayed at this hour",
-      description: "6:00 PM",
-    },
-  ];
-
-  const currentSlide = slides[carouselIndex];
-
   const greeting =
     currentHour < 12 ? "Morning" : currentHour < 18 ? "Afternoon" : "Evening";
 
   // ── Fetch today's completed prayers from DB ───────────────────────────────
   const fetchTodayPrayers = useCallback(async (uid: string) => {
     try {
+      setPrayerLoadError(false);
+      setPrayersLoading(true);
+
       const now = new Date();
 
       const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-      const { data } = await supabase
+
+      const { data, error } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
         .eq("UserId", uid)
         .gte("ScheduledTime", `${todayStr}T00:00:00+00:00`)
         .lte("ScheduledTime", `${todayStr}T23:59:59+00:00`);
 
-      if (data) {
-        const updated: Record<"morning" | "noon" | "evening", boolean> = {
-          morning: false,
-          noon: false,
-          evening: false,
-        };
-        data.forEach((s: any) => {
-          if (!s.Completed) return;
-          const key = slotToKey(s.Slot);
-          if (key) updated[key] = true;
-        });
-        setCompletedPrayers(updated);
-      }
+      if (error) throw error;
+
+      const updated = {
+        morning: false,
+        noon: false,
+        evening: false,
+      };
+
+      data?.forEach((s: any) => {
+        if (!s.Completed) return;
+
+        const key = slotToKey(s.Slot);
+        if (key) updated[key] = true;
+      });
+
+      setCompletedPrayers(updated);
     } catch (err) {
       console.error("fetchTodayPrayers error:", err);
+      setPrayerLoadError(true);
+    } finally {
+      setPrayersLoading(false);
     }
   }, []);
 
@@ -396,24 +374,6 @@ export default function MainApp() {
 
     return () => clearInterval(id);
   }, [todayKey, userId]);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setCarouselIndex((prev) => (prev + 1) % 4);
-    }, 4000);
-
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    fadeAnim.setValue(0);
-
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
-  }, [carouselIndex]);
 
   useEffect(() => {
     let channel: any = null;
@@ -596,15 +556,19 @@ export default function MainApp() {
   // LOGOUT
   // ─────────────────────────────────────────────────────────────
 
-  const morningStatus =
-    angelusMode === "noon_only"
+  const morningStatus = prayersLoading
+    ? "loading"
+    : angelusMode === "noon_only"
       ? "disabled"
       : getPrayerStatus("morning", completedPrayers.morning);
 
-  const noonStatus = getPrayerStatus("noon", completedPrayers.noon);
+  const noonStatus = prayersLoading
+    ? "loading"
+    : getPrayerStatus("noon", completedPrayers.noon);
 
-  const eveningStatus =
-    angelusMode === "noon_only"
+  const eveningStatus = prayersLoading
+    ? "loading"
+    : angelusMode === "noon_only"
       ? "disabled"
       : getPrayerStatus("evening", completedPrayers.evening);
 
@@ -622,24 +586,9 @@ export default function MainApp() {
   return (
     <>
       <StatusBar hidden />
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         {/* HEADER */}
         <AppHeader />
-        {/* <TouchableOpacity
-          style={{
-            marginHorizontal: 24,
-            marginTop: 20,
-            padding: 16,
-            backgroundColor: "#C9A24A",
-            borderRadius: 12,
-            alignItems: "center",
-          }}
-          onPress={() => navigation.navigate("Prayer")}
-        >
-          <Text style={{ color: "#fff", fontWeight: "600" }}>
-            Open Prayer Screen
-          </Text>
-        </TouchableOpacity> */}
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* GREETING */}
 
@@ -710,7 +659,18 @@ export default function MainApp() {
             >
               DAILY PRAYER PROGRESS
             </Text>
-
+            {prayerLoadError && (
+              <View style={styles.connectionBanner}>
+                <Ionicons
+                  name="cloud-offline-outline"
+                  size={14}
+                  color="#A44E4E"
+                />
+                <Text style={styles.connectionText}>
+                  Unable to load prayer status
+                </Text>
+              </View>
+            )}
             <Image
               source={require("../../assets/DividerRight.png")}
               style={styles.dividerHalf}
@@ -747,15 +707,19 @@ export default function MainApp() {
                 style={styles.globeIcon}
               />
             </View>
-            <Animated.View style={[styles.globalRight, { opacity: fadeAnim }]}>
-              <Text style={styles.globalLabel}>{currentSlide.title}</Text>
+            <View style={[styles.globalRight]}>
+              <View>
+                <Text style={styles.globalLabel}>GLOBAL PRAYER TODAY</Text>
 
-              <View style={styles.globalCountRow}>
-                <Text style={styles.globalCount}>
-                  {currentSlide.value.toLocaleString()}
-                </Text>
-                <Text style={styles.globalPrayedToday}>
-                  {currentSlide.subtitle}
+                <View style={styles.globalCountRow}>
+                  <Text style={styles.globalCount}>
+                    {globalStats.total.toLocaleString()}
+                  </Text>
+                  <Text style={styles.globalPrayedToday}> prayed today</Text>
+                </View>
+
+                <Text style={styles.globalText}>
+                  United in prayer around the world.
                 </Text>
               </View>
               <Image
@@ -763,20 +727,7 @@ export default function MainApp() {
                 style={styles.globalDivider}
                 resizeMode="contain"
               />
-
-              <Text style={styles.globalText}>{currentSlide.description}</Text>
-            </Animated.View>
-          </View>
-          <View style={styles.carouselDots}>
-            {slides.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  carouselIndex === index && styles.dotActive,
-                ]}
-              />
-            ))}
+            </View>
           </View>
           {/* SCRIPTURE */}
 
@@ -795,7 +746,7 @@ export default function MainApp() {
           </View>
           <View style={{ height: 40 }} />
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </>
   );
 }
@@ -813,6 +764,7 @@ function ProgressCard({
   const isActive = status === "active";
   const isMissed = status === "missed";
   const isDisabled = status === "disabled";
+  const isLoading = status === "loading";
 
   const statusConfig = isCompleted
     ? {
@@ -850,14 +802,23 @@ function ProgressCard({
               border: "#DDD",
               textColor: "#AAA",
             }
-          : {
-              text: "Upcoming",
-              icon: "time",
-              iconColor: COLORS.navy,
-              bg: "#F3F5FA",
-              border: "#D4DBEA",
-              textColor: COLORS.navy,
-            };
+          : isLoading
+            ? {
+                text: "Loading...",
+                icon: "ellipsis-horizontal-circle",
+                iconColor: COLORS.muted,
+                bg: "#F8F6F2",
+                border: "#E7DCCB",
+                textColor: COLORS.muted,
+              }
+            : {
+                text: "Upcoming",
+                icon: "time",
+                iconColor: COLORS.navy,
+                bg: "#F3F5FA",
+                border: "#D4DBEA",
+                textColor: COLORS.navy,
+              };
 
   // Pulse animation
   const pulse = useRef(new Animated.Value(1)).current;
@@ -1023,8 +984,8 @@ const styles = StyleSheet.create({
   },
   cardDivider: {
     width: "100%",
-    height: 14,
     marginVertical: 5,
+    marginRight: 5,
   },
   timeRow: { flexDirection: "row", alignItems: "center" },
   timeText: {
@@ -1038,7 +999,6 @@ const styles = StyleSheet.create({
     marginTop: 3,
     color: "#6F440A",
     fontSize: 20,
-    lineHeight: 20,
     fontWeight: "600",
     fontFamily: "Cormorant",
   },
@@ -1316,23 +1276,20 @@ const styles = StyleSheet.create({
     color: COLORS.navy,
     fontFamily: "EBGaramond",
   },
-  carouselDots: {
+  connectionBanner: {
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    marginTop: 10,
+    alignSelf: "center",
+    marginBottom: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#FFF1F1",
   },
 
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#D9CCBA",
-    marginHorizontal: 4,
-  },
-
-  dotActive: {
-    width: 20,
-    backgroundColor: COLORS.gold,
+  connectionText: {
+    marginLeft: 6,
+    fontSize: 12,
+    color: "#A44E4E",
   },
 });

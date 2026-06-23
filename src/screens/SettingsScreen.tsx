@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   Image,
   Animated,
@@ -15,6 +14,7 @@ import {
   Alert,
   FlatList,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -234,6 +234,8 @@ type Props = { onLogout: () => void };
 type TogglesState = Record<AngelusTime, boolean>;
 
 export default function SettingsScreen({ onLogout }: Props) {
+  const navigation = useNavigation<any>();
+
   useFonts({
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
     EBGaramond_Medium: require("../../assets/fonts/EBGaramond-Medium.ttf"),
@@ -683,7 +685,7 @@ export default function SettingsScreen({ onLogout }: Props) {
         </View>
       </Modal>
 
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <AppHeader />
 
         <ScrollView
@@ -695,6 +697,22 @@ export default function SettingsScreen({ onLogout }: Props) {
             <Text style={styles.sectionHeaderText}>SETTINGS</Text>
             <View style={styles.line} />
           </View>
+
+          <TouchableOpacity
+            style={{
+              marginHorizontal: 24,
+              marginBottom: 20,
+              padding: 16,
+              backgroundColor: "#C9A24A",
+              borderRadius: 12,
+              alignItems: "center",
+            }}
+            onPress={() => navigation.navigate("Prayer")}
+          >
+            <Text style={{ color: "#fff", fontWeight: "600" }}>
+              Prayer Screen
+            </Text>
+          </TouchableOpacity>
 
           {/* ACCOUNT INFO */}
           <View style={styles.card}>
@@ -869,7 +887,7 @@ export default function SettingsScreen({ onLogout }: Props) {
 
           <View style={{ height: 40 }} />
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </>
   );
 }

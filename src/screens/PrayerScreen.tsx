@@ -28,7 +28,8 @@ type PrayerItem =
   | { type: "bell"; text: string; count: number; duration: number };
 
 const SIGN_OF_THE_CROSS = `In the name of the Father, and of the Son, and of the Holy Spirit. Amen.`;
-const HAIL_MARY_PART_1 = `Hail Mary, full of grace, the Lord is with thee. Blessed art thou amongst women, and blessed is the fruit of thy womb, Jesus.`;
+const HAIL_MARY_PART_1 = `Hail Mary, full of grace, the Lord is with thee. Blessed art thou amongst women, and blessed is the fruit of thy womb,
+Jesus.`;
 const HAIL_MARY_PART_2 = `Holy Mary, Mother of God, pray for us sinners now and at the hour of our death. Amen.`;
 const VERBUM = `And the Word was
 made flesh,`;
@@ -40,7 +41,6 @@ const CLOSING_CALL = {
 const CLOSING_PRAYER = `Let us pray:
 Pour forth, we beseech Thee, O Lord, Thy grace into our hearts; that we, to whom the incarnation of Christ, Thy Son, was made known by the message of an angel, may by His Passion and Cross be brought to the glory of His Resurrection, through the same Christ Our Lord.
 Amen.
-
 
 `;
 

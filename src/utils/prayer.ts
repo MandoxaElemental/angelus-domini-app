@@ -3,7 +3,8 @@ export type PrayerStatus =
   | "active"
   | "completed"
   | "missed"
-  | "disabled";
+  | "disabled"
+  | "loading";
 
 export const PRAYERS = [
   {
@@ -22,6 +23,14 @@ export const PRAYERS = [
     minute: 0,
   },
 ] as const;
+
+function localDateString(d: Date) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
 
 export function getPrayerDate(hour: number, minute = 0): Date {
   const d = new Date();
@@ -82,7 +91,7 @@ export function formatPrayerTime(date: Date) {
 export function getSlot(): string {
   const now = new Date();
   const h = now.getHours();
-  const date = now.toISOString().split("T")[0];
+  const date = localDateString(now);
 
   let slot: number;
   if (h >= 6 && h < 12) slot = 6;
@@ -95,7 +104,7 @@ export function getSlot(): string {
   if (h < 6) {
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
-    slotDate = yesterday.toISOString().split("T")[0];
+    slotDate = localDateString(yesterday);
   }
 
   return `${slotDate}_${slot}`;
