@@ -28,8 +28,7 @@ type PrayerItem =
   | { type: "bell"; text: string; count: number; duration: number };
 
 const SIGN_OF_THE_CROSS = `In the name of the Father, and of the Son, and of the Holy Spirit. Amen.`;
-const HAIL_MARY_PART_1 = `Hail Mary, full of grace, the Lord is with thee. Blessed art thou amongst women, and blessed is the fruit of thy womb,
-Jesus.`;
+const HAIL_MARY_PART_1 = `Hail Mary, full of grace, the Lord is with thee. Blessed art thou amongst women, and blessed is the fruit of thy womb, Jesus.`;
 const HAIL_MARY_PART_2 = `Holy Mary, Mother of God, pray for us sinners now and at the hour of our death. Amen.`;
 const VERBUM = `And the Word was
 made flesh,`;
@@ -141,7 +140,7 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
   {
     type: "prayer",
     text: CLOSING_PRAYER,
-    duration: 19000,
+    duration: 20000,
     audio: require("../../assets/audio/Prayer.mp3"),
   },
   { type: "bell", text: "", count: 3, duration: 9900 },
@@ -193,6 +192,9 @@ export default function PrayerScreen() {
     return "6pm";
   };
   const item = PRAYER_SEQUENCE[currentStep];
+
+  const isHailMary =
+    item.text === HAIL_MARY_PART_1 || item.text === HAIL_MARY_PART_2;
 
   const nextItem = PRAYER_SEQUENCE[currentStep + 1];
 
@@ -448,7 +450,7 @@ export default function PrayerScreen() {
     }, item.duration);
 
     return () => clearTimeout(timeout);
-  }, [currentStep, autoPlay, item]);
+  }, [currentStep, autoPlay, audioEnabled, item]);
 
   // Auto-scroll for closing prayer
   useEffect(() => {
@@ -458,7 +460,7 @@ export default function PrayerScreen() {
       interval = setInterval(() => {
         scrollY.current += 0.9;
         scrollRef.current?.scrollTo({ y: scrollY.current, animated: false });
-      }, 30);
+      }, 25);
     }
     return () => {
       clearInterval(interval);
@@ -502,13 +504,25 @@ export default function PrayerScreen() {
   const renderPrayer = () => {
     if (item.type === "versicle")
       return (
-        <Animated.Text style={[styles.versicle, { opacity: fadeAnim }]}>
+        <Animated.Text
+          style={[
+            styles.versicle,
+            isHailMary && styles.hailMaryText,
+            { opacity: fadeAnim },
+          ]}
+        >
           {item.text}
         </Animated.Text>
       );
     if (item.type === "response")
       return (
-        <Animated.Text style={[styles.responseItalic, { opacity: fadeAnim }]}>
+        <Animated.Text
+          style={[
+            styles.responseItalic,
+            isHailMary && styles.hailMaryTextItalic,
+            { opacity: fadeAnim },
+          ]}
+        >
           {item.text}
         </Animated.Text>
       );
@@ -758,25 +772,6 @@ export default function PrayerScreen() {
               const next = !autoPlay;
 
               setAutoPlay(next);
-
-              if (
-                next &&
-                audioEnabled &&
-                currentStep === 0 &&
-                item.type !== "bell"
-              ) {
-                audioRef.current?.remove?.();
-
-                if (item.audio) {
-                  const player = createAudioPlayer(item.audio);
-
-                  audioRef.current = player;
-
-                  setTimeout(() => {
-                    player.play();
-                  }, 100);
-                }
-              }
             }}
           >
             <Text
@@ -928,6 +923,15 @@ const styles = StyleSheet.create({
     lineHeight: 45,
     fontFamily: "Cormorant_Italic",
     fontWeight: "600",
+  },
+  hailMaryText: {
+    fontSize: 28,
+    lineHeight: 38,
+  },
+
+  hailMaryTextItalic: {
+    fontSize: 28,
+    lineHeight: 38,
   },
   prayer: {
     fontSize: 32,

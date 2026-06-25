@@ -54,14 +54,14 @@ const prayerImages: Record<string, any> = {
 };
 
 const progressImages: Record<string, any> = {
-  Morning: require("../../assets/Morning_Clear.png"),
-  Noon: require("../../assets/Noon_Clear.png"),
-  Evening: require("../../assets/Evening_Clear.png"),
+  Morning: require("../../assets/Morning_Clear.jpg"),
+  Noon: require("../../assets/Noon_Clear.jpg"),
+  Evening: require("../../assets/Evening_Clear.jpg"),
 };
 const completeImages: Record<string, any> = {
-  Morning: require("../../assets/1.png"),
-  Noon: require("../../assets/2.png"),
-  Evening: require("../../assets/3.png"),
+  Morning: require("../../assets/Morning_Solid.jpg"),
+  Noon: require("../../assets/Noon_Solid.jpg"),
+  Evening: require("../../assets/Evening_Solid.jpg"),
 };
 
 function format12Hour(date: Date): string {
@@ -70,6 +70,16 @@ function format12Hour(date: Date): string {
   const ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
   return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
+}
+
+function getPrayerDay() {
+  const now = new Date();
+
+  if (now.getHours() < 6) {
+    now.setDate(now.getDate() - 1);
+  }
+
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
 function getNextPrayerForMode(mode: AngelusMode) {
@@ -260,15 +270,13 @@ export default function MainApp() {
 
       const now = new Date();
 
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const prayerDay = getPrayerDay();
 
       const { data, error } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
         .eq("UserId", uid)
-        .gte("ScheduledTime", `${todayStr}T00:00:00+00:00`)
-        .lte("ScheduledTime", `${todayStr}T23:59:59+00:00`);
-
+        .like("Slot", `${prayerDay}_%`);
       if (error) throw error;
 
       const updated = {
@@ -595,7 +603,7 @@ export default function MainApp() {
           <View style={styles.greetingRow}>
             <View style={styles.sunIcon}>
               <Image
-                source={require("../../assets/usericons1.png")}
+                source={require("../../assets/usericonsMorning_Solid.jpg")}
                 style={styles.progressImage}
                 resizeMode="contain"
               />

@@ -12,6 +12,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Svg, { Circle, Ellipse, Line, Path } from "react-native-svg";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
+import { useFonts } from "expo-font";
 
 const C = {
   cream: "#F5F0E8",
@@ -104,6 +105,11 @@ function GlobeIcon({ size }: { size: number }) {
 type CountryRow = { country: string; count: number };
 
 export default function CommunityScreen() {
+  const [fontsLoaded] = useFonts({
+    EBGaramond: require("../../assets/fonts/EBGaramond.ttf"),
+    PlayfairDisplay: require("../../assets/fonts/PlayfairDisplay.ttf"),
+  });
+
   const [activeTab, setActiveTab] = useState<"country" | "region">("country");
   const [countries, setCountries] = useState<CountryRow[]>([]);
   const [totalPrayedToday, setTotalPrayedToday] = useState(0);
@@ -269,7 +275,7 @@ export default function CommunityScreen() {
           <View>
             <Text
               style={{
-                fontFamily: "EBGaramond-Medium",
+                fontFamily: "EBGaramond",
                 fontSize: fs(30),
                 color: C.navy,
                 lineHeight: fs(36),
@@ -324,7 +330,7 @@ export default function CommunityScreen() {
               </Text>
               <Text
                 style={{
-                  fontFamily: "PlayfairDisplay_400Bold",
+                  fontFamily: "PlayfairDisplay",
                   fontSize: fs(34),
                   color: C.gold,
                   lineHeight: fs(38),

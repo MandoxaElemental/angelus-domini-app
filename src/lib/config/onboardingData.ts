@@ -11,7 +11,8 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
     id: 2,
     type: "welcome",
     title: "Welcome to\nAngelus Domini",
-    description: "Join Catholics around the world praying the Angelus each day.",
+    description:
+      "Join Catholics around the world praying the Angelus each day.",
     prayerTimes: ["6 AM", "12 PM", "6 PM"],
   },
   {
@@ -20,16 +21,29 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
     title: "Set your\nDaily Rhythm",
     description: "Pause with the Church at the\ntraditional hours of prayer.",
     slots: [
-      { label: "Morning", time: "6:00 AM",  image: require("../../../assets/1.png") },
-      { label: "Noon",    time: "12:00 PM", image: require("../../../assets/2.png") },
-      { label: "Evening", time: "6:00 PM",  image: require("../../../assets/3.png") },
+      {
+        label: "Morning",
+        time: "6:00 AM",
+        image: require("../../../assets/Morning_Solid.jpg"),
+      },
+      {
+        label: "Noon",
+        time: "12:00 PM",
+        image: require("../../../assets/Noon_Solid.jpg"),
+      },
+      {
+        label: "Evening",
+        time: "6:00 PM",
+        image: require("../../../assets/Evening_Solid.jpg"),
+      },
     ],
   },
   {
     id: 4,
     type: "bells",
     title: "Hear the Bells",
-    description: "Your phone rings like Church\nBells when it's time to pray the\nAngelus.",
+    description:
+      "Your phone rings like Church\nBells when it's time to pray the\nAngelus.",
     illustration: require("../../../assets/notificationsbg.png"),
     buttonText: "Continue",
     isNotificationSlide: false,
