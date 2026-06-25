@@ -54,14 +54,14 @@ const prayerImages: Record<string, any> = {
 };
 
 const progressImages: Record<string, any> = {
-  Morning: require("../../assets/Morning_Clear.jpg"),
-  Noon: require("../../assets/Noon_Clear.jpg"),
-  Evening: require("../../assets/Evening_Clear.jpg"),
+  Morning: require("../../assets/Morning_Clear.png"),
+  Noon: require("../../assets/Noon_Clear.png"),
+  Evening: require("../../assets/Evening_Clear.png"),
 };
 const completeImages: Record<string, any> = {
-  Morning: require("../../assets/Morning_Solid.jpg"),
-  Noon: require("../../assets/Noon_Solid.jpg"),
-  Evening: require("../../assets/Evening_Solid.jpg"),
+  Morning: require("../../assets/Morning_Solid.png"),
+  Noon: require("../../assets/Noon_Solid.png"),
+  Evening: require("../../assets/Evening_Solid.png"),
 };
 
 function format12Hour(date: Date): string {
@@ -70,6 +70,35 @@ function format12Hour(date: Date): string {
   const ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
   return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
+}
+
+function getCurrentPrayerWindow() {
+  const hour = new Date().getHours();
+
+  if (hour >= 6 && hour < 12) {
+    return {
+      key: "morning",
+      label: "Morning Angelus",
+      start: "6:00 AM",
+      end: "11:59 AM",
+    };
+  }
+
+  if (hour >= 12 && hour < 18) {
+    return {
+      key: "noon",
+      label: "Noon Angelus",
+      start: "12:00 PM",
+      end: "5:59 PM",
+    };
+  }
+
+  return {
+    key: "evening",
+    label: "Evening Angelus",
+    start: "6:00 PM",
+    end: "5:59 AM",
+  };
 }
 
 function getPrayerDay() {
@@ -258,6 +287,11 @@ export default function MainApp() {
     noon: 0,
     evening: 0,
   });
+
+  const currentWindow = getCurrentPrayerWindow();
+
+  const currentCount =
+    globalStats[currentWindow.key as keyof typeof globalStats];
 
   const greeting =
     currentHour < 12 ? "Morning" : currentHour < 18 ? "Afternoon" : "Evening";
@@ -603,7 +637,7 @@ export default function MainApp() {
           <View style={styles.greetingRow}>
             <View style={styles.sunIcon}>
               <Image
-                source={require("../../assets/usericonsMorning_Solid.jpg")}
+                source={require("../../assets/usericons1.png")}
                 style={styles.progressImage}
                 resizeMode="contain"
               />
@@ -720,21 +754,34 @@ export default function MainApp() {
                 <Text style={styles.globalLabel}>GLOBAL PRAYER TODAY</Text>
 
                 <View style={styles.globalCountRow}>
+                  <Text style={styles.hourCount}>
+                    {currentCount.toLocaleString()}
+                  </Text>
+
+                  <View style={styles.globalTextContainer}>
+                    <Text style={styles.globalPrayedToday}>
+                      people prayed the
+                    </Text>
+                    <Text style={styles.globalPrayedToday}>
+                      {currentWindow.label}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.barDivider} />
+
+                <View style={styles.globalCountRow}>
                   <Text style={styles.globalCount}>
                     {globalStats.total.toLocaleString()}
                   </Text>
-                  <Text style={styles.globalPrayedToday}> prayed today</Text>
+                  <View style={styles.globalTextContainer}>
+                    <Text style={styles.globalText}>prayers offered</Text>
+                    <Text style={styles.globalText}>Worldwide</Text>
+                  </View>
                 </View>
-
                 <Text style={styles.globalText}>
-                  United in prayer around the world.
+                  United in Prayer around the World
                 </Text>
               </View>
-              <Image
-                source={require("../../assets/Divider.png")}
-                style={styles.globalDivider}
-                resizeMode="contain"
-              />
             </View>
           </View>
           {/* SCRIPTURE */}
@@ -991,7 +1038,7 @@ const styles = StyleSheet.create({
     fontFamily: "EBGaramond",
   },
   cardDivider: {
-    width: "100%",
+    width: "95%",
     marginVertical: 5,
     marginRight: 5,
   },
@@ -1004,7 +1051,7 @@ const styles = StyleSheet.create({
     fontFamily: "EBGaramond",
   },
   cardTime: {
-    marginTop: 3,
+    marginTop: 5,
     color: "#6F440A",
     fontSize: 20,
     fontWeight: "600",
@@ -1019,15 +1066,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: 16,
     marginTop: 10,
-    marginBottom: 18,
+    marginBottom: 10,
   },
 
   sectionHeaderText: {
     flexShrink: 0,
     marginHorizontal: 10,
     color: COLORS.navy,
-    fontSize: 15,
-    fontFamily: "Cormorant",
+    fontSize: 12,
+    fontFamily: "Inter",
     fontWeight: "600",
     textAlign: "center",
   },
@@ -1103,7 +1150,7 @@ const styles = StyleSheet.create({
   },
   globalCard: {
     marginHorizontal: 24,
-    marginTop: 10,
+    marginTop: 5,
     backgroundColor: COLORS.card,
     borderRadius: 28,
     borderWidth: 1,
@@ -1128,37 +1175,47 @@ const styles = StyleSheet.create({
   globalLabel: {
     color: COLORS.navy,
     fontSize: 12,
-    letterSpacing: 1.5,
     fontFamily: "Inter",
+    fontWeight: 500,
     marginBottom: 2,
   },
   globalCountRow: {
     flexDirection: "row",
-    alignItems: "baseline",
+    alignItems: "center",
     flexWrap: "wrap",
+    justifyContent: "center",
+  },
+  hourCount: {
+    fontSize: 30,
+    color: COLORS.navy,
+    fontWeight: "600",
+    fontFamily: "EBGaramond",
   },
   globalCount: {
-    fontSize: 38,
-    color: COLORS.navy,
+    fontSize: 36,
+    color: COLORS.gold,
     fontWeight: "700",
     fontFamily: "EBGaramond",
   },
   globalPrayedToday: {
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 14,
     color: COLORS.textSecondary,
     fontFamily: "Cormorant",
-    marginLeft: 4,
   },
   globalText: {
     color: COLORS.textSecondary,
     fontSize: 13,
     fontFamily: "Cormorant",
-    marginTop: 2,
+    marginTop: 5,
+  },
+  globalTextContainer: {
+    marginLeft: 6,
+    justifyContent: "center",
   },
   globalDivider: {
     width: "100%",
     height: 20,
-    marginVertical: 5,
   },
   nowPrayingRow: {
     flexDirection: "row",
@@ -1187,7 +1244,7 @@ const styles = StyleSheet.create({
   nowPrayingDot: { fontSize: 13, color: COLORS.muted },
   scriptureCard: {
     marginHorizontal: 24,
-    marginTop: 14,
+    marginTop: 5,
     backgroundColor: COLORS.card,
     borderRadius: 22,
     borderWidth: 1,
@@ -1299,5 +1356,11 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 12,
     color: "#A44E4E",
+  },
+  barDivider: {
+    alignSelf: "stretch",
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 2,
   },
 });

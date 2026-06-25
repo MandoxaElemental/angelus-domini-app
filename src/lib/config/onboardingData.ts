@@ -24,17 +24,17 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
       {
         label: "Morning",
         time: "6:00 AM",
-        image: require("../../../assets/Morning_Solid.jpg"),
+        image: require("../../../assets/Morning_Solid.png"),
       },
       {
         label: "Noon",
         time: "12:00 PM",
-        image: require("../../../assets/Noon_Solid.jpg"),
+        image: require("../../../assets/Noon_Solid.png"),
       },
       {
         label: "Evening",
         time: "6:00 PM",
-        image: require("../../../assets/Evening_Solid.jpg"),
+        image: require("../../../assets/Evening_Solid.png"),
       },
     ],
   },

@@ -26,21 +26,21 @@ const COLORS = {
 };
 
 const progressImages: Record<string, any> = {
-  Morning: require("../../assets/Morning_Clear.jpg"),
-  Noon: require("../../assets/Noon_Clear.jpg"),
-  Evening: require("../../assets/Evening_Clear.jpg"),
+  Morning: require("../../assets/Morning_Clear.png"),
+  Noon: require("../../assets/Noon_Clear.png"),
+  Evening: require("../../assets/Evening_Clear.png"),
 };
 
 const completeImages: Record<string, any> = {
-  Morning: require("../../assets/Morning_Solid.jpg"),
-  Noon: require("../../assets/Noon_Solid.jpg"),
-  Evening: require("../../assets/Evening_Solid.jpg"),
+  Morning: require("../../assets/Morning_Solid.png"),
+  Noon: require("../../assets/Noon_Solid.png"),
+  Evening: require("../../assets/Evening_Solid.png"),
 };
 
 const weekImages: Record<string, any> = {
-  Morning: require("../../assets/1Morning_Solid.jpg"),
-  Noon: require("../../assets/2Noon_Solid.jpg"),
-  Evening: require("../../assets/3Evening_Solid.jpg"),
+  Morning: require("../../assets/Morning_Solid.png"),
+  Noon: require("../../assets/Noon_Solid.png"),
+  Evening: require("../../assets/Evening_Solid.png"),
 };
 
 const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
