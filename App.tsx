@@ -110,18 +110,26 @@ export default function App() {
         const onboarded = await AsyncStorage.getItem("onboarded");
         console.log("onboarded:", onboarded);
 
-        const sessionPromise = supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-        const timeoutPromise = new Promise<null>((resolve) =>
-          setTimeout(() => resolve(null), 5000),
-        );
+        console.log("[STARTUP SESSION]", session?.user?.email ?? "none");
 
-        const result = await Promise.race([sessionPromise, timeoutPromise]);
+        const [screen, setScreen] = useState<Screen>("onboarding");
+        useEffect(() => {
+          const {
+            data: { subscription },
+          } = supabase.auth.onAuthStateChange((event, session) => {
+            console.log(
+              "[AUTH EVENT]",
+              event,
+              session?.user?.email ?? "no-session",
+            );
+          });
 
-        const session =
-          result && typeof result === "object" && "data" in result
-            ? (result as any).data?.session
-            : null;
+          return () => subscription.unsubscribe();
+        }, []);
 
         if (!mounted) return;
 
@@ -276,51 +284,17 @@ export default function App() {
     setScreen("register");
   };
 
-  // const screenContent = () => {
-  //   switch (screen) {
-  //     case "onboarding":
-  //       return <OnboardingScreen onDone={handleOnboardingDone} />;
-
-  //     case "register":
-  //       return (
-  //         <RegisterScreen
-  //           goToLogin={async () => {
-  //             await AsyncStorage.setItem("onboarded", "true");
-  //             setScreen("login");
-  //           }}
-  //           goToHome={async () => {
-  //             await AsyncStorage.setItem("onboarded", "true");
-  //             setScreen("main");
-  //           }}
-  //         />
-  //       );
-
-  //     case "login":
-  //       return (
-  //         <LoginScreen
-  //           onLogin={() => setScreen("main")}
-  //           goToRegister={() => setScreen("register")}
-  //         />
-  //       );
-
-  //     case "main":
-  //       return (
-  //         <NavigationContainer ref={navigationRef}>
-  //           <TabLayout onLogout={() => setScreen("login")} />
-  //         </NavigationContainer>
-  //       );
-
-  //     default:
-  //       return null;
-  //   }
-  // };
-
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         {screen === "main" ? (
           <NavigationContainer ref={navigationRef}>
-            <TabLayout onLogout={() => setScreen("login")} />
+            <TabLayout
+              onLogout={() => {
+                console.log("[NAV] logout -> login");
+                setScreen("login");
+              }}
+            />{" "}
           </NavigationContainer>
         ) : screen === "onboarding" ? (
           <OnboardingScreen onDone={handleOnboardingDone} />
@@ -331,7 +305,10 @@ export default function App() {
           />
         ) : (
           <LoginScreen
-            onLogin={() => setScreen("main")}
+            onLogin={() => {
+              console.log("[NAV] login -> main");
+              setScreen("main");
+            }}
             goToRegister={() => setScreen("register")}
           />
         )}

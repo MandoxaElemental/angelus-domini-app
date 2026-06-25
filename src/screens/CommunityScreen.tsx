@@ -6,7 +6,6 @@ import {
   useWindowDimensions,
   ActivityIndicator,
   Image,
-  SafeAreaView,
 } from "react-native";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Svg, { Circle, Ellipse, Line, Path } from "react-native-svg";
@@ -252,7 +251,7 @@ export default function CommunityScreen() {
   });
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.cream }}>
+    <View style={{ flex: 1, backgroundColor: C.cream }}>
       {/* ── HEADER ── */}
       <AppHeader />
 
@@ -539,6 +538,6 @@ export default function CommunityScreen() {
 
         <View style={{ height: s(20) }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
