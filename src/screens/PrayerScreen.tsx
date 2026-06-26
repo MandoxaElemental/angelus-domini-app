@@ -38,6 +38,7 @@ const CLOSING_CALL = {
 };
 
 const CLOSING_PRAYER = `Let us pray:
+
 Pour forth, we beseech Thee, O Lord, Thy grace into our hearts; that we, to whom the incarnation of Christ, Thy Son, was made known by the message of an angel, may by His Passion and Cross be brought to the glory of His Resurrection, through the same Christ Our Lord.
 Amen.
 

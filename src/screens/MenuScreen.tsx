@@ -9,10 +9,6 @@ import { AngelusMode, getAngelusMode } from "../services/notificationService";
 import { useFonts } from "expo-font";
 import { useFocusEffect } from "@react-navigation/native";
 
-type Props = {
-  onLogout: () => void;
-};
-
 const COLORS = {
   navy: "#2F4A7A",
   gold: "#C9A24A",
@@ -75,12 +71,12 @@ type DotStatus = "completed" | "missed" | "upcoming" | "loading";
 function getDotStatus(
   dayIndex: number,
   prayerHour: number,
-  monday: Date,
+  sunday: Date,
   now: Date,
   completedDays: Set<string>,
 ): DotStatus {
-  const slotDate = new Date(monday);
-  slotDate.setDate(monday.getDate() + dayIndex);
+  const slotDate = new Date(sunday);
+  slotDate.setDate(sunday.getDate() + dayIndex);
   const dateStr = `${slotDate.getFullYear()}-${String(
     slotDate.getMonth() + 1,
   ).padStart(2, "0")}-${String(slotDate.getDate()).padStart(2, "0")}`;
@@ -160,7 +156,13 @@ export default function MenuScreen() {
     try {
       const nowSnap = new Date();
 
-      const todayKey = toLocalDateKey(new Date());
+      const todayKey = toLocalDateKey(nowSnap);
+
+      const updated = {
+        morning: false,
+        noon: false,
+        evening: false,
+      };
 
       const { data: todaySessions } = await supabase
         .from("PrayerSessions")
@@ -168,6 +170,7 @@ export default function MenuScreen() {
         .eq("UserId", uid)
         .like("Slot", `${todayKey}%`);
 
+      setCompletedPrayers(updated);
       if (todaySessions) {
         const updated = { morning: false, noon: false, evening: false };
 
@@ -389,13 +392,13 @@ export default function MenuScreen() {
   const noonDots: DotStatus[] = loading
     ? Array(7).fill("loading")
     : Array.from({ length: 7 }, (_, i) =>
-        getDotStatus(i, 6, weekStart, now, weekNoon),
+        getDotStatus(i, 12, weekStart, now, weekNoon),
       );
 
   const eveningDots: DotStatus[] = loading
     ? Array(7).fill("loading")
     : Array.from({ length: 7 }, (_, i) =>
-        getDotStatus(i, 6, weekStart, now, weekEvening),
+        getDotStatus(i, 18, weekStart, now, weekEvening),
       );
 
   const morningCount = morningDots.filter((d) => d === "completed").length;

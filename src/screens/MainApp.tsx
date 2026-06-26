@@ -336,15 +336,13 @@ export default function MainApp() {
   }, []);
 
   async function getGlobalPrayerStats() {
-    const now = new Date();
+    const prayerDay = getPrayerDay();
 
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const { data, error } = await supabase
       .from("PrayerSessions")
       .select("Slot")
       .eq("Completed", true)
-      .gte("ScheduledTime", `${today}T00:00:00+00:00`)
-      .lte("ScheduledTime", `${today}T23:59:59+00:00`);
+      .like("Slot", `${prayerDay}_%`);
 
     if (error) throw error;
 

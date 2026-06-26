@@ -70,11 +70,20 @@ export function formatPrayerTime(date: Date) {
 
 export function getSlot(): string {
   const now = new Date();
-  const h = now.getHours();
 
-  const slot = h < 9 ? 6 : h < 15 ? 12 : 18;
-
+  let slot: number;
   const date = new Date(now);
+
+  if (now.getHours() < 6) {
+    date.setDate(date.getDate() - 1);
+    slot = 18;
+  } else if (now.getHours() < 12) {
+    slot = 6;
+  } else if (now.getHours() < 18) {
+    slot = 12;
+  } else {
+    slot = 18;
+  }
 
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}_${slot}`;
 }

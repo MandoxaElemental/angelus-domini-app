@@ -17,11 +17,11 @@ export const startPrayer = async (userId: string): Promise<PrayerSession> => {
   const slot = getSlot();
   const now = new Date();
 
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
+  // const todayStart = new Date(now);
+  // todayStart.setHours(0, 0, 0, 0);
 
-  const tomorrowStart = new Date(todayStart);
-  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+  // const tomorrowStart = new Date(todayStart);
+  // tomorrowStart.setDate(tomorrowStart.getDate() + 1);
 
   const { data: existing, error: fetchError } = await supabase
     .from("PrayerSessions")
