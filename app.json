@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "Angelus Domini",
+    "slug": "angelus-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/Official_Logo.jpg",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/Official_splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1F3A6E"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.angelusapp",
+      "icon": "./assets/Official_Logo.jpg"
+    },
+    "android": {
+      "package": "com.annieann.angelusapp",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/Official_Logo.jpg",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/angelusdominiicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-splash-screen",
+      "expo-audio",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/bell.png",
+          "color": "#2F4A7A",
+          "sounds": [
+            "./assets/audio/triple_bell.mp3"
+          ]
+        }
+      ],
+      "expo-asset",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "5ecbc0b7-313d-4ab7-b556-0b647de87bbc"
+      }
+    }
+  }
+}
