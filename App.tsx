@@ -95,6 +95,22 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[AUTH]", event);
+
+      if (event === "SIGNED_OUT") {
+        setScreen("login");
+      } else if (session) {
+        setScreen("main");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
     if (isReady) {
       SplashScreen.hideAsync();
     }
@@ -109,23 +125,13 @@ export default function App() {
       try {
         const onboarded = await AsyncStorage.getItem("onboarded");
         console.log("onboarded:", onboarded);
-
-        const sessionPromise = supabase.auth.getSession();
-
-        const timeoutPromise = new Promise<null>((resolve) =>
-          setTimeout(() => resolve(null), 5000),
-        );
-
-        const result = await Promise.race([sessionPromise, timeoutPromise]);
-
-        const session =
-          result && typeof result === "object" && "data" in result
-            ? (result as any).data?.session
-            : null;
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
         if (!mounted) return;
 
-        if (session?.user) {
+        if (session) {
           setScreen("main");
         } else if (onboarded === "true") {
           setScreen("login");
@@ -138,7 +144,6 @@ export default function App() {
         const onboarded = await AsyncStorage.getItem("onboarded");
 
         if (!mounted) return;
-
         setScreen(onboarded === "true" ? "login" : "onboarding");
       } finally {
         if (mounted) setIsReady(true);

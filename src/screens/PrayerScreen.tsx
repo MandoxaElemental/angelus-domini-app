@@ -205,6 +205,9 @@ export default function PrayerScreen() {
   const bellRotate = useRef(new Animated.Value(0)).current;
   const audioRef = useRef<any>(null);
 
+  const [contentHeight, setContentHeight] = useState(0);
+  const [layoutHeight, setLayoutHeight] = useState(0);
+
   const [autoPlay, setAutoPlay] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const isTransitioning = useRef(false);
@@ -659,6 +662,8 @@ export default function PrayerScreen() {
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 showsHorizontalScrollIndicator={false}
+                onContentSizeChange={(w, h) => setContentHeight(h)}
+                onLayout={(e) => setLayoutHeight(e.nativeEvent.layout.height)}
                 ref={scrollRef}
                 contentContainerStyle={[
                   styles.cardContent,
