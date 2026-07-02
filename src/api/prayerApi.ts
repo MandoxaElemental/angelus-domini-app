@@ -1,7 +1,17 @@
-import 'react-native-get-random-values';
-import { v4 as uuidv4 } from 'uuid';
+import "react-native-get-random-values";
+import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../lib/supabaseClient";
 import { getSlot } from "../utils/prayer";
+
+import {
+  clearCurrentSession,
+  loadCurrentSession,
+  pruneOfflineSessions,
+  saveCurrentSession,
+  upsertOfflineSession,
+} from "../storage/offlineStorage";
+
+import { OfflinePrayerSession } from "../storage/offlineStorage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,69 +22,152 @@ export type PrayerSession = {
   slot: string;
 };
 
+export const getScheduledTime = () => {
+  const now = new Date();
+
+  if (now.getHours() < 12) {
+    now.setHours(6, 0, 0, 0);
+  } else if (now.getHours() < 18) {
+    now.setHours(12, 0, 0, 0);
+  } else {
+    now.setHours(18, 0, 0, 0);
+  }
+
+  return now.toISOString();
+};
+
 // ─── Start Prayer ─────────────────────────────────────────────────────────────
 
 export const startPrayer = async (userId: string): Promise<PrayerSession> => {
   const slot = getSlot();
+  const scheduledTime = getScheduledTime();
   const now = new Date().toISOString();
 
-  // Check if session already exists for this user + slot
-  const { data: existing, error: fetchError } = await supabase
-    .from("PrayerSessions")
-    .select("*")
-    .eq("UserId", userId)
-    .eq("Slot", slot)
-    .maybeSingle();
+  let localSession = await loadCurrentSession();
 
-  if (fetchError) throw fetchError;
-
-  if (existing) {
-    return {
-      sessionId: existing.SessionId,
-      prayerTypeId: existing.PrayerTypeId ?? 1,
-      scheduledTime: existing.ScheduledTime,
-      slot: existing.Slot,
-    };
+  if (localSession && localSession.slot !== slot) {
+    await clearCurrentSession();
+    localSession = null;
   }
 
-  // Create new session with generated UUID
-  const { data, error } = await supabase
-    .from("PrayerSessions")
-    .insert({
-      SessionId: uuidv4(),
-      UserId: userId,
-      Slot: slot,
-      PrayerTypeId: 1,
-      ScheduledTime: now,
-      CreatedAt: now,
-      Completed: false,
-    })
-    .select()
-    .single();
+  await pruneOfflineSessions(slot);
 
-  if (error) throw error;
+  if (localSession) {
+    return localSession;
+  }
 
-  return {
-    sessionId: data.SessionId,
-    prayerTypeId: data.PrayerTypeId ?? 1,
-    scheduledTime: data.ScheduledTime,
-    slot: data.Slot,
-  };
+  try {
+    const { data: existing, error: fetchError } = await supabase
+      .from("PrayerSessions")
+      .select("*")
+      .eq("UserId", userId)
+      .eq("Slot", slot)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+
+    if (existing) {
+      const session: OfflinePrayerSession = {
+        sessionId: existing.SessionId,
+        prayerTypeId: existing.PrayerTypeId ?? 1,
+        scheduledTime: existing.ScheduledTime,
+        slot: existing.Slot,
+        completed: existing.Completed ?? false,
+        synced: true,
+      };
+
+      await saveCurrentSession(session);
+      await upsertOfflineSession(session);
+
+      return session;
+    }
+
+    // 3. Create new online session
+
+    const sessionId = uuidv4();
+
+    const { data, error } = await supabase
+      .from("PrayerSessions")
+      .insert({
+        SessionId: sessionId,
+        UserId: userId,
+        Slot: slot,
+        PrayerTypeId: 1,
+        ScheduledTime: scheduledTime,
+        CreatedAt: now,
+        Completed: false,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const session: OfflinePrayerSession = {
+      sessionId: data.SessionId,
+      prayerTypeId: data.PrayerTypeId,
+      scheduledTime: data.ScheduledTime,
+      slot: data.Slot,
+      completed: data.Completed,
+      synced: true,
+    };
+
+    await saveCurrentSession(session);
+    await upsertOfflineSession(session);
+    return session;
+  } catch {
+    // 4. Offline fallback
+
+    const session: OfflinePrayerSession = {
+      sessionId: uuidv4(),
+      prayerTypeId: 1,
+      scheduledTime: now,
+      slot,
+      completed: false,
+      synced: false,
+    };
+
+    await saveCurrentSession(session);
+    await upsertOfflineSession(session);
+
+    return session;
+  }
 };
 
 // ─── Complete Prayer ──────────────────────────────────────────────────────────
 
 export const completePrayer = async (
   userId: string,
-  sessionId: string
+  sessionId: string,
 ): Promise<void> => {
-  const { error } = await supabase
-    .from("PrayerSessions")
-    .update({ Completed: true, CompletedAt: new Date().toISOString() })
-    .eq("SessionId", sessionId)
-    .eq("UserId", userId);
+  const session = await loadCurrentSession();
 
-  if (error) throw error;
+  if (session) {
+    session.completed = true;
+    await saveCurrentSession(session);
+    await upsertOfflineSession(session);
+  }
+
+  try {
+    const { error } = await supabase
+      .from("PrayerSessions")
+      .update({
+        Completed: true,
+        CompletedAt: new Date().toISOString(),
+      })
+      .eq("SessionId", sessionId)
+      .eq("UserId", userId);
+
+    if (error) throw error;
+
+    if (session) {
+      session.synced = true;
+      await saveCurrentSession(session);
+      await upsertOfflineSession(session);
+    }
+  } catch {
+    // Still offline
+    // We'll sync later
+  }
 };
 
 // ─── Get Global Count ─────────────────────────────────────────────────────────
@@ -87,6 +180,7 @@ export const getGlobalCount = async (slot: string): Promise<number> => {
     .eq("Completed", true);
 
   if (error) throw error;
+
   return count ?? 0;
 };
 
@@ -100,5 +194,6 @@ export const getHistory = async (userId: string) => {
     .order("CreatedAt", { ascending: false });
 
   if (error) throw error;
+
   return data;
 };

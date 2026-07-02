@@ -102,7 +102,7 @@ export default function TabLayout({ onLogout }: Props) {
       <Stack.Screen
         name="Prayer"
         component={PrayerScreen}
-        options={{ animation: "slide_from_bottom" }}
+        options={{ animation: "fade" }}
       />
     </Stack.Navigator>
   );

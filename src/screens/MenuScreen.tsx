@@ -139,6 +139,7 @@ export default function MenuScreen() {
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
     EBGaramond: require("../../assets/fonts/EBGaramond-Medium.ttf"),
   });
+
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [count, setCount] = useState(0);

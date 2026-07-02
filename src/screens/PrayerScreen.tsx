@@ -214,7 +214,6 @@ export default function PrayerScreen() {
 
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const initialSlot = route.params?.timeSlot;
   const [showCompletionModal, setShowCompletionModal] = useState(false);
 
   const onComplete = route.params?.onComplete;
@@ -470,7 +469,7 @@ export default function PrayerScreen() {
       clearInterval(interval);
       scrollY.current = 0;
     };
-  }, [currentStep]);
+  }, [currentStep, item.duration, onComplete]);
 
   // Completion handler
   useEffect(() => {

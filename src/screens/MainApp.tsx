@@ -10,7 +10,7 @@ import {
   StatusBar,
   Dimensions,
 } from "react-native";
-
+import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
@@ -22,6 +22,11 @@ import { completePrayer, getGlobalCount, startPrayer } from "../api/prayerApi";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
 import { getAngelusMode, AngelusMode } from "../services/notificationService";
+import {
+  loadOfflineSessions,
+  saveOfflineSessions,
+} from "../storage/offlineStorage";
+import { syncOfflinePrayers } from "../../services/syncOfflinePrayers";
 
 const { width } = Dimensions.get("window");
 const isSmallScreen = width < 390;
@@ -79,8 +84,6 @@ function getCurrentPrayerWindow() {
     return {
       key: "morning",
       label: "Morning Angelus",
-      start: "6:00 AM",
-      end: "11:59 AM",
     };
   }
 
@@ -88,16 +91,12 @@ function getCurrentPrayerWindow() {
     return {
       key: "noon",
       label: "Noon Angelus",
-      start: "12:00 PM",
-      end: "5:59 PM",
     };
   }
 
   return {
     key: "evening",
     label: "Evening Angelus",
-    start: "6:00 PM",
-    end: "5:59 AM",
   };
 }
 
@@ -275,6 +274,20 @@ export default function MainApp() {
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
 
   useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(
+      async (state: NetInfoState) => {
+        if (state.isConnected && state.isInternetReachable && userId) {
+          await syncOfflinePrayers(userId);
+          await fetchTodayPrayers(userId);
+          await refreshGlobalStats();
+        }
+      },
+    );
+
+    return unsubscribe;
+  }, [userId]);
+
+  useEffect(() => {
     const id = setInterval(() => {
       setCurrentHour(new Date().getHours());
     }, 60000);
@@ -302,8 +315,6 @@ export default function MainApp() {
       setPrayerLoadError(false);
       setPrayersLoading(true);
 
-      const now = new Date();
-
       const prayerDay = getPrayerDay();
 
       const { data, error } = await supabase
@@ -311,6 +322,9 @@ export default function MainApp() {
         .select("Slot, Completed")
         .eq("UserId", uid)
         .like("Slot", `${prayerDay}_%`);
+
+      console.log("fetchTodayPrayers() data:", data);
+
       if (error) throw error;
 
       const updated = {
@@ -320,15 +334,43 @@ export default function MainApp() {
       };
 
       data?.forEach((s: any) => {
+        console.log("Processing row:", s);
+
         if (!s.Completed) return;
 
         const key = slotToKey(s.Slot);
+
+        console.log("Mapped", s.Slot, "->", key);
+
+        if (key) updated[key] = true;
+      });
+
+      console.log("Setting completedPrayers:", updated);
+      setCompletedPrayers(updated);
+    } catch (err) {
+      const sessions = await loadOfflineSessions();
+
+      const updated = {
+        morning: false,
+        noon: false,
+        evening: false,
+      };
+
+      useEffect(() => {
+        console.log("completedPrayers state changed:", completedPrayers);
+      }, [completedPrayers]);
+
+      const prayerDay = getPrayerDay();
+
+      sessions.forEach((session) => {
+        if (!session.completed) return;
+        if (!session.slot.startsWith(prayerDay)) return;
+
+        const key = slotToKey(session.slot);
         if (key) updated[key] = true;
       });
 
       setCompletedPrayers(updated);
-    } catch (err) {
-      console.error("fetchTodayPrayers error:", err);
       setPrayerLoadError(true);
     } finally {
       setPrayersLoading(false);
@@ -386,9 +428,12 @@ export default function MainApp() {
   }, []);
 
   const refreshGlobalStats = useCallback(async () => {
-    const stats = await getGlobalPrayerStats();
-
-    setGlobalStats(stats);
+    try {
+      const stats = await getGlobalPrayerStats();
+      setGlobalStats(stats);
+    } catch {
+      // Keep previous stats while offline
+    }
   }, []);
 
   useEffect(() => {
@@ -397,6 +442,8 @@ export default function MainApp() {
 
       if (newKey !== todayKey) {
         setTodayKey(newKey);
+
+        await saveOfflineSessions([]);
 
         setCompletedPrayers({
           morning: false,
@@ -413,7 +460,7 @@ export default function MainApp() {
     }, 60000);
 
     return () => clearInterval(id);
-  }, [todayKey, userId]);
+  }, [todayKey, userId, fetchTodayPrayers, refreshGlobalStats]);
 
   useEffect(() => {
     let channel: any = null;
@@ -442,6 +489,7 @@ export default function MainApp() {
         if (!auth?.user?.id) return;
         const uid = auth.user.id;
         setUserId(uid);
+        await syncOfflinePrayers(uid);
 
         const meta =
           auth.user.user_metadata?.username || auth.user.user_metadata?.name;
@@ -459,7 +507,11 @@ export default function MainApp() {
         const sess = await startPrayer(uid);
         setSession(sess);
         await refreshGlobalStats();
-        setCount(await getGlobalCount(sess.slot));
+        try {
+          setCount(await getGlobalCount(sess.slot));
+        } catch {
+          // offline
+        }
         await fetchTodayPrayers(uid);
 
         channel = supabase
@@ -476,7 +528,9 @@ export default function MainApp() {
               await fetchTodayPrayers(uid);
               try {
                 setCount(await getGlobalCount(sess.slot));
-              } catch {}
+              } catch {
+              } finally {
+              }
             },
           )
           .subscribe();
@@ -557,7 +611,11 @@ export default function MainApp() {
             try {
               if (!freshSession || !userId) return;
               await completePrayer(userId, freshSession.sessionId);
-              setCount(await getGlobalCount(freshSession.slot));
+              try {
+                setCount(await getGlobalCount(freshSession.slot));
+              } catch {
+                // offline
+              }
               setCompletedPrayers((prev) => ({ ...prev, [slotKey]: true }));
             } catch (err) {
               console.error("Auto-trigger complete error:", err);
@@ -582,7 +640,11 @@ export default function MainApp() {
       onComplete: async () => {
         try {
           await completePrayer(userId, session.sessionId);
-          setCount(await getGlobalCount(session.slot));
+          try {
+            setCount(await getGlobalCount(session.slot));
+          } catch {
+            // Offline: keep existing count
+          }
           const key = slotToKey(session.slot);
           if (key) setCompletedPrayers((prev) => ({ ...prev, [key]: true }));
         } catch (err) {
@@ -706,9 +768,7 @@ export default function MainApp() {
                   size={14}
                   color="#A44E4E"
                 />
-                <Text style={styles.connectionText}>
-                  Unable to load prayer status
-                </Text>
+                <Text style={styles.connectionText}>Offline</Text>
               </View>
             )}
             <Image
@@ -1153,7 +1213,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 10,
+    padding: 12,
     flexDirection: "row",
     alignItems: "flex-start",
     shadowColor: "#3B2E22",

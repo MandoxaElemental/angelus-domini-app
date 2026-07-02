@@ -2,9 +2,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PrayerSession } from "../api/prayerApi";
 
 const CURRENT_SESSION_KEY = "current_prayer_session";
+const OFFLINE_SESSIONS_KEY = "offline_prayer_sessions";
 
 export type OfflinePrayerSession = PrayerSession & {
-  date: string; // e.g. "2026-06-30"
   completed: boolean;
   synced: boolean;
 };
@@ -20,4 +20,39 @@ export async function loadCurrentSession(): Promise<OfflinePrayerSession | null>
 
 export async function clearCurrentSession() {
   await AsyncStorage.removeItem(CURRENT_SESSION_KEY);
+}
+
+export async function loadOfflineSessions(): Promise<OfflinePrayerSession[]> {
+  const value = await AsyncStorage.getItem(OFFLINE_SESSIONS_KEY);
+  return value ? JSON.parse(value) : [];
+}
+export async function saveOfflineSessions(sessions: OfflinePrayerSession[]) {
+  await AsyncStorage.setItem(OFFLINE_SESSIONS_KEY, JSON.stringify(sessions));
+}
+
+export async function upsertOfflineSession(session: OfflinePrayerSession) {
+  const sessions = await loadOfflineSessions();
+
+  const index = sessions.findIndex((s) => s.sessionId === session.sessionId);
+
+  if (index >= 0) {
+    sessions[index] = session;
+  } else {
+    sessions.push(session);
+  }
+
+  await saveOfflineSessions(sessions);
+}
+
+export async function pruneOfflineSessions(currentSlot: string) {
+  const sessions = await loadOfflineSessions();
+
+  const currentDate = currentSlot.split("_")[0];
+
+  const todaysSessions = sessions.filter((session) => {
+    const sessionDate = session.slot.split("_")[0];
+    return sessionDate === currentDate;
+  });
+
+  await saveOfflineSessions(todaysSessions);
 }
