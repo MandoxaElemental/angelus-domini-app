@@ -39,6 +39,11 @@ import TabLayout from "./src/navigation/TabLayout";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import LoginScreen from "./src/screens/LoginScreen";
+import {
+  completePrayer,
+  initializeOfflineStorage,
+  startPrayer,
+} from "./src/api/prayerApi";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -183,15 +188,31 @@ export default function App() {
 
   // ── Notification tap → navigate to Prayer ────────────────────────────────
   useEffect(() => {
-    const navigateToPrayer = () => {
+    const navigateToPrayer = async () => {
       if (screen !== "main") return;
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      // Create a prayer session just like MainApp does
+      const session = await startPrayer(user.id);
+
       const tryNavigate = (attempts = 0) => {
-        if (navigationRef.current) {
-          navigationRef.current.navigate("Prayer", { autoPlay: true });
+        if (navigationRef.current?.isReady?.()) {
+          navigationRef.current.navigate("Prayer", {
+            autoPlay: true,
+            onComplete: async () => {
+              await completePrayer(user.id, session.sessionId);
+            },
+          });
         } else if (attempts < 20) {
           setTimeout(() => tryNavigate(attempts + 1), 150);
         }
       };
+
       tryNavigate();
     };
 
@@ -238,6 +259,10 @@ export default function App() {
   //     SplashScreen.hideAsync();
   //   }
   // }, [isReady, fontsLoaded, fontError]);
+
+  useEffect(() => {
+    initializeOfflineStorage();
+  }, []);
 
   const [queryClient] = useState(
     () =>

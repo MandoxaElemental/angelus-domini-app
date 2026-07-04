@@ -34,9 +34,9 @@ const completeImages: Record<string, any> = {
 };
 
 const weekImages: Record<string, any> = {
-  Morning: require("../../assets/Morning_Solid.png"),
-  Noon: require("../../assets/Noon_Solid.png"),
-  Evening: require("../../assets/Evening_Solid.png"),
+  Morning: require("../../assets/Morning_Clear.png"),
+  Noon: require("../../assets/Noon_Clear.png"),
+  Evening: require("../../assets/Evening_Clear.png"),
 };
 
 const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
@@ -415,7 +415,7 @@ export default function MenuScreen() {
         contentContainerStyle={styles.scroll}
       >
         {/* ── HERO TITLE ── */}
-        {/* <View style={styles.heroSection}>
+        <View style={styles.heroSection}>
           <Text style={styles.heroTitle}>Your Prayer Rhythm</Text>
           <Text style={styles.heroSubtitle}>
             Returning in Prayer at 6 · 12 · 6.
@@ -423,7 +423,7 @@ export default function MenuScreen() {
           <Text style={styles.heroSubtitle}>
             The 6-12-6 Rhythm of the Angelus.
           </Text>
-        </View> */}
+        </View>
 
         {/* ── DATE & TIME BAR ── */}
         <View style={styles.dateTimeBar}>
@@ -723,7 +723,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center", // ← add this
     marginHorizontal: 20,
-    marginTop: 14,
+    marginTop: 5,
     backgroundColor: COLORS.card,
     borderRadius: 50,
     borderWidth: 1.5,
@@ -768,8 +768,8 @@ const styles = StyleSheet.create({
   heroSection: {
     alignItems: "center",
     paddingHorizontal: 24,
-    marginTop: 20,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 5,
   },
   heroTitle: {
     fontSize: 32,
@@ -779,11 +779,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   heroSubtitle: {
-    fontSize: 15,
+    fontSize: 20,
     color: COLORS.navy,
     fontFamily: "CormorantGaramond",
     textAlign: "center",
-    marginTop: 4,
+    marginTop: 2,
   },
 
   sectionCard: {
@@ -793,8 +793,8 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 2,
     borderColor: COLORS.border,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     shadowColor: "#3B2E22",
     shadowOpacity: 0.07,
     shadowRadius: 12,
@@ -812,7 +812,7 @@ const styles = StyleSheet.create({
   sectionDividerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 5,
   },
   sectionDividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
 
@@ -885,7 +885,7 @@ const styles = StyleSheet.create({
   },
   weekCountPlaceholder: { width: 30, marginLeft: 8 },
 
-  weekRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
+  weekRow: { flexDirection: "row", alignItems: "center", paddingVertical: 5 },
   weekIcon: { width: 40, height: 40, marginRight: 10 },
   weekLabel: {
     width: 64,
@@ -928,7 +928,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.border,
     paddingTop: 14,
-    paddingBottom: 18,
+    paddingBottom: 14,
     shadowColor: "#3B2E22",
     shadowOpacity: 0.07,
     shadowRadius: 12,
@@ -936,24 +936,25 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   statsLabel: {
-    fontSize: 13,
+    fontSize: 16,
     color: COLORS.gold,
     letterSpacing: 1,
     textAlign: "center",
     fontFamily: "CormorantGaramond",
+    fontWeight: "600",
   },
   statsDividerH: {
     height: 1,
     backgroundColor: COLORS.border,
-    marginVertical: 12,
+    marginVertical: 6,
   },
   statsRow: { flexDirection: "row" },
   statsHalf: { flex: 1, alignItems: "center" },
   statsDividerV: { width: 1, backgroundColor: COLORS.border },
   statsValue: {
-    fontSize: 28,
+    fontSize: 32,
     color: COLORS.navy,
-    fontFamily: "CormorantGaramond",
+    fontFamily: "EBGaramond",
     fontWeight: "700",
   },
   statsCaption: {

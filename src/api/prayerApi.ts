@@ -197,3 +197,15 @@ export const getHistory = async (userId: string) => {
 
   return data;
 };
+
+export async function initializeOfflineStorage() {
+  const slot = getSlot();
+
+  const currentSession = await loadCurrentSession();
+
+  if (currentSession && currentSession.slot !== slot) {
+    await clearCurrentSession();
+  }
+
+  await pruneOfflineSessions(slot);
+}

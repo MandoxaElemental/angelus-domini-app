@@ -311,43 +311,12 @@ export default function MainApp() {
 
   // ── Fetch today's completed prayers from DB ───────────────────────────────
   const fetchTodayPrayers = useCallback(async (uid: string) => {
-    try {
-      setPrayerLoadError(false);
-      setPrayersLoading(true);
+    setPrayerLoadError(false);
+    setPrayersLoading(true);
 
-      const prayerDay = getPrayerDay();
+    const netInfo = await NetInfo.fetch();
 
-      const { data, error } = await supabase
-        .from("PrayerSessions")
-        .select("Slot, Completed")
-        .eq("UserId", uid)
-        .like("Slot", `${prayerDay}_%`);
-
-      console.log("fetchTodayPrayers() data:", data);
-
-      if (error) throw error;
-
-      const updated = {
-        morning: false,
-        noon: false,
-        evening: false,
-      };
-
-      data?.forEach((s: any) => {
-        console.log("Processing row:", s);
-
-        if (!s.Completed) return;
-
-        const key = slotToKey(s.Slot);
-
-        console.log("Mapped", s.Slot, "->", key);
-
-        if (key) updated[key] = true;
-      });
-
-      console.log("Setting completedPrayers:", updated);
-      setCompletedPrayers(updated);
-    } catch (err) {
+    if (!netInfo.isConnected || !netInfo.isInternetReachable) {
       const sessions = await loadOfflineSessions();
 
       const updated = {
@@ -355,10 +324,6 @@ export default function MainApp() {
         noon: false,
         evening: false,
       };
-
-      useEffect(() => {
-        console.log("completedPrayers state changed:", completedPrayers);
-      }, [completedPrayers]);
 
       const prayerDay = getPrayerDay();
 
@@ -372,10 +337,46 @@ export default function MainApp() {
 
       setCompletedPrayers(updated);
       setPrayerLoadError(true);
+      setPrayersLoading(false);
+      return;
+    }
+
+    try {
+      const prayerDay = getPrayerDay();
+
+      const { data, error } = await supabase
+        .from("PrayerSessions")
+        .select("Slot, Completed")
+        .eq("UserId", uid)
+        .like("Slot", `${prayerDay}_%`);
+
+      if (error) throw error;
+
+      const updated = {
+        morning: false,
+        noon: false,
+        evening: false,
+      };
+
+      data?.forEach((s) => {
+        if (!s.Completed) return;
+
+        const key = slotToKey(s.Slot);
+        if (key) updated[key] = true;
+      });
+
+      setCompletedPrayers(updated);
+    } catch (err) {
+      console.error(err);
+      setPrayerLoadError(true);
     } finally {
       setPrayersLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    console.log("completedPrayers state changed:", completedPrayers);
+  }, [completedPrayers]);
 
   async function getGlobalPrayerStats() {
     const prayerDay = getPrayerDay();
@@ -578,6 +579,44 @@ export default function MainApp() {
     return "Morning";
   }, [currentHour]);
 
+  const globalPrayerSlides = [
+    {
+      label: "Morning Angelus",
+      count: globalStats.morning,
+    },
+    {
+      label: "Noon Angelus",
+      count: globalStats.noon,
+    },
+    {
+      label: "Evening Angelus",
+      count: globalStats.evening,
+    },
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        setGlobalSlide((prev) => (prev + 1) % globalPrayerSlides.length);
+
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const [globalSlide, setGlobalSlide] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
   useEffect(() => {
     const check = () => {
       const now = new Date();
@@ -759,7 +798,7 @@ export default function MainApp() {
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              DAILY PRAYER PROGRESS
+              DAILY PRAYER RHYTHM
             </Text>
             {prayerLoadError && (
               <View style={styles.connectionBanner}>
@@ -811,19 +850,35 @@ export default function MainApp() {
               <View>
                 <Text style={styles.globalLabel}>GLOBAL PRAYER TODAY</Text>
 
-                <View style={styles.globalCountRow}>
-                  <Text style={styles.hourCount}>
-                    {currentCount.toLocaleString()}
-                  </Text>
+                <Animated.View style={{ opacity: fadeAnim }}>
+                  <View style={styles.globalCountRow}>
+                    <Text style={styles.hourCount}>
+                      {globalPrayerSlides[globalSlide].count.toLocaleString()}
+                    </Text>
 
-                  <View style={styles.globalTextContainer}>
-                    <Text style={styles.globalPrayedToday}>
-                      people prayed the
-                    </Text>
-                    <Text style={styles.globalPrayedToday}>
-                      {currentWindow.label}
-                    </Text>
+                    <View style={styles.globalTextContainer}>
+                      <Text style={styles.globalPrayedToday}>
+                        {globalPrayerSlides[globalSlide].count === 1
+                          ? "person prayed the"
+                          : "people prayed the"}
+                      </Text>
+
+                      <Text style={styles.globalPrayedToday}>
+                        {globalPrayerSlides[globalSlide].label}
+                      </Text>
+                    </View>
                   </View>
+                </Animated.View>
+                <View style={styles.carouselDots}>
+                  {globalPrayerSlides.map((_, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.dot,
+                        index === globalSlide && styles.activeDot,
+                      ]}
+                    />
+                  ))}
                 </View>
                 <View style={styles.barDivider} />
 
@@ -1135,6 +1190,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter",
     fontWeight: "600",
     textAlign: "center",
+    letterSpacing: 2,
   },
   line: { flex: 1, height: 1, backgroundColor: COLORS.border },
   progressRow: {
@@ -1236,6 +1292,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter",
     fontWeight: 500,
     marginBottom: 2,
+    letterSpacing: 2,
   },
   globalCountRow: {
     flexDirection: "row",
@@ -1265,7 +1322,6 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 13,
     fontFamily: "Cormorant",
-    marginTop: 5,
   },
   globalTextContainer: {
     marginLeft: 6,
@@ -1420,5 +1476,25 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: COLORS.border,
     marginVertical: 2,
+  },
+
+  carouselDots: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 2,
+    marginBottom: 2,
+  },
+
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#D6CDBF",
+    marginHorizontal: 4,
+  },
+
+  activeDot: {
+    width: 18,
+    backgroundColor: COLORS.gold,
   },
 });

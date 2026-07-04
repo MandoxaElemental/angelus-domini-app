@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Image,
   Animated,
   Easing,
   Switch,
@@ -707,7 +706,11 @@ export default function SettingsScreen({ onLogout }: Props) {
               borderRadius: 12,
               alignItems: "center",
             }}
-            onPress={() => navigation.navigate("Prayer")}
+            onPress={() =>
+              navigation.navigate("Prayer", {
+                autoPlay: true,
+              })
+            }
           >
             <Text style={{ color: "#fff", fontWeight: "600" }}>
               Prayer Screen
@@ -829,9 +832,9 @@ export default function SettingsScreen({ onLogout }: Props) {
             </View>
             <View style={styles.cardDivider} />
             <TouchableOpacity
-              style={styles.langRow}
-              onPress={() => setShowLangModal(true)}
-              activeOpacity={0.7}
+              style={[styles.langRow, styles.disabledRow]}
+              disabled
+              activeOpacity={1}
             >
               <View style={styles.langRowLeft}>
                 <View style={styles.langIconCircle}>
@@ -842,20 +845,22 @@ export default function SettingsScreen({ onLogout }: Props) {
                   />
                 </View>
                 <View style={styles.langRowText}>
-                  <Text style={styles.langRowLabel}>Choose Language</Text>
+                  <Text style={styles.langRowLabel}>Language</Text>
+                  <Text style={styles.langComingSoon}>Coming Soon</Text>
+                  {/* <Text style={styles.langRowLabel}>Choose Language</Text>
                   <Text style={styles.langRowValue}>
                     {currentLang.name}
                     {currentLang.native !== currentLang.name
                       ? `  ·  ${currentLang.native}`
                       : ""}
-                  </Text>
+                  </Text> */}
                 </View>
               </View>
-              <Ionicons
+              {/* <Ionicons
                 name="chevron-forward"
                 size={18}
                 color={COLORS.textSecondary}
-              />
+              /> */}
             </TouchableOpacity>
           </View>
 
@@ -1271,5 +1276,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     fontFamily: "CormorantGaramond",
+  },
+  disabledRow: {
+    opacity: 0.65,
+  },
+
+  langComingSoon: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+    fontStyle: "italic",
+  },
+
+  comingSoonBadge: {
+    backgroundColor: "#EFE6D6",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+
+  comingSoonBadgeText: {
+    color: COLORS.gold,
+    fontSize: 12,
+    fontWeight: "600",
   },
 });

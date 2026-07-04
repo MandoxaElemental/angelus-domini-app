@@ -183,7 +183,6 @@ export default function PrayerScreen() {
 
   const [currentStep, setCurrentStep] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
-  const scrollY = useRef(0);
 
   const getCurrentPrayerTime = () => {
     const now = new Date();
@@ -261,10 +260,12 @@ export default function PrayerScreen() {
   // Audio: only plays when autoPlay AND audioEnabled are both true
   useEffect(() => {
     if (item.type === "bell") return;
-    if (!autoPlay || !audioEnabled) return;
+    if (!autoPlay) return;
 
     const player = createAudioPlayer(item.audio);
     audioRef.current = player;
+
+    player.volume = audioEnabled ? 1 : 0;
 
     const timer = setTimeout(() => {
       player.play();
@@ -274,7 +275,13 @@ export default function PrayerScreen() {
       clearTimeout(timer);
       player.remove();
     };
-  }, [currentStep, audioEnabled, autoPlay]);
+  }, [currentStep, autoPlay]);
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+
+    audioRef.current.volume = audioEnabled ? 1 : 0;
+  }, [audioEnabled]);
 
   const animateBellSwing = () => {
     bellRotate.setValue(0);
@@ -457,20 +464,40 @@ export default function PrayerScreen() {
 
   // Auto-scroll for closing prayer
   useEffect(() => {
-    let interval: any;
+    if (item.type !== "prayer") return;
 
-    if (item.type === "prayer") {
-      interval = setInterval(() => {
-        scrollY.current += 0.9;
-        scrollRef.current?.scrollTo({ y: scrollY.current, animated: false });
-      }, 25);
-    }
+    // Wait until ScrollView has measured itself
+    if (contentHeight === 0 || layoutHeight === 0) return;
+
+    const maxScroll = Math.max(contentHeight - layoutHeight, 0);
+    const start = Date.now();
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - start;
+
+      const progress = Math.min(elapsed / item.duration, 1);
+
+      const y = progress * maxScroll;
+
+      scrollRef.current?.scrollTo({
+        y,
+        animated: false,
+      });
+
+      if (progress >= 1) {
+        clearInterval(interval);
+      }
+    }, 16);
+
     return () => {
       clearInterval(interval);
-      scrollY.current = 0;
-    };
-  }, [currentStep, item.duration, onComplete]);
 
+      scrollRef.current?.scrollTo({
+        y: 0,
+        animated: false,
+      });
+    };
+  }, [currentStep, contentHeight, layoutHeight, item.type, item.duration]);
   // Completion handler
   useEffect(() => {
     if (currentStep !== PRAYER_SEQUENCE.length - 1) return;
@@ -479,7 +506,7 @@ export default function PrayerScreen() {
       setShowCompletionModal(true);
     }, item.duration);
     return () => clearTimeout(timeout);
-  }, [currentStep]);
+  }, [currentStep, onComplete, item.duration]);
 
   const handleNext = () => {
     if (currentStep < PRAYER_SEQUENCE.length - 1) {
@@ -488,11 +515,9 @@ export default function PrayerScreen() {
   };
 
   const handleRestart = () => {
-    audioRef.current?.remove?.();
     audioRef.current = null;
     isTransitioning.current = false;
     setAutoPlay(false);
-    scrollY.current = 0;
 
     scrollRef.current?.scrollTo({
       y: 0,
@@ -539,7 +564,7 @@ export default function PrayerScreen() {
 
   const [fontsLoaded] = useFonts({
     Cormorant: require("../../assets/fonts/CormorantGaramond.ttf"),
-    Cormorant_Italic: require("../../assets/fonts/CormorantGaramond-Italic.ttf"),
+    Cormorant_Italic: require("../../assets/fonts/CormorantGaramond-SemiBold.ttf"),
     EBGaramond: require("../../assets/fonts/EBGaramond-Medium.ttf"),
   });
 
@@ -785,7 +810,7 @@ export default function PrayerScreen() {
                 { fontSize: isTinyScreen ? 15 : 18 },
               ]}
             >
-              {autoPlay ? "Pause" : "Auto Pray"}
+              {autoPlay ? "Pause" : "Resume"}
             </Text>
           </TouchableOpacity>
 
@@ -797,17 +822,7 @@ export default function PrayerScreen() {
 
           <Text style={styles.footerDivider}>•</Text>
 
-          <TouchableOpacity
-            onPress={() => {
-              const next = !audioEnabled;
-
-              setAudioEnabled(next);
-
-              if (!next) {
-                audioRef.current?.remove?.();
-              }
-            }}
-          >
+          <TouchableOpacity onPress={() => setAudioEnabled((prev) => !prev)}>
             <Text style={styles.footerAction}>
               {audioEnabled ? "Voice On" : "Voice Off"}
             </Text>
