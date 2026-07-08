@@ -19,6 +19,7 @@ import { BlurView } from "expo-blur";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
 import { useKeepAwake } from "expo-keep-awake";
+import NetInfo from "@react-native-community/netinfo";
 type PrayerItem =
   | {
       type: "versicle" | "response" | "prayer";
@@ -154,6 +155,12 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
 ];
 
 export default function PrayerScreen() {
+  const [isOffline, setIsOffline] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const wasOffline = useRef(false);
+
+  const bannerY = useRef(new Animated.Value(-70)).current;
+
   useKeepAwake();
 
   const { width, height } = useWindowDimensions();
@@ -228,6 +235,26 @@ export default function PrayerScreen() {
     }
   }, []); // ← empty deps: intentionally runs only on mount
   const [selectedTime, setSelectedTime] = useState(getCurrentPrayerTime());
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const offline = !state.isConnected || !state.isInternetReachable;
+
+      if (offline && !wasOffline.current) {
+        setBannerDismissed(false);
+      }
+
+      wasOffline.current = offline;
+      setIsOffline(offline);
+
+      Animated.spring(bannerY, {
+        toValue: offline && !bannerDismissed ? 0 : -70,
+        useNativeDriver: true,
+      }).start();
+    });
+
+    return unsubscribe;
+  }, [bannerDismissed]);
 
   useEffect(() => {
     const update = () => setSelectedTime(getCurrentPrayerTime());
@@ -613,6 +640,43 @@ export default function PrayerScreen() {
         style={styles.container}
         edges={["left", "right", "bottom"]}
       >
+        {isOffline && !bannerDismissed && (
+          <Animated.View
+            style={[
+              styles.offlineBanner,
+              {
+                transform: [{ translateY: bannerY }],
+              },
+            ]}
+          >
+            <View style={styles.bannerLeft}>
+              <Ionicons
+                name="cloud-offline-outline"
+                size={20}
+                color="#C9A24A"
+              />
+
+              <Text style={styles.offlineBannerText}>
+                You're offline. Your prayer will be saved and synced when you're
+                back online.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                Animated.timing(bannerY, {
+                  toValue: -70,
+                  duration: 220,
+                  useNativeDriver: true,
+                }).start(() => {
+                  setBannerDismissed(true);
+                });
+              }}
+            >
+              <Ionicons name="close" size={22} color="#FFF" />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
         <Text style={styles.subtitle}>
           Meditating on the mystery of the Incarnation
         </Text>
@@ -1116,4 +1180,45 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.12)",
   },
   blurInner: { alignItems: "center", paddingHorizontal: 30 },
+  offlineBanner: {
+    position: "absolute",
+    top: 10,
+    left: 16,
+    right: 16,
+
+    zIndex: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#23385fc6",
+
+    borderRadius: 18,
+
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    elevation: 6,
+  },
+
+  offlineBannerText: {
+    flex: 1,
+    marginLeft: 10,
+
+    color: "#FFF",
+
+    fontSize: 15,
+
+    lineHeight: 20,
+  },
+  bannerLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
 });

@@ -8,6 +8,7 @@ import AppHeader from "../../components/Header";
 import { AngelusMode, getAngelusMode } from "../services/notificationService";
 import { useFonts } from "expo-font";
 import { useFocusEffect } from "@react-navigation/native";
+import { slotToKey } from "../utils/prayerHelpers";
 
 const COLORS = {
   navy: "#2F4A7A",
@@ -37,21 +38,6 @@ const weekImages: Record<string, any> = {
   Morning: require("../../assets/Morning_Clear.png"),
   Noon: require("../../assets/Noon_Clear.png"),
   Evening: require("../../assets/Evening_Clear.png"),
-};
-
-const slotToKey = (slot: string): "morning" | "noon" | "evening" | null => {
-  if (!slot) return null;
-
-  const match = slot.match(/_(6|12|18)$/);
-  if (!match) return null;
-
-  const hour = match[1];
-
-  if (hour === "6") return "morning";
-  if (hour === "12") return "noon";
-  if (hour === "18") return "evening";
-
-  return null;
 };
 
 function getWeekSunday(now: Date): Date {
@@ -135,14 +121,14 @@ function formatDayOfWeek(d: Date): string {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export default function MenuScreen() {
-  useFonts({
+  const [fontsLoaded] = useFonts({
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
     EBGaramond: require("../../assets/fonts/EBGaramond-Medium.ttf"),
   });
 
+  if (!fontsLoaded) return null;
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [count, setCount] = useState(0);
   const [userId, setUserId] = useState("");
   const [completedPrayers, setCompletedPrayers] = useState({
     morning: false,
@@ -321,7 +307,6 @@ export default function MenuScreen() {
 
         const sess = await startPrayer(uid);
         const globalCount = await getGlobalCount(sess.slot);
-        setCount(globalCount);
 
         await fetchData(uid);
 
@@ -344,7 +329,6 @@ export default function MenuScreen() {
               await fetchData(uid);
               try {
                 const newCount = await getGlobalCount(sess.slot);
-                setCount(newCount);
               } catch {}
             },
           )

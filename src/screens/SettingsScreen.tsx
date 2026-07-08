@@ -696,8 +696,8 @@ export default function SettingsScreen({ onLogout }: Props) {
             <Text style={styles.sectionHeaderText}>SETTINGS</Text>
             <View style={styles.line} />
           </View>
-          {/* 
-          <TouchableOpacity
+
+          {/* <TouchableOpacity
             style={{
               marginHorizontal: 24,
               marginBottom: 20,

@@ -266,7 +266,7 @@ export default function CommunityScreen() {
             justifyContent: "space-between",
             alignItems: "center",
             paddingHorizontal: hp,
-            paddingTop: s(28),
+            paddingTop: s(10),
             marginBottom: s(12),
             marginHorizontal: 10,
           }}
