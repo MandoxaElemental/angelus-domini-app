@@ -5,6 +5,8 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   ActivityIndicator,
+  Animated,
+  Easing,
   Image,
 } from "react-native";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
@@ -103,6 +105,59 @@ function GlobeIcon({ size }: { size: number }) {
 
 type CountryRow = { country: string; count: number };
 
+// ── Uses today's local calendar midnight, not a rolling 24-hour window ──────
+async function fetchGlobalStats(): Promise<{
+  totalPrayedToday: number;
+  countries: CountryRow[];
+}> {
+  const now = new Date();
+  const midnight = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  ).toISOString();
+
+  // 1. All completed sessions since today's midnight
+  const { data: sessions, error: sessErr } = await supabase
+    .from("PrayerSessions")
+    .select("UserId")
+    .eq("Completed", true)
+    .gte("CompletedAt", midnight);
+
+  if (sessErr) throw sessErr;
+
+  if (!sessions || sessions.length === 0) {
+    return { totalPrayedToday: 0, countries: [] };
+  }
+
+  // 2. Unique user IDs who prayed
+  const uniqueUserIds = [
+    ...new Set(sessions.map((s: any) => s.UserId as string)),
+  ];
+  const totalPrayedToday = uniqueUserIds.length;
+
+  // 3. Look up the country for each unique user
+  const { data: userData, error: userErr } = await supabase
+    .from("users")
+    .select("Id, Country")
+    .in("Id", uniqueUserIds);
+
+  if (userErr) throw userErr;
+
+  // 4. Count unique prayers per country
+  const countMap: Record<string, number> = {};
+  for (const user of userData ?? []) {
+    const country = user.Country ?? "Unknown";
+    countMap[country] = (countMap[country] ?? 0) + 1;
+  }
+
+  const countries = Object.entries(countMap)
+    .map(([country, count]) => ({ country, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return { totalPrayedToday, countries };
+}
+
 export default function CommunityScreen() {
   const [fontsLoaded] = useFonts({
     EBGaramond: require("../../assets/fonts/EBGaramond.ttf"),
@@ -126,123 +181,59 @@ export default function CommunityScreen() {
       rankW: s(18),
       countW: s(42),
     }),
-    [s, width],
+    [s, width]
   );
 
-  // ── Fetch: unique users who prayed today, grouped by country ─────────────
-  const isFetchingRef = useRef(false);
-  const fetchCounts = useCallback(async () => {
-    if (isFetchingRef.current) return;
-    setLoading(true);
-    isFetchingRef.current = true;
+  // ── Fetch & update state ──────────────────────────────────────────────────
+  const refresh = useCallback(async () => {
     try {
-      const now = new Date();
-      const startOfDay = new Date(now);
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(now);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const { data: sessions, error: sessErr } = await supabase
-        .from("PrayerSessions")
-        .select("UserId")
-        .eq("Completed", true)
-        .gte("ScheduledTime", startOfDay.toISOString())
-        .lte("ScheduledTime", endOfDay.toISOString());
-      if (sessErr) throw sessErr;
-
-      if (!sessions || sessions.length === 0) {
-        setTotalPrayedToday(0);
-        setCountries([]);
-        return;
-      }
-
-      // Unique user IDs who prayed today
-      const uniqueUserIds = [...new Set(sessions.map((s: any) => s.UserId))];
-      setTotalPrayedToday(uniqueUserIds.length);
-
-      // ✅ FIXED: use "Id" (capital I) to match the users table column
-      const { data: userData, error: userErr } = await supabase
-        .from("users")
-        .select("Id, Country")
-        .in("Id", uniqueUserIds);
-
-      if (userErr) throw userErr;
-
-      // Count unique prayers per country
-      const countMap: Record<string, number> = {};
-      for (const user of userData ?? []) {
-        const country = user.Country ?? "Unknown";
-        countMap[country] = (countMap[country] ?? 0) + 1;
-      }
-
-      const sorted = Object.entries(countMap)
-        .map(([country, count]) => ({ country, count }))
-        .sort((a, b) => b.count - a.count);
-
-      setCountries(sorted);
+      const { totalPrayedToday, countries } = await fetchGlobalStats();
+      setTotalPrayedToday(totalPrayedToday);
+      setCountries(countries);
     } catch (err) {
-      console.error("❌ CommunityScreen fetchCounts error:", err);
+      console.error("CommunityScreen refresh error:", err);
     } finally {
       setLoading(false);
-      isFetchingRef.current = false;
     }
   }, []);
 
+  // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
-    const id = setInterval(() => {
-      fetchCounts();
-    }, 60000);
+    refresh();
+  }, [refresh]);
 
-    return () => clearInterval(id);
-  }, [fetchCounts]);
-
-  // ── On mount ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    fetchCounts();
-  }, [fetchCounts]);
-
-  // ── Real-time: refresh on any PrayerSession change ────────────────────────
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  // ── Real-time: subscribe to ALL PrayerSession changes globally ────────────
   useEffect(() => {
     const channel = supabase
-      .channel("community-realtime")
+      .channel("community-realtime-global")
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "PrayerSessions",
         },
         () => {
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-          }
-          timeoutRef.current = setTimeout(() => {
-            fetchCounts();
-          }, 1000);
-        },
+          refresh();
+        }
       )
       .subscribe();
 
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
       supabase.removeChannel(channel);
     };
-  }, [fetchCounts]);
+  }, [refresh]);
 
-  const maxCount = useMemo(() => {
-    let max = 1;
+  // ── Poll every 60 seconds as a safety net ────────────────────────────────
+  useEffect(() => {
+    const id = setInterval(refresh, 60_000);
+    return () => clearInterval(id);
+  }, [refresh]);
 
-    for (const c of countries) {
-      if (c.count > max) max = c.count;
-    }
-
-    return max;
-  }, [countries]);
+  const maxCount = useMemo(
+    () => Math.max(...countries.map((c) => c.count), 1),
+    [countries]
+  );
 
   const today = new Date().toLocaleDateString("en-US", {
     month: "long",
@@ -320,41 +311,89 @@ export default function CommunityScreen() {
               <Text
                 style={{ fontSize: fs(11), color: C.muted, marginBottom: 1 }}
               >
-                Today
+                Today · Live
               </Text>
               <Text
-                style={{ fontSize: fs(11), color: C.muted, marginBottom: s(4) }}
+                style={{
+                  fontSize: fs(11),
+                  color: C.muted,
+                  marginBottom: s(4),
+                }}
               >
                 {today}
               </Text>
-              <Text
-                style={{
-                  fontFamily: "PlayfairDisplay",
-                  fontSize: fs(34),
-                  color: C.gold,
-                  lineHeight: fs(38),
-                  letterSpacing: -0.5,
-                }}
-              >
-                {totalPrayedToday.toLocaleString()}
-              </Text>
-              <Text
-                style={{
-                  fontSize: fs(9),
-                  fontWeight: "700",
-                  letterSpacing: 1.3,
-                  color: C.brown,
-                  textTransform: "uppercase",
-                  marginTop: 2,
-                }}
-              >
-                PEOPLE HAVE PRAYED
-              </Text>
-              <Text style={{ fontSize: fs(10), color: C.muted, marginTop: 2 }}>
-                around the world today
-              </Text>
+
+              {loading ? (
+                <ActivityIndicator
+                  size="small"
+                  color={C.gold}
+                  style={{ marginTop: s(8) }}
+                />
+              ) : (
+                <>
+                  <Text
+                    style={{
+                      fontFamily: "PlayfairDisplay",
+                      fontSize: fs(34),
+                      color: C.gold,
+                      lineHeight: fs(38),
+                      letterSpacing: -0.5,
+                    }}
+                  >
+                    {totalPrayedToday.toLocaleString()}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: fs(9),
+                      fontWeight: "700",
+                      letterSpacing: 1.3,
+                      color: C.brown,
+                      textTransform: "uppercase",
+                      marginTop: 2,
+                    }}
+                  >
+                    PEOPLE HAVE PRAYED
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: fs(10),
+                      color: C.muted,
+                      marginTop: 2,
+                    }}
+                  >
+                    around the world today
+                  </Text>
+                </>
+              )}
             </View>
           </View>
+
+          {/* Live indicator dot */}
+          <View
+            style={{
+              position: "absolute",
+              top: s(12),
+              right: s(12),
+              flexDirection: "row",
+              alignItems: "center",
+              gap: s(4),
+            }}
+          >
+            <View
+              style={{
+                width: s(7),
+                height: s(7),
+                borderRadius: s(4),
+                backgroundColor: "#4CAF50",
+              }}
+            />
+            <Text
+              style={{ fontSize: fs(9), color: C.muted, letterSpacing: 0.5 }}
+            >
+              LIVE
+            </Text>
+          </View>
+
           <View
             style={{
               position: "absolute",
@@ -414,21 +453,48 @@ export default function CommunityScreen() {
         </View>
 
         {/* ── SECTION LABEL ── */}
-        <Text
+        <View
           style={{
-            fontSize: fs(12),
-            fontWeight: "700",
-            color: C.brown,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
             paddingHorizontal: hp,
             paddingTop: s(12),
             paddingBottom: s(8),
-            letterSpacing: 0.2,
           }}
         >
-          {activeTab === "country"
-            ? `Top Countries · ${today}`
-            : "By Region · Coming Soon"}
-        </Text>
+          <Text
+            style={{
+              fontSize: fs(12),
+              fontWeight: "700",
+              color: C.brown,
+              letterSpacing: 0.2,
+            }}
+          >
+            {activeTab === "country"
+              ? `Top Countries · Today`
+              : "By Region · Coming Soon"}
+          </Text>
+          {activeTab === "country" && !loading && (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: s(4),
+              }}
+            >
+              <View
+                style={{
+                  width: s(6),
+                  height: s(6),
+                  borderRadius: s(3),
+                  backgroundColor: "#4CAF50",
+                }}
+              />
+              <Text style={{ fontSize: fs(9), color: C.muted }}>Real-time</Text>
+            </View>
+          )}
+        </View>
 
         {/* ── COUNTRY ROWS ── */}
         {loading ? (
@@ -524,7 +590,8 @@ export default function CommunityScreen() {
                         style={{
                           height: "100%",
                           width: `${pct * 100}%`,
-                          backgroundColor: index === 0 ? C.gold : "#C49A2299",
+                          backgroundColor:
+                            index === 0 ? C.gold : "#C49A2299",
                           borderRadius: sizes.barH / 2,
                         }}
                       />

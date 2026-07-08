@@ -130,8 +130,13 @@ export default function RegisterScreen({
   };
 
   const confirmField = () => {
-    if (activeField === "username") setUsername(tempValue);
-    else if (activeField === "email") setEmail(tempValue);
+    if (activeField === "username") {
+      if (tempValue.length < 6 || tempValue.length > 10) {
+        alert("Username must be between 6 and 10 characters");
+        return;
+      }
+      setUsername(tempValue);
+    } else if (activeField === "email") setEmail(tempValue);
     else if (activeField === "password") setPassword(tempValue);
     Keyboard.dismiss();
     setActiveField(null);
@@ -152,6 +157,10 @@ export default function RegisterScreen({
   const handleRegister = async () => {
     if (!email || !username || !password) {
       alert("Fill all fields");
+      return;
+    }
+    if (username.length < 6 || username.length > 10) {
+      alert("Username must be between 6 and 10 characters");
       return;
     }
     if (!selectedCountry) {
@@ -391,6 +400,7 @@ export default function RegisterScreen({
                           ? "none"
                           : "words"
                       }
+                      maxLength={activeField === "username" ? 10 : undefined}
                       returnKeyType="done"
                       onSubmitEditing={confirmField}
                       autoCorrect={false}
@@ -418,6 +428,12 @@ export default function RegisterScreen({
                       {showTempPassword
                         ? "Password is visible"
                         : "Password is hidden"}
+                    </Text>
+                  )}
+
+                  {activeField === "username" && (
+                    <Text style={styles.floatHelperText}>
+                      Username must be 6-10 characters
                     </Text>
                   )}
                 </View>

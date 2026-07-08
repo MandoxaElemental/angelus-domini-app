@@ -10,8 +10,7 @@ import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width, height } from "../styles/sharedStyles";
 import { BLUE } from "../../../lib/constants/colors";
 import {
-  FONT_BODY,
-  FONT_TITLE_BOLD,
+  FONT_BODY_SEMIBOLD,
   FONT_TITLE_ITALIC,
 } from "../../../lib/constants/fonts";
 
@@ -49,14 +48,14 @@ export function ScriptureSlide({ title, subtitle, isActive, onPress }: Props) {
 
 const styles = StyleSheet.create({
   scriptureMain: {
-    fontFamily: FONT_TITLE_BOLD,
+    fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 40,
     color: BLUE,
     textAlign: "center",
     letterSpacing: 0.3,
     marginTop: 70,
     lineHeight: 46,
-    fontWeight: "600",
+    fontWeight: "400",
   },
   scriptureItalic: {
     fontFamily: FONT_TITLE_ITALIC,
@@ -64,7 +63,7 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     color: "#FFE6A7",
     textAlign: "center",
-    marginTop: 300,
+    marginTop: 400,
     letterSpacing: 0.2,
     textShadowColor: "rgba(0,0,0,0.3)",
     textShadowOffset: { width: 0, height: 1 },

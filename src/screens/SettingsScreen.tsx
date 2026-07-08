@@ -25,6 +25,8 @@ import {
   AngelusMode,
   getAngelusMode,
   setAngelusMode,
+  scheduleAngelusNotifications,
+  cancelAngelusNotifications,
 } from "../services/notificationService";
 import { useFonts } from "expo-font";
 
@@ -38,7 +40,6 @@ const COLORS = {
   border: "#E7DCCB",
 };
 
-const NOTIF_IDS_KEY = "angelus_notif_ids";
 const LANGUAGE_KEY = "angelus_language";
 
 type AngelusTime = "morning" | "noon" | "evening";
@@ -164,70 +165,19 @@ const LANGUAGES = [
   { code: "zu", name: "Zulu", native: "isiZulu" },
 ];
 
-// Configure how notifications appear when the app is in the foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
-// ─── Permission helper ─────────────────────────────────────────────────────────
-async function requestPermissions(): Promise<boolean> {
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("angelus-bells", {
-      name: "Angelus Prayers",
-      importance: Notifications.AndroidImportance.HIGH,
-      sound: "default",
-      vibrationPattern: [0, 250, 250, 250],
-    });
-  }
-
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  if (existing === "granted") return true;
-
-  const { status } = await Notifications.requestPermissionsAsync();
-  return status === "granted";
-}
-
-async function scheduleAngelus(key: AngelusTime): Promise<string> {
-  const cfg = ANGELUS_CONFIG[key];
-  const id = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: `🔔 ${cfg.label}`,
-      body: "The bells are calling you to prayer. Tap to pray the Angelus.",
-      sound: "default",
-      data: { screen: "Prayer", autoPlay: true },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: cfg.hour,
-      minute: cfg.minute,
-      channelId: Platform.OS === "android" ? "angelus-bells" : undefined,
-    } as any,
-  });
-  return id;
-}
-
-async function cancelNotif(id: string | null) {
-  if (id) await Notifications.cancelScheduledNotificationAsync(id);
-}
-
-type StoredIds = Partial<Record<AngelusTime, string>>;
-
-async function loadStoredIds(): Promise<StoredIds> {
-  try {
-    const raw = await AsyncStorage.getItem(NOTIF_IDS_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-async function saveStoredIds(ids: StoredIds) {
-  await AsyncStorage.setItem(NOTIF_IDS_KEY, JSON.stringify(ids));
+// ─── Derive UI toggle state from scheduled notifications ─────────────────────
+// Instead of storing separate IDs, we derive which times are "on" by checking
+// what's actually scheduled — the single source of truth is notificationService.
+async function getActiveToggles(): Promise<Record<AngelusTime, boolean>> {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  const hours = scheduled
+    .filter((n) => n.content.data?.angelusTag === "angelus_prayer")
+    .map((n) => n.content.data?.prayerHour as number);
+  return {
+    morning: hours.includes(6),
+    noon: hours.includes(12),
+    evening: hours.includes(18),
+  };
 }
 
 type Props = { onLogout: () => void };
@@ -244,13 +194,11 @@ export default function SettingsScreen({ onLogout }: Props) {
   const ringOpacity = useRef(new Animated.Value(0.4)).current;
   const bellRotate = useRef(new Animated.Value(0)).current;
 
-  // Default all toggles to TRUE — notifications are on by default
   const [toggles, setToggles] = useState<TogglesState>({
     morning: true,
     noon: true,
     evening: true,
   });
-  const [notifIds, setNotifIds] = useState<StoredIds>({});
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showLangModal, setShowLangModal] = useState(false);
   const [selectedLang, setSelectedLang] = useState("en");
@@ -258,6 +206,7 @@ export default function SettingsScreen({ onLogout }: Props) {
   const [email, setEmail] = useState("");
 
   const [angelusMode, setAngelusModeState] = useState<AngelusMode>("all_three");
+
   useEffect(() => {
     (async () => {
       const mode = await getAngelusMode();
@@ -265,92 +214,21 @@ export default function SettingsScreen({ onLogout }: Props) {
     })();
   }, []);
 
+  // ── Mode change: route entirely through notificationService ──────────────
   const handleAngelusModeChange = async (mode: AngelusMode) => {
     await setAngelusMode(mode);
     setAngelusModeState(mode);
-
-    if (mode === "noon_only") {
-      // Cancel morning + evening
-
-      await cancelNotif(notifIds.morning ?? null);
-      await cancelNotif(notifIds.evening ?? null);
-
-      let noonId = notifIds.noon;
-
-      if (!noonId) {
-        noonId = await scheduleAngelus("noon");
-      }
-
-      const updatedIds = {
-        noon: noonId,
-      };
-
-      setNotifIds(updatedIds);
-
-      setToggles({
-        morning: false,
-        noon: true,
-        evening: false,
-      });
-
-      await saveStoredIds(updatedIds);
-    } else {
-      // Re-enable all three
-
-      const freshIds: StoredIds = {};
-
-      freshIds.morning = await scheduleAngelus("morning");
-      freshIds.noon = await scheduleAngelus("noon");
-      freshIds.evening = await scheduleAngelus("evening");
-
-      setNotifIds(freshIds);
-
-      setToggles({
-        morning: true,
-        noon: true,
-        evening: true,
-      });
-
-      await saveStoredIds(freshIds);
-    }
+    // force=true so the per-launch gate is bypassed for explicit user action
+    await scheduleAngelusNotifications(mode, true);
+    const updated = await getActiveToggles();
+    setToggles(updated);
   };
 
-  // On mount: request permissions + auto-enable all on first launch,
-  // or restore saved toggle state for returning users
+  // ── On mount: read toggle state from what's actually scheduled ───────────
   useEffect(() => {
     (async () => {
-      const granted = await requestPermissions();
-
-      if (!granted) {
-        Alert.alert(
-          "Notifications Disabled",
-          "Please enable notifications in your device settings to receive Angelus reminders.",
-          [{ text: "OK" }],
-        );
-      }
-
-      const ids = await loadStoredIds();
-      const isFirstLaunch = !ids.morning && !ids.noon && !ids.evening;
-
-      if (isFirstLaunch && granted) {
-        // ✅ First time: auto-schedule all three and save
-        const freshIds: StoredIds = {};
-        for (const key of ["morning", "noon", "evening"] as AngelusTime[]) {
-          freshIds[key] = await scheduleAngelus(key);
-        }
-        setNotifIds(freshIds);
-        setToggles({ morning: true, noon: true, evening: true });
-        await saveStoredIds(freshIds);
-        console.log("✅ First launch — all Angelus notifications auto-enabled");
-      } else {
-        // ✅ Returning user: restore exactly what they had saved
-        setNotifIds(ids);
-        setToggles({
-          morning: !!ids.morning,
-          noon: !!ids.noon,
-          evening: !!ids.evening,
-        });
-      }
+      const updated = await getActiveToggles();
+      setToggles(updated);
 
       try {
         const savedLang = await AsyncStorage.getItem(LANGUAGE_KEY);
@@ -481,10 +359,12 @@ export default function SettingsScreen({ onLogout }: Props) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Toggle a single notification on/off
+  // ── Toggle a single time on/off ───────────────────────────────────────────
+  // We reschedule the full set filtered to only the enabled times, so
+  // notificationService remains the single source of truth.
   const handleToggle = async (key: AngelusTime, enabled: boolean) => {
-    const granted = await requestPermissions();
-    if (!granted && enabled) {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted" && enabled) {
       Alert.alert(
         "Permission Required",
         "Enable notifications in Settings to receive Angelus reminders.",
@@ -492,62 +372,84 @@ export default function SettingsScreen({ onLogout }: Props) {
       return;
     }
 
-    // Update UI immediately for snappy feel
-    setToggles((prev) => ({ ...prev, [key]: enabled }));
+    const next = { ...toggles, [key]: enabled };
+    setToggles(next);
 
-    const updatedIds = { ...notifIds };
+    // Cancel everything, then reschedule only the enabled ones
+    await cancelAngelusNotifications();
 
-    if (enabled) {
-      // Cancel any existing one first to avoid duplicates
-      await cancelNotif(updatedIds[key] ?? null);
-      const newId = await scheduleAngelus(key);
-      updatedIds[key] = newId;
-      console.log(`✅ Scheduled ${key} Angelus, id: ${newId}`);
-    } else {
-      await cancelNotif(updatedIds[key] ?? null);
-      delete updatedIds[key];
-      console.log(`🔕 Cancelled ${key} Angelus`);
+    const mode = await getAngelusMode();
+    const allHours =
+      mode === "noon_only" ? [12] : [6, 12, 18];
+
+    const enabledHours = allHours.filter((h) => {
+      if (h === 6) return next.morning;
+      if (h === 12) return next.noon;
+      return next.evening;
+    });
+
+    // Re-use notificationService internals via force reschedule
+    // but only for the hours the user has enabled.
+    // Simplest: if all enabled, use scheduleAngelusNotifications(mode, true).
+    // If partial, schedule individually using the same channel/sound.
+    const CHANNEL_ID = "angelus_bells_v17";
+    const ANGELUS_TAG = "angelus_prayer";
+
+    await Notifications.cancelAllScheduledNotificationsAsync();
+
+    for (const hour of enabledHours) {
+      const label =
+        hour === 6 ? "Morning Angelus" : hour === 12 ? "Noon Angelus" : "Evening Angelus";
+      const body =
+        hour === 6
+          ? "The Angel of the Lord declared unto Mary."
+          : hour === 12
+          ? "Pause and pray the Angelus."
+          : "Pray the Angelus at sunset.";
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `🔔 ${label}`,
+          body,
+          sound: "triple_bell.mp3",
+          data: {
+            screen: "Prayer",
+            autoPlay: true,
+            angelusTag: ANGELUS_TAG,
+            prayerHour: hour,
+            prayerKey: hour === 6 ? "morning" : hour === 12 ? "noon" : "evening",
+          },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour,
+          minute: 0,
+          channelId: Platform.OS === "android" ? CHANNEL_ID : undefined,
+        } as Notifications.DailyTriggerInput,
+      });
     }
-
-    setNotifIds(updatedIds);
-    await saveStoredIds(updatedIds);
   };
 
-  // Enable all three
+  // ── Enable all ────────────────────────────────────────────────────────────
   const handleEnableAll = async () => {
-    const granted = await requestPermissions();
-    if (!granted) {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted") {
       Alert.alert(
         "Permission Required",
         "Enable notifications in Settings to receive Angelus reminders.",
       );
       return;
     }
-
-    const updatedIds: StoredIds = { ...notifIds };
-
-    for (const key of ["morning", "noon", "evening"] as AngelusTime[]) {
-      await cancelNotif(updatedIds[key] ?? null);
-      updatedIds[key] = await scheduleAngelus(key);
-    }
-
-    setNotifIds(updatedIds);
-    setToggles({ morning: true, noon: true, evening: true });
-    await saveStoredIds(updatedIds);
-    console.log("✅ All Angelus notifications enabled");
+    const mode = await getAngelusMode();
+    await scheduleAngelusNotifications(mode, true);
+    const updated = await getActiveToggles();
+    setToggles(updated);
   };
 
-  // Disable all three
+  // ── Disable all ───────────────────────────────────────────────────────────
   const handleDisableAll = async () => {
-    for (const key of ["morning", "noon", "evening"] as AngelusTime[]) {
-      await cancelNotif(notifIds[key] ?? null);
-    }
-
-    const empty: StoredIds = {};
-    setNotifIds(empty);
+    await cancelAngelusNotifications();
     setToggles({ morning: false, noon: false, evening: false });
-    await saveStoredIds(empty);
-    console.log("🔕 All Angelus notifications disabled");
   };
 
   const handleSelectLanguage = async (code: string) => {
@@ -698,21 +600,7 @@ export default function SettingsScreen({ onLogout }: Props) {
             <View style={styles.line} />
           </View>
 
-          <TouchableOpacity
-            style={{
-              marginHorizontal: 24,
-              marginBottom: 20,
-              padding: 16,
-              backgroundColor: "#C9A24A",
-              borderRadius: 12,
-              alignItems: "center",
-            }}
-            onPress={() => navigation.navigate("Prayer")}
-          >
-            <Text style={{ color: "#fff", fontWeight: "600" }}>
-              Prayer Screen
-            </Text>
-          </TouchableOpacity>
+         
 
           {/* ACCOUNT INFO */}
           <View style={styles.card}>
@@ -737,14 +625,14 @@ export default function SettingsScreen({ onLogout }: Props) {
               </View>
             </View>
           </View>
+
+          {/* ANGELUS SCHEDULE */}
           <View style={styles.card}>
             <View style={styles.cardTitleRow}>
               <Ionicons name="time-outline" size={20} color={COLORS.gold} />
               <Text style={styles.cardTitle}>Angelus Schedule</Text>
             </View>
-
             <View style={styles.cardDivider} />
-
             <TouchableOpacity
               style={[
                 styles.modeOption,
@@ -753,51 +641,68 @@ export default function SettingsScreen({ onLogout }: Props) {
               onPress={() => handleAngelusModeChange("all_three")}
             >
               <Text style={styles.modeTitle}>Traditional</Text>
-
               <Text style={styles.modeDescription}>
                 Morning, Noon, and Evening Angelus
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity
+              // ← ADDED: dimmed "disabled" look
               style={[
                 styles.modeOption,
                 angelusMode === "noon_only" && styles.modeOptionSelected,
+                styles.modeOptionDisabled,
               ]}
-              onPress={() => handleAngelusModeChange("noon_only")}
+              // ← CHANGED: no-op, was handleAngelusModeChange("noon_only")
+              onPress={() => {}}
+              // ← ADDED: blocks taps entirely
+              disabled={true}
+              // ← CHANGED: no press feedback since it's disabled
+              activeOpacity={1}
             >
-              <Text style={styles.modeTitle}>Noon Only</Text>
-
+              <View style={styles.modeTitleRow}>
+                <Text style={styles.modeTitle}>Noon Only</Text>
+                {/* ← ADDED */}
+                <Text style={styles.comingSoonTag}>Coming Soon</Text>
+              </View>
               <Text style={styles.modeDescription}>
                 Receive only the noon Angelus reminder
               </Text>
             </TouchableOpacity>
           </View>
+
           {/* NOTIFICATIONS */}
           <View style={styles.card}>
-            <View style={styles.cardTitleRow}>
-              <Ionicons
-                name="notifications-outline"
-                size={20}
-                color={COLORS.gold}
-              />
-              <Text style={styles.cardTitle}>Prayer Notifications</Text>
+            {/* ← ADDED: dims content only, not the card background/border */}
+            <View style={styles.notifCardContent}>
+              <View style={styles.cardTitleRow}>
+                <Ionicons
+                  name="notifications-outline"
+                  size={20}
+                  color={COLORS.gold}
+                />
+                <Text style={styles.cardTitle}>Prayer Notifications</Text>
+                {/* ← ADDED */}
+                <Text style={[styles.comingSoonTag, { marginLeft: "auto" }]}>
+                  Coming Soon
+                </Text>
+              </View>
+              <View style={styles.cardDivider} />
+              {(["morning", "noon", "evening"] as AngelusTime[]).map(
+                (key, i, arr) => (
+                  <View key={key}>
+                    <NotificationRow
+                      label={ANGELUS_CONFIG[key].label}
+                      time={ANGELUS_CONFIG[key].time}
+                      enabled={toggles[key]}
+                      onToggle={(val) => handleToggle(key, val)}
+                      // ← CHANGED: was `angelusMode === "noon_only" && key !== "noon"` — now always disabled
+                      disabled={true}
+                    />
+                    {i < arr.length - 1 && <View style={styles.rowDivider} />}
+                  </View>
+                ),
+              )}
             </View>
-            <View style={styles.cardDivider} />
-            {(["morning", "noon", "evening"] as AngelusTime[]).map(
-              (key, i, arr) => (
-                <View key={key}>
-                  <NotificationRow
-                    label={ANGELUS_CONFIG[key].label}
-                    time={ANGELUS_CONFIG[key].time}
-                    enabled={toggles[key]}
-                    onToggle={(val) => handleToggle(key, val)}
-                    disabled={angelusMode === "noon_only" && key !== "noon"}
-                  />
-                  {i < arr.length - 1 && <View style={styles.rowDivider} />}
-                </View>
-              ),
-            )}
           </View>
 
           {/* ENABLE / DISABLE ALL */}
@@ -829,9 +734,14 @@ export default function SettingsScreen({ onLogout }: Props) {
             </View>
             <View style={styles.cardDivider} />
             <TouchableOpacity
-              style={styles.langRow}
-              onPress={() => setShowLangModal(true)}
-              activeOpacity={0.7}
+              // ← ADDED: dimmed "disabled" look
+              style={[styles.langRow, styles.langRowDisabled]}
+              // ← CHANGED: no-op, was setShowLangModal(true)
+              onPress={() => {}}
+              // ← ADDED: blocks taps entirely
+              disabled={true}
+              // ← CHANGED: no press feedback since it's disabled
+              activeOpacity={1}
             >
               <View style={styles.langRowLeft}>
                 <View style={styles.langIconCircle}>
@@ -851,11 +761,8 @@ export default function SettingsScreen({ onLogout }: Props) {
                   </Text>
                 </View>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={COLORS.textSecondary}
-              />
+              {/* ← ADDED */}
+              <Text style={styles.comingSoonTag}>Coming Soon</Text>
             </TouchableOpacity>
           </View>
 
@@ -924,10 +831,9 @@ function NotificationRow({
         onValueChange={(val) => {
           if (!disabled) onToggle(val);
         }}
-        trackColor={{
-          false: COLORS.border,
-          true: COLORS.gold,
-        }}
+        // ← ADDED: blocks the native switch gesture itself
+        disabled={disabled}
+        trackColor={{ false: COLORS.border, true: COLORS.gold }}
         thumbColor="#FFFFFF"
         ios_backgroundColor={COLORS.border}
       />
@@ -1097,6 +1003,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 4,
   },
+  langRowDisabled: { opacity: 0.45 }, // ← ADDED: visual "disabled" dimming for Language row
+  comingSoonTag: {
+    // ← ADDED: small badge shown in place of the chevron
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.textSecondary,
+    fontFamily: "CormorantGaramond",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    overflow: "hidden",
+  },
   langRowLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   langIconCircle: {
     width: 36,
@@ -1253,19 +1173,25 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     marginBottom: 10,
   },
-
   modeOptionSelected: {
     borderColor: COLORS.gold,
     backgroundColor: "#FFF3DC",
   },
-
+  modeOptionDisabled: { opacity: 0.45 }, // ← ADDED: dims the Noon Only option
+  modeTitleRow: {
+    // ← ADDED: lets the Coming Soon tag sit inline next to the title
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cardDisabled: { opacity: 0.45 }, // ← ADDED: dims the whole Prayer Notifications card
+  notifCardContent: { opacity: 0.55 }, // ← ADDED: dims only the notifications card's inner content
   modeTitle: {
     fontSize: 18,
     color: COLORS.navy,
     fontFamily: "CormorantGaramond",
     fontWeight: "700",
   },
-
   modeDescription: {
     marginTop: 4,
     fontSize: 14,

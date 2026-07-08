@@ -2,8 +2,18 @@ import React from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width } from "../styles/sharedStyles";
-import { BLUE, IVORY, TEXT_SECONDARY } from "../../../lib/constants/colors";
-import { FONT_BODY, FONT_TITLE_BOLD } from "../../../lib/constants/fonts";
+import {
+  BLUE,
+  IVORY,
+  TEXT_MUTED,
+  TEXT_SECONDARY,
+} from "../../../lib/constants/colors";
+import {
+  FONT_BODY,
+  FONT_BODY_SEMIBOLD,
+  FONT_TITLE_BOLD,
+} from "../../../lib/constants/fonts";
+import { SectionHeader } from "../../sectionHeader";
 
 type Props = {
   title: string;
@@ -28,6 +38,12 @@ export function MeditationSlide({
             {title}
           </Text>
         </FadeIn>
+        <FadeIn delay={150} isVisible={isActive}>
+          <SectionHeader />
+        </FadeIn>
+        <FadeIn delay={280} isVisible={isActive}>
+          <Text style={styles.desc}>{description}</Text>
+        </FadeIn>
       </View>
       <View style={{ alignItems: "center" }}>
         <FadeIn delay={300} isVisible={isActive}>
@@ -45,9 +61,6 @@ export function MeditationSlide({
           />
         </FadeIn>
       </View>
-      <FadeIn delay={560} isVisible={isActive} style={{ marginTop: -100 }}>
-        <Text style={styles.desc}>{description}</Text>
-      </FadeIn>
       <View style={sharedStyles.navArea}>
         <FadeIn delay={740} isVisible={isActive} style={sharedStyles.ctaWrap}>
           <TouchableOpacity
@@ -72,18 +85,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   title: {
-    fontFamily: FONT_TITLE_BOLD,
+    fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 40,
     color: BLUE,
     textAlign: "center",
     letterSpacing: 0.3,
     lineHeight: 44,
-    fontWeight: "600",
+    fontWeight: "400",
   },
   desc: {
     fontFamily: FONT_BODY,
-    fontSize: 15,
-    color: TEXT_SECONDARY,
+    fontSize: 20,
+    color: "#6F8FAF",
     textAlign: "center",
     lineHeight: 24,
   },

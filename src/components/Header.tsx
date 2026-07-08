@@ -9,7 +9,7 @@ type Props = {
 export default function Header({ ringOpacity, ringScale, bellRotate }: Props) {
   return (
     <View style={styles.header}>
-      <Image source={require("../../assets/Logo.png")} style={styles.logo} />
+      <Image source={require("../../assets/Angelus_Domini_(1500_x_475_px).png")} style={styles.logo} />
 
       <View style={styles.bellContainer}>
         <Animated.Image

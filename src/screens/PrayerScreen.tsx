@@ -11,6 +11,7 @@ import {
   Modal,
   useWindowDimensions,
 } from "react-native";
+import { useKeepAwake } from "expo-keep-awake";
 import { createAudioPlayer } from "expo-audio";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -18,6 +19,25 @@ import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { supabase } from "../lib/supabaseClient";
+import { startPrayer, completePrayer } from "../api/prayerApi";
+
+// Same key MainApp.tsx caches on successful auth and falls back to when
+// offline — reused here so the notification-tap fallback path below can
+// resolve a userId without needing a live network session.
+const CACHED_USER_ID_KEY = "angelus_cached_user_id";
+
+// Races a promise against a timeout so a slow/hanging network call can
+// never block this fallback indefinitely — resolves to null if the
+// timeout wins (mirrors the same pattern used in MainApp.tsx).
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
 type PrayerItem =
   | {
       type: "versicle" | "response" | "prayer";
@@ -154,31 +174,23 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
 ];
 
 export default function PrayerScreen() {
-  const { width, height } = useWindowDimensions();
+  useKeepAwake();
+  const { width } = useWindowDimensions();
 
   const isSmallScreen = width <= 360;
   const isTinyScreen = width <= 340;
 
-  const scale = Math.min(width / 430, 1);
-
   const sizes = {
     headerHeight: isTinyScreen ? 82 : isSmallScreen ? 90 : 100,
-
     titleFont: isTinyScreen ? 24 : isSmallScreen ? 27 : 30,
-
     bodyLineHeight: isTinyScreen ? 34 : isSmallScreen ? 38 : 42,
-
     imageHeight: isTinyScreen ? 160 : isSmallScreen ? 185 : 220,
-
     cardHeight: isTinyScreen ? 240 : isSmallScreen ? 280 : 300,
-
     horizontalPadding: isTinyScreen ? 14 : 24,
-
     buttonHeight: isTinyScreen ? 50 : 58,
   };
 
   const dotsPerRow = isTinyScreen ? 10 : PRAYER_SEQUENCE.length;
-
   const dotsWidth = dotsPerRow * 16;
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -192,54 +204,167 @@ export default function PrayerScreen() {
     if (m >= 12 * 60 && m < 18 * 60) return "12pm";
     return "6pm";
   };
-  const item = PRAYER_SEQUENCE[currentStep];
 
+  const item = PRAYER_SEQUENCE[currentStep];
   const isHailMary =
     item.text === HAIL_MARY_PART_1 || item.text === HAIL_MARY_PART_2;
-
   const nextItem = PRAYER_SEQUENCE[currentStep + 1];
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const ringScale = useRef(new Animated.Value(1)).current;
   const ringOpacity = useRef(new Animated.Value(0.4)).current;
   const bellRotate = useRef(new Animated.Value(0)).current;
+
+  // Single persistent audio player ref — NEVER destroyed for mute/unmute
   const audioRef = useRef<any>(null);
+  // Tracks whichever bell strike is currently sounding, so Pause/Restart
+  // can kill it instantly instead of waiting for the ring to finish.
+  const bellAudioRef = useRef<any>(null);
 
   const [autoPlay, setAutoPlay] = useState(false);
+  // Tracks whether playback has ever started, so the button reads
+  // "Resume" after a pause instead of reverting to "Auto Pray".
+  const [hasPlayedOnce, setHasPlayedOnce] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
+
+  // Ref mirrors audioEnabled so effects always read the latest value
+  // without being listed as a dependency (avoids restarts on toggle).
+  // This is also what the audio-creation effect below reads from, so a
+  // newly created player on step change always honours the current
+  // mute state instead of resetting back to "on".
+  const audioEnabledRef = useRef(true);
+
   const isTransitioning = useRef(false);
 
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const initialSlot = route.params?.timeSlot;
   const [showCompletionModal, setShowCompletionModal] = useState(false);
-
   const onComplete = route.params?.onComplete;
+
+  // ─── FALLBACK SELF-COMPLETION (fixes "Missed" after tapping a push
+  // notification) ─────────────────────────────────────────────────────────
+  // MainApp.tsx and the auto-trigger effect both navigate here WITH a real
+  // onComplete closure, because they already have userId/session in scope.
+  // But when this screen is opened by tapping the OS push notification
+  // (cold start via launchNotificationRoute, or warm/background via
+  // navigationRef.reset in App.tsx), the code that navigates here has no
+  // access to userId or a live session — it can only pass { autoPlay: true }.
+  // That left onComplete undefined, so completePrayer() never ran and the
+  // session stayed Completed: false, showing as "Missed" back on MainApp.
+  //
+  // This effect only engages when onComplete is missing. startPrayer() is
+  // idempotent per user+slot (it looks up an existing row before creating
+  // one — see prayerApi.ts), so calling it again here is always safe, even
+  // if MainApp already created the session for this slot.
+  //
+  // FIX: this previously ONLY tried supabase.auth.getSession() — with no
+  // offline fallback. Tapping the notification while offline meant
+  // getSession() could come back with no confirmed session (it may try to
+  // refresh an expiring token, which needs network), leaving `uid`
+  // undefined, fallbackUserIdRef never getting set, and the prayer
+  // silently never marked complete ("prayer will not be marked complete"
+  // warning below). This is exactly why offline notification-tap
+  // completions weren't counting even though the same flow worked fine
+  // online. Now, if getSession() doesn't yield a uid, we fall back to the
+  // same cached userId (angelus_cached_user_id) that MainApp.tsx already
+  // relies on for its own offline path — startPrayer()/completePrayer()
+  // are already offline-safe once they have a uid, so this is the only
+  // piece that was missing here.
+  const fallbackUserIdRef = useRef<string | null>(null);
+  const fallbackSessionIdRef = useRef<string | null>(null);
+  const fallbackSlotRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (onComplete) return; // real callback already supplied — nothing to do
+    let cancelled = false;
+
+    (async () => {
+      try {
+        let uid: string | undefined;
+
+        try {
+          const sessionResult = await withTimeout(supabase.auth.getSession(), 4000);
+          uid = sessionResult?.data?.session?.user?.id;
+        } catch (err) {
+          console.warn("[PrayerScreen] getSession failed (offline?):", err);
+        }
+
+        // Offline, or the network session check didn't confirm one —
+        // fall back to the cached userId from the last successful login,
+        // same as MainApp.tsx's initOfflineFallback.
+        if (!uid) {
+          try {
+            uid = (await AsyncStorage.getItem(CACHED_USER_ID_KEY)) ?? undefined;
+          } catch (err) {
+            console.warn("[PrayerScreen] cached userId read failed:", err);
+          }
+        }
+
+        if (!uid || cancelled) return;
+
+        const prayerSession = await startPrayer(uid);
+        if (cancelled) return;
+
+        fallbackUserIdRef.current = uid;
+        fallbackSessionIdRef.current = prayerSession.sessionId;
+        fallbackSlotRef.current = prayerSession.slot;
+      } catch (err) {
+        console.error("[PrayerScreen] fallback session init error:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const fromNotification = route.params?.autoPlay === true;
     setAutoPlay(fromNotification);
-
     if (fromNotification) {
+      setHasPlayedOnce(true);
       navigation.setParams({ autoPlay: undefined });
     }
-  }, []); // ← empty deps: intentionally runs only on mount
+  }, []);
+
   const [selectedTime, setSelectedTime] = useState(getCurrentPrayerTime());
 
   useEffect(() => {
     const update = () => setSelectedTime(getCurrentPrayerTime());
-
     update();
     const interval = setInterval(update, 60000);
-
     return () => clearInterval(interval);
   }, []);
+
+  // Instantly kills whatever is currently making sound — voice clip or a
+  // mid-ring bell strike. Used by Pause and Restart so both act with zero
+  // delay instead of waiting for the current clip/ring to finish.
+  const stopAllAudio = () => {
+    if (audioRef.current) {
+      try { audioRef.current.pause(); } catch (_) {}
+      try { audioRef.current.remove(); } catch (_) {}
+      audioRef.current = null;
+    }
+    if (bellAudioRef.current) {
+      try { bellAudioRef.current.pause(); } catch (_) {}
+      try { bellAudioRef.current.remove(); } catch (_) {}
+      bellAudioRef.current = null;
+    }
+  };
+
+  // Instantly halts the bell ring/swing visuals (the glow pulse and bell
+  // swing triggered by each strike) and resets them to their resting
+  // pose, so Pause doesn't leave a ring animation finishing on its own.
+  const stopAllAnimations = () => {
+    ringScale.stopAnimation(() => ringScale.setValue(1));
+    ringOpacity.stopAnimation(() => ringOpacity.setValue(0.4));
+    bellRotate.stopAnimation(() => bellRotate.setValue(0));
+  };
+
   const transitionToNext = () => {
     if (isTransitioning.current) return;
-
-    if (currentStep >= PRAYER_SEQUENCE.length - 1) {
-      return;
-    }
+    if (currentStep >= PRAYER_SEQUENCE.length - 1) return;
 
     isTransitioning.current = true;
 
@@ -249,34 +374,49 @@ export default function PrayerScreen() {
       useNativeDriver: false,
     }).start(() => {
       setCurrentStep((p) => p + 1);
-
       setTimeout(() => {
         isTransitioning.current = false;
       }, 50);
     });
   };
 
-  // Audio: only plays when autoPlay AND audioEnabled are both true
+  // ─── CORE AUDIO EFFECT ───────────────────────────────────────────────────
+  // Fires only when the step or autoPlay changes — NOT when audioEnabled
+  // changes. Mute/unmute while a clip is playing is still handled by
+  // directly setting player.volume = 0/1 on the live instance (instant,
+  // zero echo). The fix here: whenever a NEW player is created (i.e. every
+  // time we advance to the next step), it must be created with whatever
+  // mute state the user last chose — read from audioEnabledRef — instead
+  // of always starting at volume 1. That's what was causing voice to
+  // come back on automatically after being turned off.
   useEffect(() => {
     if (item.type === "bell") return;
-    if (!autoPlay || !audioEnabled) return;
+    if (!autoPlay) return;
+
+    // Kill any previous player cleanly before creating a new one.
+    // This is the ONLY place we create/destroy players.
+    if (audioRef.current) {
+      try { audioRef.current.remove(); } catch (_) {}
+      audioRef.current = null;
+    }
 
     const player = createAudioPlayer(item.audio);
     audioRef.current = player;
 
-    const timer = setTimeout(() => {
-      player.play();
-    }, 100);
+    // Respect the user's last mute choice instead of forcing volume on.
+    player.volume = audioEnabledRef.current ? 1 : 0;
+
+    player.play();
 
     return () => {
-      clearTimeout(timer);
-      player.remove();
+      try { player.remove(); } catch (_) {}
+      audioRef.current = null;
     };
-  }, [currentStep, audioEnabled, autoPlay]);
+  }, [currentStep, autoPlay]); // audioEnabled intentionally EXCLUDED
+  // ─────────────────────────────────────────────────────────────────────────
 
   const animateBellSwing = () => {
     bellRotate.setValue(0);
-
     Animated.sequence([
       Animated.timing(bellRotate, {
         toValue: -1,
@@ -298,8 +438,11 @@ export default function PrayerScreen() {
       }),
     ]).start();
   };
-  const playBellSequence = async (count: number) => {
+
+  const playBellSequence = async (count: number, shouldContinue: () => boolean) => {
     for (let i = 0; i < count; i++) {
+      if (!shouldContinue()) return;
+
       ringScale.setValue(1);
       ringOpacity.setValue(0.5);
 
@@ -315,61 +458,48 @@ export default function PrayerScreen() {
           duration: 1400,
           useNativeDriver: false,
         }),
-        Animated.timing(ringScale, {
-          toValue: 1.35,
-          duration: 1400,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: false,
-        }),
-        Animated.timing(ringOpacity, {
-          toValue: 0,
-          duration: 1400,
-          useNativeDriver: false,
-        }),
       ]).start();
 
       const player = createAudioPlayer(require("../../assets/audio/bell.mp3"));
+      // Bells are NEVER affected by the voice mute toggle — always full volume.
+      player.volume = 1;
+      bellAudioRef.current = player;
       animateBellSwing();
       player.play();
 
       await new Promise((resolve) => setTimeout(resolve, 2500));
 
-      player.remove();
+      // Only clear/remove if Pause/Restart hasn't already done it via
+      // stopAllAudio() — avoids double-removing the same player.
+      if (bellAudioRef.current === player) {
+        try { player.remove(); } catch (_) {}
+        bellAudioRef.current = null;
+      }
+
+      if (!shouldContinue()) return;
     }
   };
 
   useEffect(() => {
-    const update = () => setSelectedTime(getCurrentPrayerTime());
-    update();
-    const interval = setInterval(update, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     if (item.type !== "bell") return;
     let cancelled = false;
+    const shouldContinue = () => !cancelled;
 
     const runBell = async () => {
       await new Promise((r) => setTimeout(r, 500));
-
       if (cancelled) return;
 
-      await playBellSequence(item.count);
-
+      await playBellSequence(item.count, shouldContinue);
       if (cancelled) return;
 
       await new Promise((r) => setTimeout(r, 900));
-
       if (cancelled) return;
 
       transitionToNext();
     };
 
     runBell();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [currentStep, autoPlay]);
 
   useEffect(() => {
@@ -387,53 +517,19 @@ export default function PrayerScreen() {
             duration: 900,
             useNativeDriver: false,
           }),
-          Animated.timing(ringScale, {
-            toValue: 1.25,
-            duration: 900,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(ringOpacity, {
-            toValue: 0,
-            duration: 900,
-            useNativeDriver: false,
-          }),
         ]),
         Animated.parallel([
-          Animated.timing(ringScale, {
-            toValue: 1,
-            duration: 0,
-            useNativeDriver: false,
-          }),
-          Animated.timing(ringOpacity, {
-            toValue: 0.4,
-            duration: 0,
-            useNativeDriver: false,
-          }),
-          Animated.timing(ringScale, {
-            toValue: 1,
-            duration: 0,
-            useNativeDriver: false,
-          }),
-          Animated.timing(ringOpacity, {
-            toValue: 0.4,
-            duration: 0,
-            useNativeDriver: false,
-          }),
+          Animated.timing(ringScale, { toValue: 1, duration: 0, useNativeDriver: false }),
+          Animated.timing(ringOpacity, { toValue: 0.4, duration: 0, useNativeDriver: false }),
         ]),
       ]),
     );
-
     pulse.start();
-
-    return () => {
-      pulse.stop();
-    };
+    return () => { pulse.stop(); };
   }, []);
 
   useEffect(() => {
     fadeAnim.setValue(0);
-
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 1200,
@@ -442,6 +538,7 @@ export default function PrayerScreen() {
     }).start();
   }, [currentStep]);
 
+  // Auto-advance timer — audioEnabled intentionally excluded from deps
   useEffect(() => {
     if (!autoPlay) return;
     if (item.type === "bell") return;
@@ -451,15 +548,14 @@ export default function PrayerScreen() {
     }, item.duration);
 
     return () => clearTimeout(timeout);
-  }, [currentStep, autoPlay, audioEnabled, item]);
+  }, [currentStep, autoPlay]);
 
   // Auto-scroll for closing prayer
   useEffect(() => {
     let interval: any;
-
     if (item.type === "prayer") {
       interval = setInterval(() => {
-        scrollY.current += 0.9;
+        scrollY.current += 1.1;
         scrollRef.current?.scrollTo({ y: scrollY.current, animated: false });
       }, 25);
     }
@@ -470,10 +566,26 @@ export default function PrayerScreen() {
   }, [currentStep]);
 
   // Completion handler
+  // FIX: falls back to a self-contained completePrayer() call when this
+  // screen was launched without an onComplete param (i.e. via a tapped
+  // push notification) — see the fallback effect above for why that
+  // happens and why calling startPrayer()/completePrayer() here is safe.
   useEffect(() => {
     if (currentStep !== PRAYER_SEQUENCE.length - 1) return;
     const timeout = setTimeout(async () => {
-      if (onComplete) await onComplete();
+      if (onComplete) {
+        await onComplete();
+      } else if (fallbackUserIdRef.current && fallbackSessionIdRef.current) {
+        try {
+          await completePrayer(fallbackUserIdRef.current, fallbackSessionIdRef.current);
+        } catch (err) {
+          console.error("[PrayerScreen] fallback completePrayer error:", err);
+        }
+      } else {
+        console.warn(
+          "[PrayerScreen] No onComplete and no fallback session available — prayer will not be marked complete.",
+        );
+      }
       setShowCompletionModal(true);
     }, item.duration);
     return () => clearTimeout(timeout);
@@ -486,21 +598,56 @@ export default function PrayerScreen() {
   };
 
   const handleRestart = () => {
-    audioRef.current?.remove?.();
-    audioRef.current = null;
+    stopAllAudio();
+    stopAllAnimations();
     isTransitioning.current = false;
-    setAutoPlay(false);
     scrollY.current = 0;
-
-    scrollRef.current?.scrollTo({
-      y: 0,
-      animated: false,
-    });
-
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
     fadeAnim.setValue(0);
-
     setCurrentStep(0);
+    setHasPlayedOnce(true);
+    // Start playing immediately — no need to tap "Auto Pray" again.
+    setAutoPlay(true);
   };
+
+  // Pause now kills any currently-sounding audio (voice clip or a
+  // mid-ring bell strike) AND the bell's ring/swing animation the instant
+  // it's pressed, instead of letting the current clip/ring finish first.
+  const handlePauseToggle = () => {
+    const next = !autoPlay;
+    if (next) {
+      setHasPlayedOnce(true);
+    } else {
+      stopAllAudio();
+      stopAllAnimations();
+    }
+    setAutoPlay(next);
+  };
+
+  // ─── VOICE TOGGLE ─────────────────────────────────────────────────────────
+  // KEY INSIGHT: we do NOT create or destroy the player here.
+  // We simply flip the volume on the already-playing instance.
+  // This is instantaneous, causes zero echo, and doesn't touch the rhythm.
+  // The ref update is what makes the mute state "stick" across step
+  // changes — the audio-creation effect above reads it for every new clip.
+  const handleVoiceToggle = () => {
+    const next = !audioEnabled;
+
+    // Update ref first — synchronous, no re-render race. This is the
+    // source of truth the audio-creation effect reads from.
+    audioEnabledRef.current = next;
+
+    // Apply to the live player immediately — zero delay
+    if (audioRef.current) {
+      try {
+        audioRef.current.volume = next ? 1 : 0;
+      } catch (_) {}
+    }
+
+    // Update state last (only drives the button label)
+    setAudioEnabled(next);
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   const renderPrayer = () => {
     if (item.type === "versicle")
@@ -541,9 +688,7 @@ export default function PrayerScreen() {
     EBGaramond: require("../../assets/fonts/EBGaramond-Medium.ttf"),
   });
 
-  if (!fontsLoaded) {
-    return null;
-  }
+  if (!fontsLoaded) return null;
 
   return (
     <>
@@ -579,13 +724,11 @@ export default function PrayerScreen() {
         </View>
       </View>
 
-      <SafeAreaView
-        style={styles.container}
-        edges={["left", "right", "bottom"]}
-      >
+      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
         <Text style={styles.subtitle}>
           Meditating on the mystery of the Incarnation
         </Text>
+
         <View style={styles.timeSelector}>
           {[
             { label: "6:00 AM", value: "6am" },
@@ -593,13 +736,10 @@ export default function PrayerScreen() {
             { label: "6:00 PM", value: "6pm" },
           ].map((t) => {
             const active = selectedTime === t.value;
-
             return (
               <View key={t.value}>
                 <LinearGradient
-                  colors={
-                    active ? ["#3D5C97", "#2F4A7A"] : ["#FDF6EA", "#EEDFC4"]
-                  }
+                  colors={active ? ["#3D5C97", "#2F4A7A"] : ["#FDF6EA", "#EEDFC4"]}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
                   style={[
@@ -607,9 +747,7 @@ export default function PrayerScreen() {
                     active && styles.timeButtonActive,
                   ]}
                 >
-                  <Text
-                    style={[styles.timeText, active && styles.timeTextActive]}
-                  >
+                  <Text style={[styles.timeText, active && styles.timeTextActive]}>
                     {t.label}
                   </Text>
                 </LinearGradient>
@@ -617,53 +755,21 @@ export default function PrayerScreen() {
             );
           })}
         </View>
-        {/* 🖼 IMAGE */}
-        <View
-          style={[
-            styles.imageContainer,
-            { height: Math.min(Math.max(width * 0.5, 160), 220) },
-          ]}
-        >
-          <Image
-            source={require("../../assets/angelus.png")}
-            style={styles.image}
-          />
 
-          {/* Top fade */}
-          {/* <LinearGradient
-          colors={["#F8F1E7", "transparent"]}
-          style={styles.topGradient}
-          pointerEvents="none"
-        /> */}
-
-          {/* Bottom fade */}
-          {/* <LinearGradient
-          colors={["transparent", "#F8F1E7"]}
-          style={styles.bottomGradient}
-          pointerEvents="none"
-        /> */}
+        {/* IMAGE */}
+        <View style={[styles.imageContainer, { height: Math.min(Math.max(width * 0.5, 160), 220) }]}>
+          <Image source={require("../../assets/angelus.png")} style={styles.image} />
         </View>
-        {/* 📜 PRAYER CARD */}
 
-        <View
-          style={[
-            styles.card,
-            {
-              minHeight: sizes.cardHeight,
-              maxHeight: sizes.cardHeight,
-            },
-          ]}
-        >
+        {/* PRAYER CARD */}
+        <View style={[styles.card, { minHeight: sizes.cardHeight, maxHeight: sizes.cardHeight }]}>
           {item.type === "prayer" ? (
             <View style={styles.prayerScrollWindow}>
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 showsHorizontalScrollIndicator={false}
                 ref={scrollRef}
-                contentContainerStyle={[
-                  styles.cardContent,
-                  item.type === "prayer" && styles.prayerContent,
-                ]}
+                contentContainerStyle={[styles.cardContent, styles.prayerContent]}
               >
                 {renderPrayer()}
               </ScrollView>
@@ -680,7 +786,6 @@ export default function PrayerScreen() {
             </View>
           ) : item.type === "bell" ? (
             <View style={styles.bellCardContent}>
-              {/* The NEXT prayer underneath */}
               <Animated.View
                 style={[
                   StyleSheet.absoluteFillObject,
@@ -688,7 +793,7 @@ export default function PrayerScreen() {
                   {
                     opacity: fadeAnim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [0.25, 1],
+                      outputRange: [0, 0.08],
                     }),
                   },
                 ]}
@@ -696,19 +801,14 @@ export default function PrayerScreen() {
                 <Text
                   style={[
                     styles.upcomingPrayer,
-                    {
-                      fontSize: sizes.titleFont,
-                      lineHeight: sizes.bodyLineHeight,
-                    },
+                    { fontSize: sizes.titleFont, lineHeight: sizes.bodyLineHeight },
                   ]}
                 >
                   {nextItem?.text || ""}
                 </Text>
               </Animated.View>
-
-              {/* Full frosted overlay */}
               <BlurView intensity={50} tint="light" style={styles.fullCardBlur}>
-                <View style={styles.blurInner}></View>
+                <View style={styles.blurInner} />
               </BlurView>
             </View>
           ) : (
@@ -716,15 +816,11 @@ export default function PrayerScreen() {
           )}
         </View>
 
-        {/* ⚪ DOTS */}
+        {/* DOTS */}
         <View
           style={[
             styles.dots,
-            isTinyScreen && {
-              flexWrap: "wrap",
-              width: dotsWidth,
-              rowGap: 8,
-            },
+            isTinyScreen && { flexWrap: "wrap", width: dotsWidth, rowGap: 8 },
           ]}
         >
           {PRAYER_SEQUENCE.map((_, i) => (
@@ -732,56 +828,18 @@ export default function PrayerScreen() {
               key={i}
               style={[
                 styles.dot,
-                isTinyScreen && {
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
-                },
+                isTinyScreen && { width: 6, height: 6, borderRadius: 3 },
                 i === currentStep && styles.activeDot,
               ]}
             />
           ))}
         </View>
-        {/* 🟡 BUTTON */}
-        {/* <TouchableOpacity
-            style={[
-              styles.button,
-              (autoPlay || item.type === "bell") && styles.buttonDisabled,
-            ]}
-            onPress={handleNext}
-            disabled={autoPlay || item.type === "bell"}
-          >
-            <LinearGradient
-              colors={["#D4AF57", "#B9923F"]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={styles.buttonGradient}
-            >
-              <Text style={styles.buttonText}>
-                {autoPlay
-                  ? "Praying..."
-                  : currentStep === PRAYER_SEQUENCE.length - 1
-                    ? "Finish"
-                    : "Continue"}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity> */}
-        {/* ⚙️ CONTROLS */}
-        <View style={styles.footerControls}>
-          <TouchableOpacity
-            onPress={() => {
-              const next = !autoPlay;
 
-              setAutoPlay(next);
-            }}
-          >
-            <Text
-              style={[
-                styles.footerAction,
-                { fontSize: isTinyScreen ? 15 : 18 },
-              ]}
-            >
-              {autoPlay ? "Pause" : "Auto Pray"}
+        {/* CONTROLS */}
+        <View style={styles.footerControls}>
+          <TouchableOpacity onPress={handlePauseToggle}>
+            <Text style={[styles.footerAction, { fontSize: isTinyScreen ? 15 : 18 }]}>
+              {autoPlay ? "Pause" : hasPlayedOnce ? "Resume" : "Pray"}
             </Text>
           </TouchableOpacity>
 
@@ -793,19 +851,13 @@ export default function PrayerScreen() {
 
           <Text style={styles.footerDivider}>•</Text>
 
-          <TouchableOpacity
-            onPress={() => {
-              const next = !audioEnabled;
-
-              setAudioEnabled(next);
-
-              if (!next) {
-                audioRef.current?.remove?.();
-              }
-            }}
-          >
+          {/* Volume is set directly on the live player — instant, no echo.
+              Label shows the ACTION the tap performs, not the current
+              state: sound currently playing -> "Voice Off" (tap mutes),
+              currently muted -> "Voice On" (tap unmutes). */}
+          <TouchableOpacity onPress={handleVoiceToggle}>
             <Text style={styles.footerAction}>
-              {audioEnabled ? "Voice On" : "Voice Off"}
+              {audioEnabled ? "Voice Off" : "Voice On"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -815,7 +867,6 @@ export default function PrayerScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Ionicons name="checkmark-circle" size={64} color="#8FAF8B" />
-
             <Text style={styles.modalTitle}>Prayer Complete</Text>
             <Text style={styles.modalText}>
               You have completed the Angelus for this hour.
@@ -824,7 +875,15 @@ export default function PrayerScreen() {
               style={styles.modalButton}
               onPress={() => {
                 setShowCompletionModal(false);
-                navigation.goBack();
+                // Use reset() when there's no screen to go back to
+                // (e.g. cold-started directly onto Prayer via a tapped
+                // notification — see TabLayout's initialNotificationRoute).
+                // goBack() alone would silently no-op in that case.
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  navigation.reset({ index: 0, routes: [{ name: "Tabs" }] });
+                }
               }}
             >
               <Text style={styles.modalButtonText}>Return Home</Text>
@@ -918,22 +977,15 @@ const styles = StyleSheet.create({
   },
   responseItalic: {
     fontSize: 32,
-    color: "#3F2E24",
-    fontStyle: "italic",
-    textAlign: "center",
-    lineHeight: 45,
-    fontFamily: "Cormorant_Italic",
-    fontWeight: "600",
+  color: "#3F2E24",
+  marginBottom: 6,
+  textAlign: "center",
+  lineHeight: 45,
+  fontFamily: "Cormorant",
+  fontWeight: "500",
   },
-  hailMaryText: {
-    fontSize: 28,
-    lineHeight: 38,
-  },
-
-  hailMaryTextItalic: {
-    fontSize: 28,
-    lineHeight: 38,
-  },
+  hailMaryText: { fontSize: 28, lineHeight: 38 },
+  hailMaryTextItalic: { fontSize: 28, lineHeight: 38 },
   prayer: {
     fontSize: 32,
     lineHeight: 45,

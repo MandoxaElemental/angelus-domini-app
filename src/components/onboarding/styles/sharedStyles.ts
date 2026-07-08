@@ -7,7 +7,7 @@ import {
   PARCHMENT,
   TEXT_MUTED,
 } from "../../../lib/constants/colors";
-import { FONT_BODY_SEMIBOLD } from "../../../lib/constants/fonts";
+import { FONT_BODY, FONT_BODY_SEMIBOLD } from "../../../lib/constants/fonts";
 
 const { width, height } = Dimensions.get("window");
 
@@ -51,18 +51,18 @@ export const sharedStyles = StyleSheet.create({
     elevation: 6,
   },
   primaryText: {
-    fontFamily: FONT_BODY_SEMIBOLD,
+    fontFamily: FONT_BODY,
     textAlign: "center",
     color: IVORY,
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "400",
   },
   skipUnderlineWrap: {
     alignItems: "center",
     marginTop: 16,
   },
   skipUnderlineText: {
-    color: TEXT_MUTED,
+    color: "#6F8FAF",
     fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 15,
     textDecorationLine: "underline",
@@ -80,7 +80,7 @@ export const sharedStyles = StyleSheet.create({
     backgroundColor: "rgba(253,250,240,0.7)",
   },
   skipText: {
-    color: TEXT_MUTED,
+    color: "#6F8FAF",
     fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 15,
   },

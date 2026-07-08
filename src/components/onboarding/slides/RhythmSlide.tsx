@@ -6,6 +6,7 @@ import {
   BLUE,
   GOLD,
   IVORY,
+  TEXT_MUTED,
   TEXT_SECONDARY,
 } from "../../../lib/constants/colors";
 import {
@@ -14,6 +15,7 @@ import {
   FONT_TITLE_BOLD,
 } from "../../../lib/constants/fonts";
 import { SlotItem } from "../../../lib/types/onboarding";
+import { SectionHeader } from "../../sectionHeader";
 
 type Props = {
   title: string;
@@ -36,7 +38,10 @@ export function RhythmSlide({
         <FadeIn delay={100} isVisible={isActive}>
           <Text style={styles.heading}>{title}</Text>
         </FadeIn>
-        <FadeIn delay={260} isVisible={isActive}>
+        <FadeIn delay={150} isVisible={isActive}>
+          <SectionHeader />
+        </FadeIn>
+        <FadeIn delay={280} isVisible={isActive}>
           <Text style={styles.subheading}>{description}</Text>
         </FadeIn>
         <View style={styles.rhythmList}>
@@ -64,7 +69,7 @@ export function RhythmSlide({
         <FadeIn delay={840} isVisible={isActive} style={sharedStyles.ctaWrap}>
           <TouchableOpacity
             onPress={onNext}
-            style={[sharedStyles.primaryBtn, { backgroundColor: GOLD }]}
+            style={[sharedStyles.primaryBtn, { backgroundColor: BLUE }]}
           >
             <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
               Continue
@@ -78,34 +83,42 @@ export function RhythmSlide({
 
 const styles = StyleSheet.create({
   heading: {
-    fontFamily: FONT_TITLE_BOLD,
+    fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 40,
     color: BLUE,
     textAlign: "center",
     letterSpacing: 0.3,
     lineHeight: 46,
     marginBottom: 12,
+    fontWeight: "400",
   },
   subheading: {
     fontFamily: FONT_BODY,
-    fontSize: 15,
-    color: TEXT_SECONDARY,
+    fontSize: 20,
+    color: "#6F8FAF",
     textAlign: "center",
     lineHeight: 22,
+    marginTop: 15,
   },
   rhythmList: {
     width: "100%",
-    marginTop: 28,
+    marginTop: 50,
   },
   cardWrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: BLUE,
+    backgroundColor: "#FFFAF2",
+    borderColor: "#E7DCCB",
+    borderWidth: 1,
     borderRadius: 18,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     marginBottom: 14,
     width: "100%",
+    shadowColor: "#3B2E22",
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
   },
   image: {
     width: 91,
@@ -117,16 +130,16 @@ const styles = StyleSheet.create({
     flexDirection: "column",
   },
   cardLabel: {
-    fontFamily: FONT_TITLE_BOLD,
+    fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 20,
-    color: IVORY,
+    color: "TEXT_SECONDARY",
     letterSpacing: 0.2,
     marginBottom: 3,
-    fontWeight: "600",
+    fontWeight: "400",
   },
   cardTime: {
     fontFamily: FONT_BODY_SEMIBOLD,
-    fontSize: 15,
+    fontSize: 20,
     color: GOLD,
     fontWeight: "500",
     letterSpacing: 0.3,
