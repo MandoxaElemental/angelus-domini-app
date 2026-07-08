@@ -13,6 +13,7 @@ import {
   FONT_BODY_SEMIBOLD,
   FONT_TITLE_BOLD,
 } from "../../../lib/constants/fonts";
+import { SectionHeader } from "../../sectionHeader";
 
 type Props = {
   title: string;
@@ -44,6 +45,10 @@ export function WelcomeSlide({
         <FadeIn delay={200} isVisible={isActive}>
           <Text style={styles.title}>{title}</Text>
         </FadeIn>
+        <FadeIn delay={300} isVisible={isActive}>
+          <SectionHeader />
+        </FadeIn>
+
         <FadeIn delay={400} isVisible={isActive}>
           <Text style={styles.desc}>{description}</Text>
         </FadeIn>
@@ -93,7 +98,7 @@ const styles = StyleSheet.create({
   },
   desc: {
     fontFamily: FONT_BODY,
-    color: TEXT_SECONDARY,
+    color: "#6F8FAF",
     textAlign: "center",
     marginTop: 12,
     marginBottom: 4,

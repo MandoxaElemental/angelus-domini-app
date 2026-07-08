@@ -62,7 +62,7 @@ export const sharedStyles = StyleSheet.create({
     marginTop: 16,
   },
   skipUnderlineText: {
-    color: "6F8FAF",
+    color: "#6F8FAF",
     fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 15,
     textDecorationLine: "underline",
@@ -80,7 +80,7 @@ export const sharedStyles = StyleSheet.create({
     backgroundColor: "rgba(253,250,240,0.7)",
   },
   skipText: {
-    color: "6F8FAF",
+    color: "#6F8FAF",
     fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 15,
   },

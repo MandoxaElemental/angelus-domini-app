@@ -650,6 +650,7 @@ export default function MainApp() {
             try {
               if (!freshSession || !userId) return;
               await completePrayer(userId, freshSession.sessionId);
+              await refreshGlobalStats();
               try {
                 setCount(await getGlobalCount(freshSession.slot));
               } catch {
@@ -679,6 +680,7 @@ export default function MainApp() {
       onComplete: async () => {
         try {
           await completePrayer(userId, session.sessionId);
+          await refreshGlobalStats();
           try {
             setCount(await getGlobalCount(session.slot));
           } catch {

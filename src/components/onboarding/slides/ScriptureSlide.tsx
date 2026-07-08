@@ -10,9 +10,7 @@ import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width, height } from "../styles/sharedStyles";
 import { BLUE } from "../../../lib/constants/colors";
 import {
-  FONT_BODY,
   FONT_BODY_SEMIBOLD,
-  FONT_TITLE_BOLD,
   FONT_TITLE_ITALIC,
 } from "../../../lib/constants/fonts";
 

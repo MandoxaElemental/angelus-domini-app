@@ -13,6 +13,7 @@ import {
   FONT_BODY_SEMIBOLD,
   FONT_TITLE_BOLD,
 } from "../../../lib/constants/fonts";
+import { SectionHeader } from "../../sectionHeader";
 
 type Props = {
   title: string;
@@ -37,6 +38,12 @@ export function MeditationSlide({
             {title}
           </Text>
         </FadeIn>
+        <FadeIn delay={150} isVisible={isActive}>
+          <SectionHeader />
+        </FadeIn>
+        <FadeIn delay={280} isVisible={isActive}>
+          <Text style={styles.desc}>{description}</Text>
+        </FadeIn>
       </View>
       <View style={{ alignItems: "center" }}>
         <FadeIn delay={300} isVisible={isActive}>
@@ -54,9 +61,6 @@ export function MeditationSlide({
           />
         </FadeIn>
       </View>
-      <FadeIn delay={560} isVisible={isActive} style={{ marginTop: -100 }}>
-        <Text style={styles.desc}>{description}</Text>
-      </FadeIn>
       <View style={sharedStyles.navArea}>
         <FadeIn delay={740} isVisible={isActive} style={sharedStyles.ctaWrap}>
           <TouchableOpacity
@@ -92,7 +96,7 @@ const styles = StyleSheet.create({
   desc: {
     fontFamily: FONT_BODY,
     fontSize: 20,
-    color: "6F8FAF",
+    color: "#6F8FAF",
     textAlign: "center",
     lineHeight: 24,
   },

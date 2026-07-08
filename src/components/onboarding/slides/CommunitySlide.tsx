@@ -16,6 +16,7 @@ import {
   FONT_TITLE_ITALIC,
 } from "../../../lib/constants/fonts";
 import { supabase } from "../../../lib/supabaseClient";
+import { SectionHeader } from "../../sectionHeader";
 
 type Props = {
   title: string;
@@ -99,6 +100,9 @@ export function CommunitySlide({
         <FadeIn delay={400} isVisible={isActive}>
           <Text style={styles.title}>{title}</Text>
         </FadeIn>
+        <FadeIn delay={500} isVisible={isActive}>
+          <SectionHeader />
+        </FadeIn>
         <FadeIn delay={600} isVisible={isActive}>
           <Text style={styles.desc}>{description}</Text>
         </FadeIn>
@@ -107,7 +111,7 @@ export function CommunitySlide({
             <Text style={styles.counterNumber}>
               {totalPrayers.toLocaleString()}
             </Text>
-            <Text style={styles.counterLabel}>prayed today.</Text>
+            <Text style={styles.counterLabel}>prayers said today.</Text>
             <Text style={styles.counterTagline}>One prayer. One Church.</Text>
           </View>
         </FadeIn>
@@ -144,7 +148,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: FONT_TITLE_BOLD,
-    fontSize: width < 375 ? 30 : 34,
+    fontSize: width < 375 ? 30 : 40,
     color: BLUE,
     textAlign: "center",
     letterSpacing: 0.3,
@@ -153,7 +157,7 @@ const styles = StyleSheet.create({
   },
   desc: {
     fontFamily: FONT_BODY,
-    color: "6F8FAF",
+    color: "#6F8FAF",
     textAlign: "center",
     fontSize: 20,
     lineHeight: 23,
@@ -191,7 +195,7 @@ const styles = StyleSheet.create({
   counterTagline: {
     fontFamily: FONT_TITLE_ITALIC,
     fontSize: 13,
-    color: "6F8FAF",
+    color: "#6F8FAF",
     letterSpacing: 0.3,
   },
 });

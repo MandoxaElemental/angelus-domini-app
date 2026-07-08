@@ -16,6 +16,7 @@ import {
   TEXT_SECONDARY,
 } from "../../../lib/constants/colors";
 import { FONT_BODY, FONT_BODY_SEMIBOLD } from "../../../lib/constants/fonts";
+import { SectionHeader } from "../../sectionHeader";
 
 type Props = {
   title: string;
@@ -39,6 +40,9 @@ export function BellsSlide({
       <View style={sharedStyles.centerContent}>
         <FadeIn delay={120} isVisible={isActive}>
           <Text style={styles.title}>{title}</Text>
+        </FadeIn>
+        <FadeIn delay={200} isVisible={isActive}>
+          <SectionHeader />
         </FadeIn>
         <FadeIn delay={300} isVisible={isActive}>
           <Text style={styles.desc}>{description}</Text>
@@ -76,14 +80,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0.3,
     lineHeight: 46,
-    marginBottom: 12,
+    marginBottom: 20,
   },
   desc: {
     fontFamily: FONT_BODY,
-    fontSize: 16,
-    color: "6F8FAF",
+    fontSize: 20,
+    color: "#6F8FAF",
     textAlign: "center",
     lineHeight: 24,
+    marginTop: 15,
   },
   illustration: {
     width: width * 0.85,

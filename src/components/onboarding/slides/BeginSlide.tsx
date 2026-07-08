@@ -10,6 +10,7 @@ import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles } from "../styles/sharedStyles";
 import { BLUE, GOLD, IVORY } from "../../../lib/constants/colors";
 import {
+  FONT_BODY_SEMIBOLD,
   FONT_TITLE_BOLD,
   FONT_TITLE_ITALIC,
 } from "../../../lib/constants/fonts";
@@ -59,14 +60,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   title: {
-    fontFamily: FONT_TITLE_BOLD,
-    fontSize: 36,
+    fontFamily: FONT_BODY_SEMIBOLD,
+    fontSize: 40,
     color: "#1F3A6E",
-    paddingTop: 40,
+    paddingTop: 100,
     textAlign: "center",
     letterSpacing: 0.3,
     lineHeight: 46,
-    fontWeight: "600",
+    fontWeight: "400",
   },
   tagline: {
     fontFamily: FONT_TITLE_ITALIC,

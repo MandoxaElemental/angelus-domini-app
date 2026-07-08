@@ -24,6 +24,7 @@ import {
 } from "@expo-google-fonts/playfair-display";
 import * as SplashScreen from "expo-splash-screen";
 import { register } from "../api/authApi";
+import { FONT_BODY_SEMIBOLD } from "../lib/constants/fonts";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -508,13 +509,14 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   heroTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 34,
     color: "#1F3A6E",
     textAlign: "center",
     letterSpacing: 0.4,
     lineHeight: 42,
     marginBottom: 12,
+    fontWeight: "400",
   },
   taglineContainer: {
     position: "absolute",

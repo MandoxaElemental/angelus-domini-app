@@ -15,6 +15,7 @@ import {
   FONT_TITLE_BOLD,
 } from "../../../lib/constants/fonts";
 import { SlotItem } from "../../../lib/types/onboarding";
+import { SectionHeader } from "../../sectionHeader";
 
 type Props = {
   title: string;
@@ -37,7 +38,10 @@ export function RhythmSlide({
         <FadeIn delay={100} isVisible={isActive}>
           <Text style={styles.heading}>{title}</Text>
         </FadeIn>
-        <FadeIn delay={260} isVisible={isActive}>
+        <FadeIn delay={150} isVisible={isActive}>
+          <SectionHeader />
+        </FadeIn>
+        <FadeIn delay={280} isVisible={isActive}>
           <Text style={styles.subheading}>{description}</Text>
         </FadeIn>
         <View style={styles.rhythmList}>
@@ -91,13 +95,14 @@ const styles = StyleSheet.create({
   subheading: {
     fontFamily: FONT_BODY,
     fontSize: 20,
-    color: "6F8FAF",
+    color: "#6F8FAF",
     textAlign: "center",
     lineHeight: 22,
+    marginTop: 15,
   },
   rhythmList: {
     width: "100%",
-    marginTop: 28,
+    marginTop: 50,
   },
   cardWrap: {
     flexDirection: "row",
@@ -127,7 +132,7 @@ const styles = StyleSheet.create({
   cardLabel: {
     fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 20,
-    color: "6F8FAF",
+    color: "TEXT_SECONDARY",
     letterSpacing: 0.2,
     marginBottom: 3,
     fontWeight: "400",

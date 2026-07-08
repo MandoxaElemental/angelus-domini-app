@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { login } from "../api/authApi";
 import { saveAuth } from "../store/auth";
 
-const angelusIcon = require("../../assets/angelusdominiicon.png");
+const angelusIcon = require("../../assets/AngelusLogo2.png");
 
 type ActiveField = "email" | "password" | null;
 
@@ -92,10 +92,8 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
           <View style={{ alignItems: "center", marginBottom: 32 }}>
             <View
               style={{
-                width: 260,
-                height: 260,
-                borderRadius: 130,
-                backgroundColor: "#1F3A6E",
+                width: 300,
+                height: 300,
                 justifyContent: "center",
                 alignItems: "center",
                 marginBottom: 8,
@@ -103,7 +101,7 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
             >
               <Image
                 source={angelusIcon}
-                style={{ width: 180, height: 180, resizeMode: "contain" }}
+                style={{ width: 300, height: 300, resizeMode: "contain" }}
               />
             </View>
           </View>
