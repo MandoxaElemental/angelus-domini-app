@@ -27,6 +27,7 @@ import {
   saveOfflineSessions,
 } from "../storage/offlineStorage";
 import { syncOfflinePrayers } from "../../services/syncOfflinePrayers";
+import React from "react";
 
 const { width } = Dimensions.get("window");
 const isSmallScreen = width < 390;
@@ -289,11 +290,14 @@ export default function MainApp() {
 
   useEffect(() => {
     const id = setInterval(() => {
-      setCurrentHour(new Date().getHours());
+      const hour = new Date().getHours();
+
+      setCurrentHour((prev) => (prev === hour ? prev : hour));
     }, 60000);
 
     return () => clearInterval(id);
   }, []);
+
   const [globalStats, setGlobalStats] = useState({
     total: 0,
     morning: 0,
@@ -673,27 +677,35 @@ export default function MainApp() {
   // COMPLETE PRAYER
   // ─────────────────────────────────────────────────────────────
 
-  const handleComplete = async () => {
+  const handleComplete = useCallback(async () => {
     if (!session || !userId) return;
+
     navigation.navigate("Prayer", {
       autoPlay: false,
       onComplete: async () => {
         try {
           await completePrayer(userId, session.sessionId);
+
           await refreshGlobalStats();
+
           try {
             setCount(await getGlobalCount(session.slot));
-          } catch {
-            // Offline: keep existing count
-          }
+          } catch {}
+
           const key = slotToKey(session.slot);
-          if (key) setCompletedPrayers((prev) => ({ ...prev, [key]: true }));
+
+          if (key) {
+            setCompletedPrayers((prev) => ({
+              ...prev,
+              [key]: true,
+            }));
+          }
         } catch (err) {
-          console.error("onComplete error:", err);
+          console.error(err);
         }
       },
     });
-  };
+  }, [session, userId, navigation, refreshGlobalStats]);
 
   // ─────────────────────────────────────────────────────────────
   // LOGOUT
@@ -921,7 +933,7 @@ export default function MainApp() {
   );
 }
 // ─── ProgressCard ─────────────────────────────────────────────────────────────
-function ProgressCard({
+const ProgressCard = React.memo(function ProgressCard({
   title,
   status,
   onPress,
@@ -994,8 +1006,10 @@ function ProgressCard({
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    let animation: Animated.CompositeAnimation | undefined;
+
     if (isActive) {
-      Animated.loop(
+      animation = Animated.loop(
         Animated.sequence([
           Animated.timing(pulse, {
             toValue: 1.05,
@@ -1008,9 +1022,18 @@ function ProgressCard({
             useNativeDriver: true,
           }),
         ]),
-      ).start();
+      );
+
+      animation.start();
+    } else {
+      pulse.stopAnimation();
+      pulse.setValue(1);
     }
-  }, [isActive]);
+
+    return () => {
+      animation?.stop();
+    };
+  }, [isActive, pulse]);
 
   return (
     <TouchableOpacity
@@ -1090,7 +1113,7 @@ function ProgressCard({
       </Animated.View>
     </TouchableOpacity>
   );
-}
+});
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {

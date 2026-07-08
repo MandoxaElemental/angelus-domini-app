@@ -70,16 +70,6 @@ export default function App() {
   const [frame] = useState<Rect>(initialFrame);
   const notificationResponseId = useRef<string | null>(null);
 
-  // const [fontsLoaded, fontError] = useFonts({
-  //   "Cormorant-Regular": require("./assets/fonts/Cormorant.ttf"),
-  //   "Cormorant-SemiBold": require("./assets/fonts/CormorantGaramond-SemiBold.ttf"),
-  //   "Cormorant-Bold": require("./assets/fonts/CormorantGaramond-Bold.ttf"),
-  //   "Inter-Medium": require("./assets/fonts/Inter_18pt-Medium.ttf"),
-  //   "EBGaramond-Regular": require("./assets/fonts/EBGaramond-Regular.ttf"),
-  //   "EBGaramond-Medium": require("./assets/fonts/EBGaramond-Medium.ttf"),
-  //   "EBGaramond-Bold": require("./assets/fonts/EBGaramond-Bold.ttf"),
-  // });
-
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -147,22 +137,26 @@ export default function App() {
 
   // ── Reschedule notifications on every app foreground ──────────────────────
   useEffect(() => {
-    const ensureNotificationsScheduled = async () => {
+    const handleActive = async () => {
       try {
+        await initializeOfflineStorage();
+
         const { status } = await Notifications.getPermissionsAsync();
+
         if (status === "granted") {
           const mode = await getAngelusMode();
           await scheduleAngelusNotifications(mode);
         }
       } catch (err) {
-        console.warn("Notification reschedule error:", err);
+        console.warn("App active initialization error:", err);
       }
     };
-    ensureNotificationsScheduled();
+
+    handleActive();
 
     const appStateSub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
-        ensureNotificationsScheduled();
+        handleActive();
       }
     });
 
@@ -171,20 +165,24 @@ export default function App() {
 
   // ── Notification tap → navigate to Prayer ────────────────────────────────
   const navigateToPrayer = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) return;
+      if (!user) return;
 
-    const session = await startPrayer(user.id);
+      const session = await startPrayer(user.id);
 
-    navigationRef.current?.navigate("Prayer", {
-      autoPlay: true,
-      onComplete: async () => {
-        await completePrayer(user.id, session.sessionId);
-      },
-    });
+      navigationRef.current?.navigate("Prayer", {
+        autoPlay: true,
+        onComplete: async () => {
+          await completePrayer(user.id, session.sessionId);
+        },
+      });
+    } catch (error) {
+      console.warn("Prayer navigation failed:", error);
+    }
   };
 
   useEffect(() => {
@@ -196,7 +194,11 @@ export default function App() {
 
         notificationResponseId.current = id;
 
-        pendingPrayerNavigation.current = true;
+        if (navigationRef.current?.isReady?.()) {
+          navigateToPrayer();
+        } else {
+          pendingPrayerNavigation.current = true;
+        }
       },
     );
 
@@ -214,26 +216,6 @@ export default function App() {
 
     navigateToPrayer();
   }, [screen]);
-  // ── Hide splash ───────────────────────────────────────────────────────────
-  // useEffect(() => {
-  //   console.log("isReady:", isReady);
-  //   console.log("fontsLoaded:", fontsLoaded);
-  //   console.log("fontError:", fontError);
-
-  //   if (isReady && (fontsLoaded || fontError)) {
-  //     console.log("Hiding splash");
-  //     SplashScreen.hideAsync();
-  //   }
-  // }, [isReady, fontsLoaded, fontError]);
-  // useEffect(() => {
-  //   if (isReady && (fontsLoaded || fontError)) {
-  //     SplashScreen.hideAsync();
-  //   }
-  // }, [isReady, fontsLoaded, fontError]);
-
-  useEffect(() => {
-    initializeOfflineStorage();
-  }, []);
 
   const [queryClient] = useState(
     () =>
@@ -277,45 +259,6 @@ export default function App() {
     setScreen("register");
   };
 
-  // const screenContent = () => {
-  //   switch (screen) {
-  //     case "onboarding":
-  //       return <OnboardingScreen onDone={handleOnboardingDone} />;
-
-  //     case "register":
-  //       return (
-  //         <RegisterScreen
-  //           goToLogin={async () => {
-  //             await AsyncStorage.setItem("onboarded", "true");
-  //             setScreen("login");
-  //           }}
-  //           goToHome={async () => {
-  //             await AsyncStorage.setItem("onboarded", "true");
-  //             setScreen("main");
-  //           }}
-  //         />
-  //       );
-
-  //     case "login":
-  //       return (
-  //         <LoginScreen
-  //           onLogin={() => setScreen("main")}
-  //           goToRegister={() => setScreen("register")}
-  //         />
-  //       );
-
-  //     case "main":
-  //       return (
-  //         <NavigationContainer ref={navigationRef}>
-  //           <TabLayout onLogout={() => setScreen("login")} />
-  //         </NavigationContainer>
-  //       );
-
-  //     default:
-  //       return null;
-  //   }
-  // };
-
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
@@ -323,10 +266,10 @@ export default function App() {
           <NavigationContainer
             ref={navigationRef}
             onReady={() => {
-              if (pendingPrayerNavigation.current) {
-                pendingPrayerNavigation.current = false;
-                navigateToPrayer();
-              }
+              if (!pendingPrayerNavigation.current) return;
+
+              pendingPrayerNavigation.current = false;
+              navigateToPrayer();
             }}
           >
             <TabLayout onLogout={() => setScreen("login")} />
