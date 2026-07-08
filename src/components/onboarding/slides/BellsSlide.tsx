@@ -9,8 +9,13 @@ import {
 } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width, height } from "../styles/sharedStyles";
-import { BLUE, IVORY, TEXT_SECONDARY } from "../../../lib/constants/colors";
-import { FONT_BODY, FONT_TITLE_BOLD } from "../../../lib/constants/fonts";
+import {
+  BLUE,
+  IVORY,
+  TEXT_MUTED,
+  TEXT_SECONDARY,
+} from "../../../lib/constants/colors";
+import { FONT_BODY, FONT_BODY_SEMIBOLD } from "../../../lib/constants/fonts";
 
 type Props = {
   title: string;
@@ -64,9 +69,9 @@ export function BellsSlide({
 
 const styles = StyleSheet.create({
   title: {
-    fontFamily: FONT_TITLE_BOLD,
+    fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 40,
-    fontWeight: "600",
+    fontWeight: "400",
     color: BLUE,
     textAlign: "center",
     letterSpacing: 0.3,
@@ -76,7 +81,7 @@ const styles = StyleSheet.create({
   desc: {
     fontFamily: FONT_BODY,
     fontSize: 16,
-    color: TEXT_SECONDARY,
+    color: "6F8FAF",
     textAlign: "center",
     lineHeight: 24,
   },

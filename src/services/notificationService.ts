@@ -93,9 +93,9 @@ export async function scheduleAngelusNotifications(
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "🔔 " + label,
-        body: "The bells are calling you to prayer. Tap to pray the Angelus.",
+        body: "It's time to pray the Angelus.",
         sound: "triple-bell.wav",
-        data: { timeSlot: label }, // optional but useful for navigation
+        data: { timeSlot: label },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,

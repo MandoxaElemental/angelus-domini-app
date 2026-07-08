@@ -62,24 +62,7 @@ type Screen = "onboarding" | "register" | "login" | "main";
 
 export default function App() {
   const navigationRef = useRef<any>(null);
-
-  // useEffect(() => {
-  //   const sub = Notifications.addNotificationResponseReceivedListener(
-  //     (response) => {
-  //       const timeSlot = response.notification.request.content.data
-  //         ?.timeSlot as RootStackParamList["Prayer"]["timeSlot"] | undefined;
-
-  //       if (!timeSlot) return;
-
-  //       if (navigationRef.current?.isReady?.()) {
-  //         navigationRef.current.navigate("Prayer", { timeSlot });
-  //       }
-  //     },
-  //   );
-
-  //   return () => sub.remove();
-  // }, []);
-
+  const pendingPrayerNavigation = useRef(false);
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
 
@@ -187,62 +170,50 @@ export default function App() {
   }, []);
 
   // ── Notification tap → navigate to Prayer ────────────────────────────────
+  const navigateToPrayer = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const session = await startPrayer(user.id);
+
+    navigationRef.current?.navigate("Prayer", {
+      autoPlay: true,
+      onComplete: async () => {
+        await completePrayer(user.id, session.sessionId);
+      },
+    });
+  };
+
   useEffect(() => {
-    const navigateToPrayer = async () => {
-      if (screen !== "main") return;
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) return;
-
-      // Create a prayer session just like MainApp does
-      const session = await startPrayer(user.id);
-
-      const tryNavigate = (attempts = 0) => {
-        if (navigationRef.current?.isReady?.()) {
-          navigationRef.current.navigate("Prayer", {
-            autoPlay: true,
-            onComplete: async () => {
-              await completePrayer(user.id, session.sessionId);
-            },
-          });
-        } else if (attempts < 20) {
-          setTimeout(() => tryNavigate(attempts + 1), 150);
-        }
-      };
-
-      tryNavigate();
-    };
-
-    // Case 1: App is open, user taps notification banner
     const tapSub = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const id = response.notification.request.identifier;
+
         if (notificationResponseId.current === id) return;
+
         notificationResponseId.current = id;
-        navigateToPrayer();
+
+        pendingPrayerNavigation.current = true;
       },
     );
 
-    // Case 2: App was killed, user tapped notification to open it
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (!response) return;
-
-      const id = response.notification.request.identifier;
-
-      const notificationDate = new Date(response.notification.date * 1000);
-      const ageMs = Date.now() - notificationDate.getTime();
-      if (ageMs > 30_000) return;
-
-      notificationResponseId.current = id;
-      navigateToPrayer();
-    });
-
     return () => tapSub.remove();
-  }, [screen]);
+  }, []);
 
+  useEffect(() => {
+    if (screen !== "main") return;
+
+    if (!pendingPrayerNavigation.current) return;
+
+    if (!navigationRef.current?.isReady?.()) return;
+
+    pendingPrayerNavigation.current = false;
+
+    navigateToPrayer();
+  }, [screen]);
   // ── Hide splash ───────────────────────────────────────────────────────────
   // useEffect(() => {
   //   console.log("isReady:", isReady);
@@ -349,7 +320,15 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         {screen === "main" ? (
-          <NavigationContainer ref={navigationRef}>
+          <NavigationContainer
+            ref={navigationRef}
+            onReady={() => {
+              if (pendingPrayerNavigation.current) {
+                pendingPrayerNavigation.current = false;
+                navigateToPrayer();
+              }
+            }}
+          >
             <TabLayout onLogout={() => setScreen("login")} />
           </NavigationContainer>
         ) : screen === "onboarding" ? (

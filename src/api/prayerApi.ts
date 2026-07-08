@@ -120,8 +120,8 @@ export const startPrayer = async (userId: string): Promise<PrayerSession> => {
     const session: OfflinePrayerSession = {
       sessionId: uuidv4(),
       prayerTypeId: 1,
-      scheduledTime: now,
-      slot,
+      scheduledTime: scheduledTime,
+      slot: slot,
       completed: false,
       synced: false,
     };
@@ -143,6 +143,7 @@ export const completePrayer = async (
 
   if (session) {
     session.completed = true;
+    session.completedAt = new Date().toISOString();
     await saveCurrentSession(session);
     await upsertOfflineSession(session);
   }

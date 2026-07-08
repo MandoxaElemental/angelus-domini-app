@@ -696,7 +696,7 @@ export default function SettingsScreen({ onLogout }: Props) {
             <Text style={styles.sectionHeaderText}>SETTINGS</Text>
             <View style={styles.line} />
           </View>
-
+          {/* 
           <TouchableOpacity
             style={{
               marginHorizontal: 24,
@@ -715,7 +715,7 @@ export default function SettingsScreen({ onLogout }: Props) {
             <Text style={{ color: "#fff", fontWeight: "600" }}>
               Prayer Screen
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           {/* ACCOUNT INFO */}
           <View style={styles.card}>

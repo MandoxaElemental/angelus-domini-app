@@ -82,14 +82,14 @@ const styles = StyleSheet.create({
     marginBottom: -6,
   },
   title: {
-    fontFamily: FONT_TITLE_BOLD,
+    fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 40,
     color: BLUE,
     textAlign: "center",
     letterSpacing: 0.2,
     lineHeight: 42,
     marginBottom: 10,
-    fontWeight: "600",
+    fontWeight: "400",
   },
   desc: {
     fontFamily: FONT_BODY,
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 4,
     lineHeight: 24,
-    fontSize: 15,
+    fontSize: 20,
   },
   goldTimes: {
     fontFamily: FONT_BODY_SEMIBOLD,

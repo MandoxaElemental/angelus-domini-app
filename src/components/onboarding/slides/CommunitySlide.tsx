@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width, height } from "../styles/sharedStyles";
@@ -6,6 +6,7 @@ import {
   BLUE,
   GOLD,
   IVORY,
+  TEXT_MUTED,
   TEXT_SECONDARY,
 } from "../../../lib/constants/colors";
 import {
@@ -14,6 +15,7 @@ import {
   FONT_TITLE_BOLD,
   FONT_TITLE_ITALIC,
 } from "../../../lib/constants/fonts";
+import { supabase } from "../../../lib/supabaseClient";
 
 type Props = {
   title: string;
@@ -28,7 +30,61 @@ export function CommunitySlide({
   isActive,
   onNext,
 }: Props) {
+  function getPrayerDay() {
+    const now = new Date();
+
+    if (now.getHours() < 6) {
+      now.setDate(now.getDate() - 1);
+    }
+
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }
+
+  async function getGlobalPrayerTotal() {
+    const prayerDay = getPrayerDay();
+
+    const { count, error } = await supabase
+      .from("PrayerSessions")
+      .select("*", { count: "exact", head: true })
+      .eq("Completed", true)
+      .like("Slot", `${prayerDay}_%`);
+
+    if (error) throw error;
+
+    return count ?? 0;
+  }
   const mapHeight = height < 700 ? height * 0.28 : height * 0.32;
+
+  const [totalPrayers, setTotalPrayers] = useState(0);
+
+  useEffect(() => {
+    const loadTotal = async () => {
+      try {
+        setTotalPrayers(await getGlobalPrayerTotal());
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    loadTotal();
+
+    const channel = supabase
+      .channel("global-prayer-total")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "PrayerSessions",
+        },
+        loadTotal,
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   return (
     <View style={sharedStyles.slide}>
@@ -48,7 +104,9 @@ export function CommunitySlide({
         </FadeIn>
         <FadeIn delay={800} isVisible={isActive} style={{ width: "100%" }}>
           <View style={styles.counterCard}>
-            <Text style={styles.counterNumber}>12,468</Text>
+            <Text style={styles.counterNumber}>
+              {totalPrayers.toLocaleString()}
+            </Text>
             <Text style={styles.counterLabel}>prayed today.</Text>
             <Text style={styles.counterTagline}>One prayer. One Church.</Text>
           </View>
@@ -58,7 +116,7 @@ export function CommunitySlide({
         <FadeIn delay={1000} isVisible={isActive} style={sharedStyles.ctaWrap}>
           <TouchableOpacity
             onPress={onNext}
-            style={[sharedStyles.primaryBtn, { backgroundColor: GOLD }]}
+            style={[sharedStyles.primaryBtn, { backgroundColor: BLUE }]}
           >
             <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
               Continue
@@ -91,23 +149,29 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0.3,
     lineHeight: 40,
-    fontWeight: "600",
+    fontWeight: "400",
   },
   desc: {
     fontFamily: FONT_BODY,
-    color: TEXT_SECONDARY,
+    color: "6F8FAF",
     textAlign: "center",
-    fontSize: 15,
+    fontSize: 20,
     lineHeight: 23,
     paddingHorizontal: 4,
   },
   counterCard: {
-    backgroundColor: BLUE,
     borderRadius: 20,
     paddingVertical: 18,
     paddingHorizontal: 28,
     alignItems: "center",
     width: "100%",
+    backgroundColor: "#FFFAF2",
+    borderColor: "#E7DCCB",
+    borderWidth: 1,
+    shadowColor: "#3B2E22",
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
   },
   counterNumber: {
     fontFamily: FONT_TITLE_BOLD,
@@ -119,15 +183,15 @@ const styles = StyleSheet.create({
   },
   counterLabel: {
     fontFamily: FONT_BODY_SEMIBOLD,
-    fontSize: 15,
-    color: IVORY,
+    fontSize: 20,
+    color: TEXT_SECONDARY,
     marginBottom: 4,
     fontWeight: "500",
   },
   counterTagline: {
     fontFamily: FONT_TITLE_ITALIC,
     fontSize: 13,
-    color: "rgba(253,250,240,0.65)",
+    color: "6F8FAF",
     letterSpacing: 0.3,
   },
 });

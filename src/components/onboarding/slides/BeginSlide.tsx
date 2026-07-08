@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles } from "../styles/sharedStyles";
-import { GOLD, IVORY } from "../../../lib/constants/colors";
+import { BLUE, GOLD, IVORY } from "../../../lib/constants/colors";
 import {
   FONT_TITLE_BOLD,
   FONT_TITLE_ITALIC,
@@ -56,17 +56,17 @@ const styles = StyleSheet.create({
   topSection: {
     width: "100%",
     alignItems: "center",
-    paddingTop: 72,
     paddingHorizontal: 32,
   },
   title: {
     fontFamily: FONT_TITLE_BOLD,
     fontSize: 36,
     color: "#1F3A6E",
-    paddingTop: 70,
+    paddingTop: 40,
     textAlign: "center",
     letterSpacing: 0.3,
-    lineHeight: 48,
+    lineHeight: 46,
+    fontWeight: "600",
   },
   tagline: {
     fontFamily: FONT_TITLE_ITALIC,

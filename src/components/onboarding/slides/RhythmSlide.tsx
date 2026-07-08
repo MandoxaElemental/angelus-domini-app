@@ -6,6 +6,7 @@ import {
   BLUE,
   GOLD,
   IVORY,
+  TEXT_MUTED,
   TEXT_SECONDARY,
 } from "../../../lib/constants/colors";
 import {
@@ -64,7 +65,7 @@ export function RhythmSlide({
         <FadeIn delay={840} isVisible={isActive} style={sharedStyles.ctaWrap}>
           <TouchableOpacity
             onPress={onNext}
-            style={[sharedStyles.primaryBtn, { backgroundColor: GOLD }]}
+            style={[sharedStyles.primaryBtn, { backgroundColor: BLUE }]}
           >
             <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
               Continue
@@ -78,18 +79,19 @@ export function RhythmSlide({
 
 const styles = StyleSheet.create({
   heading: {
-    fontFamily: FONT_TITLE_BOLD,
+    fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 40,
     color: BLUE,
     textAlign: "center",
     letterSpacing: 0.3,
     lineHeight: 46,
     marginBottom: 12,
+    fontWeight: "400",
   },
   subheading: {
     fontFamily: FONT_BODY,
-    fontSize: 15,
-    color: TEXT_SECONDARY,
+    fontSize: 20,
+    color: "6F8FAF",
     textAlign: "center",
     lineHeight: 22,
   },
@@ -100,12 +102,18 @@ const styles = StyleSheet.create({
   cardWrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: BLUE,
+    backgroundColor: "#FFFAF2",
+    borderColor: "#E7DCCB",
+    borderWidth: 1,
     borderRadius: 18,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     marginBottom: 14,
     width: "100%",
+    shadowColor: "#3B2E22",
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
   },
   image: {
     width: 91,
@@ -117,16 +125,16 @@ const styles = StyleSheet.create({
     flexDirection: "column",
   },
   cardLabel: {
-    fontFamily: FONT_TITLE_BOLD,
+    fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 20,
-    color: IVORY,
+    color: "6F8FAF",
     letterSpacing: 0.2,
     marginBottom: 3,
-    fontWeight: "600",
+    fontWeight: "400",
   },
   cardTime: {
     fontFamily: FONT_BODY_SEMIBOLD,
-    fontSize: 15,
+    fontSize: 20,
     color: GOLD,
     fontWeight: "500",
     letterSpacing: 0.3,

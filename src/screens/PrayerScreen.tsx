@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
+import { useKeepAwake } from "expo-keep-awake";
 type PrayerItem =
   | {
       type: "versicle" | "response" | "prayer";
@@ -41,7 +42,6 @@ const CLOSING_PRAYER = `Let us pray:
 
 Pour forth, we beseech Thee, O Lord, Thy grace into our hearts; that we, to whom the incarnation of Christ, Thy Son, was made known by the message of an angel, may by His Passion and Cross be brought to the glory of His Resurrection, through the same Christ Our Lord.
 Amen.
-
 `;
 
 const PRAYER_SEQUENCE: PrayerItem[] = [
@@ -79,7 +79,7 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
   { type: "bell", text: "", count: 3, duration: 9900 },
   {
     type: "versicle",
-    text: "Behold the handmaid of the Lord",
+    text: "Behold the handmaid of the Lord,",
     duration: 3500,
     audio: require("../../assets/audio/Versicle2.mp3"),
   },
@@ -154,6 +154,8 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
 ];
 
 export default function PrayerScreen() {
+  useKeepAwake();
+
   const { width, height } = useWindowDimensions();
 
   const isSmallScreen = width <= 360;
@@ -517,7 +519,7 @@ export default function PrayerScreen() {
   const handleRestart = () => {
     audioRef.current = null;
     isTransitioning.current = false;
-    setAutoPlay(false);
+    setAutoPlay(true);
 
     scrollRef.current?.scrollTo({
       y: 0,
@@ -564,8 +566,9 @@ export default function PrayerScreen() {
 
   const [fontsLoaded] = useFonts({
     Cormorant: require("../../assets/fonts/CormorantGaramond.ttf"),
-    Cormorant_Italic: require("../../assets/fonts/CormorantGaramond-SemiBold.ttf"),
+    Cormorant_Italic: require("../../assets/fonts/CormorantGaramond-Italic.ttf"),
     EBGaramond: require("../../assets/fonts/EBGaramond-Medium.ttf"),
+    EBGaramond_Bold: require("../../assets/fonts/EBGaramond-Bold.ttf"),
   });
 
   if (!fontsLoaded) {
@@ -824,7 +827,7 @@ export default function PrayerScreen() {
 
           <TouchableOpacity onPress={() => setAudioEnabled((prev) => !prev)}>
             <Text style={styles.footerAction}>
-              {audioEnabled ? "Voice On" : "Voice Off"}
+              {audioEnabled ? "Voice Off" : "Voice On"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -927,7 +930,7 @@ const styles = StyleSheet.create({
   cardContent: { flexGrow: 1, justifyContent: "center", alignItems: "center" },
   prayerContent: { paddingTop: 50, paddingBottom: 60 },
   versicle: {
-    fontSize: 32,
+    fontSize: 28,
     color: "#3F2E24",
     marginBottom: 6,
     textAlign: "center",
@@ -936,7 +939,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   responseItalic: {
-    fontSize: 32,
+    fontSize: 28,
     color: "#3F2E24",
     fontStyle: "italic",
     textAlign: "center",
@@ -954,14 +957,14 @@ const styles = StyleSheet.create({
     lineHeight: 38,
   },
   prayer: {
-    fontSize: 32,
+    fontSize: 28,
     lineHeight: 45,
     textAlign: "center",
     color: "#3F2E24",
     fontFamily: "Cormorant",
     fontWeight: "500",
   },
-  logo: { width: 140, height: 40, resizeMode: "contain" },
+  logo: { width: 120, height: 30, resizeMode: "contain" },
   dots: { flexDirection: "row", justifyContent: "center", gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#E7DCCB" },
   activeDot: { backgroundColor: "#C9A24A" },
@@ -1020,7 +1023,7 @@ const styles = StyleSheet.create({
   },
   timeTextActive: {
     color: "#FFFFFF",
-    fontFamily: "EBGaramond",
+    fontFamily: "EBGaramond_Bold",
     fontWeight: "400",
   },
   footerControls: {

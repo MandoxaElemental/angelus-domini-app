@@ -22,13 +22,16 @@ export async function syncOfflinePrayers(userId: string) {
       PrayerTypeId: session.prayerTypeId,
       ScheduledTime: session.scheduledTime,
       Completed: session.completed,
-      CompletedAt: session.completed ? new Date().toISOString() : null,
+      CompletedAt: session.completed ? session.completedAt : null,
     });
 
-    if (!error) {
-      session.synced = true;
-      changed = true;
+    if (error) {
+      console.error("Sync failed:", error);
+      continue;
     }
+
+    session.synced = true;
+    changed = true;
   }
 
   if (changed) {

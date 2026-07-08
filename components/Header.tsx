@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  logo: { width: 140, height: 40, resizeMode: "contain" },
+  logo: { width: 120, height: 30, resizeMode: "contain" },
   bellContainer: {
     width: 85,
     height: 85,
