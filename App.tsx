@@ -117,7 +117,22 @@ export default function App() {
 
     async function prepareApp() {
       try {
+        // Was the app launched by tapping a notification?
+        const lastResponse =
+          await Notifications.getLastNotificationResponseAsync();
+
+        if (lastResponse) {
+          pendingPrayerNavigation.current = true;
+
+          // Prevent handling the same notification again later.
+          notificationResponseId.current =
+            lastResponse.notification.request.identifier;
+
+          await Notifications.clearLastNotificationResponseAsync();
+        }
+
         const onboarded = await AsyncStorage.getItem("onboarded");
+
         const {
           data: { session },
         } = await supabase.auth.getSession();

@@ -1,53 +1,55 @@
 import { supabase } from "../src/lib/supabaseClient";
 import {
   loadOfflineSessions,
-  saveOfflineSessions,
   upsertOfflineSession,
 } from "../src/storage/offlineStorage";
 import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
 
+let syncing = false;
+
 export async function syncOfflinePrayers(userId: string) {
-  const state = await NetInfo.fetch();
+  if (syncing) return;
 
-  if (!state.isConnected || state.isInternetReachable === false) {
-    return;
-  }
+  syncing = true;
 
-  const sessions = await loadOfflineSessions();
+  try {
+    const state = await NetInfo.fetch();
 
-  let changed = false;
-
-  for (const session of sessions) {
-    if (session.synced) continue;
-
-    const { error } = await supabase.from("PrayerSessions").upsert(
-      {
-        SessionId: session.sessionId,
-        UserId: userId,
-        Slot: session.slot,
-        PrayerTypeId: session.prayerTypeId,
-        ScheduledTime: session.scheduledTime,
-        Completed: session.completed,
-        CompletedAt: session.completed ? session.completedAt : null,
-      },
-      {
-        onConflict: "SessionId",
-      },
-    );
-
-    if (error) {
-      console.error("Sync failed:", error);
-      continue;
+    if (!state.isConnected || state.isInternetReachable === false) {
+      return;
     }
 
-    await upsertOfflineSession({
-      ...session,
-      synced: true,
-    });
-    changed = true;
-  }
+    const sessions = await loadOfflineSessions();
 
-  if (changed) {
-    await saveOfflineSessions(sessions);
+    for (const session of sessions) {
+      if (session.synced) continue;
+
+      const { error } = await supabase.from("PrayerSessions").upsert(
+        {
+          SessionId: session.sessionId,
+          UserId: userId,
+          Slot: session.slot,
+          PrayerTypeId: session.prayerTypeId,
+          ScheduledTime: session.scheduledTime,
+          Completed: session.completed,
+          CompletedAt: session.completed ? session.completedAt : null,
+        },
+        {
+          onConflict: "SessionId",
+        },
+      );
+
+      if (error) {
+        console.error("Sync failed:", error);
+        continue;
+      }
+
+      await upsertOfflineSession({
+        ...session,
+        synced: true,
+      });
+    }
+  } finally {
+    syncing = false;
   }
 }

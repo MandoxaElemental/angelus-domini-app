@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import NetInfo from "@react-native-community/netinfo";
 
-import { getNextPrayer, getPrayerStatus, PrayerStatus } from "../utils/prayer";
+import { getPrayerStatus, PrayerStatus } from "../utils/prayer";
 
 import { completePrayer, getGlobalCount, startPrayer } from "../api/prayerApi";
 
@@ -38,6 +38,7 @@ import {
 } from "../utils/prayerHelpers";
 import { isOnline } from "../storage/offlineSync";
 import OfflineBanner from "../../components/OfflineBanner";
+import { syncOfflinePrayers } from "../../services/syncOfflinePrayers";
 
 const { width } = Dimensions.get("window");
 const isSmallScreen = width < 390;
@@ -135,11 +136,19 @@ export default function MainApp() {
   );
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsOffline(!state.isConnected);
+      const online = !!state.isConnected && state.isInternetReachable !== false;
+
+      setIsOffline(!online);
+
+      if (online && userId) {
+        setTimeout(() => {
+          syncOfflinePrayers(userId).catch(console.error);
+        }, 1000);
+      }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     setCurrentPrayer(getNextPrayerForMode(angelusMode));
@@ -164,12 +173,11 @@ export default function MainApp() {
     noon: 0,
     evening: 0,
   });
+  const currentCount = useMemo(() => {
+    const currentWindow = getCurrentPrayerWindow();
 
-  const currentWindow = getCurrentPrayerWindow();
-
-  const currentCount =
-    globalStats[currentWindow.key as keyof typeof globalStats];
-
+    return globalStats[currentWindow.key as keyof typeof globalStats];
+  }, [globalStats]);
   const greeting = useMemo(() => {
     if (currentHour < 12) return "Morning";
     if (currentHour < 18) return "Afternoon";
@@ -341,7 +349,7 @@ export default function MainApp() {
     }, 60000);
 
     return () => clearInterval(id);
-  }, [todayKey, userId, fetchTodayPrayers]);
+  }, [todayKey, userId, fetchTodayPrayers, queueRefresh]);
 
   useEffect(() => {
     let channel: any = null;
@@ -370,6 +378,8 @@ export default function MainApp() {
         if (!auth?.user?.id) return;
         const uid = auth.user.id;
         setUserId(uid);
+        await syncOfflinePrayers(uid);
+        await queueRefresh();
 
         const meta =
           auth.user.user_metadata?.username || auth.user.user_metadata?.name;
@@ -559,7 +569,7 @@ export default function MainApp() {
     if (!session || !userId) return;
 
     navigation.navigate("Prayer", {
-      autoPlay: false,
+      autoPlay: true,
       onComplete: async () => {
         try {
           await completePrayer(userId, session.sessionId);
@@ -583,7 +593,7 @@ export default function MainApp() {
         }
       },
     });
-  }, [session, userId, navigation, refreshGlobalStats]);
+  }, [session, userId, navigation, queueRefresh]);
 
   // ─────────────────────────────────────────────────────────────
   // LOGOUT
@@ -810,6 +820,11 @@ const ProgressCard = React.memo(function ProgressCard({
   const isDisabled = status === "disabled";
   const isLoading = status === "loading";
 
+  const prayerImage = useMemo(
+    () => (isCompleted ? completeImages[title] : progressImages[title]),
+    [isCompleted, title],
+  );
+
   const statusConfig = isCompleted
     ? {
         text: "Completed",
@@ -934,7 +949,7 @@ const ProgressCard = React.memo(function ProgressCard({
           ]}
         >
           <Image
-            source={isCompleted ? completeImages[title] : progressImages[title]}
+            source={prayerImage}
             style={styles.progressImage}
             resizeMode="contain"
           />
