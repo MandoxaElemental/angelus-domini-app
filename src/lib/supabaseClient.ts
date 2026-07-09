@@ -12,3 +12,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
+
+let inFlightRefresh: ReturnType<typeof supabase.auth.refreshSession> | null =
+  null;
+
+export function safeRefreshSession() {
+  if (!inFlightRefresh) {
+    inFlightRefresh = supabase.auth.refreshSession().finally(() => {
+      inFlightRefresh = null;
+    });
+  }
+  return inFlightRefresh;
+}

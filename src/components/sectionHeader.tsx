@@ -1,6 +1,7 @@
 import React from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Svg, { Polygon } from "react-native-svg";
+
 type Props = {
   size?: number;
 };
@@ -12,9 +13,6 @@ export function EightPointStar({
   size?: number;
   color?: string;
 }) {
-  const cx = 50;
-  const cy = 50;
-
   return (
     <Svg width={size} height={size} viewBox="0 0 100 100">
       {/* Vertical */}
@@ -40,19 +38,11 @@ export function EightPointStar({
 export function SectionHeader({ size = 40 }: Props) {
   return (
     <View style={styles.container}>
-      <Image
-        source={require("../../assets/DividerLeft.png")}
-        style={styles.divider}
-        resizeMode="stretch"
-      />
+      <View style={styles.line} />
 
       <EightPointStar size={size} />
 
-      <Image
-        source={require("../../assets/DividerRight.png")}
-        style={styles.divider}
-        resizeMode="stretch"
-      />
+      <View style={styles.line} />
     </View>
   );
 }
@@ -63,8 +53,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: 5,
   },
-  divider: {
+  line: {
     flex: 1,
-    height: 12,
+    width: 150,
+    height: 1,
+    backgroundColor: "#C9A44C",
+    marginHorizontal: 10,
   },
 });

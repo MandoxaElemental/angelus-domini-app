@@ -340,7 +340,6 @@ export default function SettingsScreen({ onLogout }: Props) {
         setNotifIds(freshIds);
         setToggles({ morning: true, noon: true, evening: true });
         await saveStoredIds(freshIds);
-        console.log("✅ First launch — all Angelus notifications auto-enabled");
       } else {
         // ✅ Returning user: restore exactly what they had saved
         setNotifIds(ids);
@@ -501,11 +500,9 @@ export default function SettingsScreen({ onLogout }: Props) {
       await cancelNotif(updatedIds[key] ?? null);
       const newId = await scheduleAngelus(key);
       updatedIds[key] = newId;
-      console.log(`✅ Scheduled ${key} Angelus, id: ${newId}`);
     } else {
       await cancelNotif(updatedIds[key] ?? null);
       delete updatedIds[key];
-      console.log(`🔕 Cancelled ${key} Angelus`);
     }
 
     setNotifIds(updatedIds);
@@ -533,7 +530,6 @@ export default function SettingsScreen({ onLogout }: Props) {
     setNotifIds(updatedIds);
     setToggles({ morning: true, noon: true, evening: true });
     await saveStoredIds(updatedIds);
-    console.log("✅ All Angelus notifications enabled");
   };
 
   // Disable all three
@@ -546,7 +542,6 @@ export default function SettingsScreen({ onLogout }: Props) {
     setNotifIds(empty);
     setToggles({ morning: false, noon: false, evening: false });
     await saveStoredIds(empty);
-    console.log("🔕 All Angelus notifications disabled");
   };
 
   const handleSelectLanguage = async (code: string) => {

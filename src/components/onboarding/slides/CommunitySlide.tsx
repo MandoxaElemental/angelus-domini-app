@@ -6,7 +6,6 @@ import {
   BLUE,
   GOLD,
   IVORY,
-  TEXT_MUTED,
   TEXT_SECONDARY,
 } from "../../../lib/constants/colors";
 import {
@@ -147,7 +146,7 @@ const styles = StyleSheet.create({
     marginBottom: -50,
   },
   title: {
-    fontFamily: FONT_TITLE_BOLD,
+    fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: width < 375 ? 30 : 40,
     color: BLUE,
     textAlign: "center",

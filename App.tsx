@@ -9,6 +9,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import NetInfo from "@react-native-community/netinfo";
 
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
@@ -44,6 +45,7 @@ import {
   initializeOfflineStorage,
   startPrayer,
 } from "./src/api/prayerApi";
+import { syncOfflinePrayers } from "./services/syncOfflinePrayers";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -73,11 +75,25 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(async (state) => {
+      if (state.isConnected && state.isInternetReachable !== false) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          syncOfflinePrayers(user.id);
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[AUTH]", event);
-
       if (event === "SIGNED_OUT") {
         setScreen("login");
       } else if (session) {
@@ -102,7 +118,6 @@ export default function App() {
     async function prepareApp() {
       try {
         const onboarded = await AsyncStorage.getItem("onboarded");
-        console.log("onboarded:", onboarded);
         const {
           data: { session },
         } = await supabase.auth.getSession();
@@ -117,8 +132,6 @@ export default function App() {
           setScreen("onboarding");
         }
       } catch (e) {
-        console.log("startup error:", e);
-
         const onboarded = await AsyncStorage.getItem("onboarded");
 
         if (!mounted) return;
@@ -140,6 +153,14 @@ export default function App() {
     const handleActive = async () => {
       try {
         await initializeOfflineStorage();
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          await syncOfflinePrayers(user.id);
+        }
 
         const { status } = await Notifications.getPermissionsAsync();
 

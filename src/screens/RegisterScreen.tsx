@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import {
   ScrollView,
   Text,
@@ -6,29 +7,18 @@ import {
   TextInput,
   Modal,
   FlatList,
-  ImageBackground,
   StyleSheet,
   Platform,
-  StatusBar,
   Keyboard,
-  KeyboardAvoidingView, // ← ADDED
+  KeyboardAvoidingView,
+  Image,
 } from "react-native";
-import { useState, useEffect, useRef } from "react";
-import { BlurView } from "expo-blur";
+
 import { Ionicons } from "@expo/vector-icons";
-import {
-  useFonts,
-  PlayfairDisplay_400Regular,
-  PlayfairDisplay_400Regular_Italic,
-  PlayfairDisplay_700Bold,
-} from "@expo-google-fonts/playfair-display";
-import * as SplashScreen from "expo-splash-screen";
+
 import { register } from "../api/authApi";
-import { FONT_BODY_SEMIBOLD } from "../lib/constants/fonts";
 
-SplashScreen.preventAutoHideAsync();
-
-const churchBg = require("../../assets/bgchurch.png");
+const angelusIcon = require("../../assets/AngelusLogo2.png");
 
 const COUNTRIES = [
   { code: "PH", name: "Philippines", flag: "🇵🇭" },
@@ -56,31 +46,6 @@ type Country = {
 
 type ActiveField = "username" | "email" | "password" | null;
 
-function GlassInput({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: object;
-}) {
-  if (Platform.OS === "ios") {
-    return (
-      <BlurView
-        intensity={95}
-        tint="light"
-        style={[styles.glassContainer, style]}
-      >
-        {children}
-      </BlurView>
-    );
-  }
-  return (
-    <View style={[styles.glassContainer, styles.glassAndroid, style]}>
-      {children}
-    </View>
-  );
-}
-
 export default function RegisterScreen({
   goToLogin,
   goToHome,
@@ -91,49 +56,49 @@ export default function RegisterScreen({
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
+
+  const [loading, setLoading] = useState(false);
+
   const [countryModalVisible, setCountryModalVisible] = useState(false);
 
   const [activeField, setActiveField] = useState<ActiveField>(null);
+
   const [tempValue, setTempValue] = useState("");
+
   const [showTempPassword, setShowTempPassword] = useState(false);
 
   const floatInputRef = useRef<TextInput>(null);
-
-  const [fontsLoaded] = useFonts({
-    PlayfairDisplay_400Regular,
-    PlayfairDisplay_400Regular_Italic,
-    PlayfairDisplay_700Bold,
-  });
-
-  useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync();
-  }, [fontsLoaded]);
 
   useEffect(() => {
     if (activeField) {
       const timer = setTimeout(() => {
         floatInputRef.current?.focus();
       }, 150);
+
       return () => clearTimeout(timer);
     }
   }, [activeField]);
 
-  if (!fontsLoaded) return null;
-
   const openField = (field: ActiveField) => {
     if (field === "username") setTempValue(username);
-    else if (field === "email") setTempValue(email);
-    else if (field === "password") setTempValue(password);
+
+    if (field === "email") setTempValue(email);
+
+    if (field === "password") setTempValue(password);
+
     setShowTempPassword(false);
     setActiveField(field);
   };
 
   const confirmField = () => {
     if (activeField === "username") setUsername(tempValue);
-    else if (activeField === "email") setEmail(tempValue);
-    else if (activeField === "password") setPassword(tempValue);
+
+    if (activeField === "email") setEmail(tempValue);
+
+    if (activeField === "password") setPassword(tempValue);
+
     Keyboard.dismiss();
     setActiveField(null);
   };
@@ -145,28 +110,35 @@ export default function RegisterScreen({
 
   const getFieldLabel = () => {
     if (activeField === "username") return "Username";
+
     if (activeField === "email") return "Email";
+
     if (activeField === "password") return "Password";
+
     return "";
   };
 
   const handleRegister = async () => {
-    if (!email || !username || !password) {
+    if (!username || !email || !password) {
       alert("Fill all fields");
       return;
     }
+
     if (!selectedCountry) {
       alert("Please select a country");
       return;
     }
+
     try {
       setLoading(true);
+
       const data = await register(
         email,
         username,
         password,
         selectedCountry.name,
       );
+
       if (data.session) {
         goToHome();
       } else {
@@ -174,7 +146,6 @@ export default function RegisterScreen({
         goToLogin();
       }
     } catch (err: any) {
-      console.log("REGISTER ERROR:", err);
       alert(err.message || "Something went wrong");
     } finally {
       setLoading(false);
@@ -182,495 +153,408 @@ export default function RegisterScreen({
   };
 
   return (
-    <View style={styles.root}>
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="light-content"
-      />
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.center}>
+          <Image source={angelusIcon} style={styles.logo} />
 
-      <ImageBackground source={churchBg} style={styles.bg} resizeMode="cover">
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.heroSection}>
-            <Text style={styles.heroTitle}>Begin with the{"\n"}Angelus</Text>
-            <View style={styles.taglineContainer}>
-              <Text style={[styles.heroTagline, styles.pauseText]}>Pause.</Text>
-              <Text style={[styles.heroTagline, styles.listenText]}>
-                Listen.
-              </Text>
-              <Text style={[styles.heroTagline, styles.prayText]}>Pray.</Text>
-            </View>
-          </View>
+          <Text style={styles.title}>Create your account</Text>
 
-          <View style={styles.formSection}>
-            {/* Username */}
-            <TouchableOpacity
-              onPress={() => openField("username")}
-              activeOpacity={0.8}
-            >
-              <GlassInput>
-                <Text
-                  style={[
-                    styles.textInput,
-                    username ? styles.filledText : styles.placeholderText,
-                  ]}
-                >
-                  {username || "Username"}
-                </Text>
-              </GlassInput>
-            </TouchableOpacity>
-
-            {/* Email */}
-            <TouchableOpacity
-              onPress={() => openField("email")}
-              activeOpacity={0.8}
-            >
-              <GlassInput>
-                <Text
-                  style={[
-                    styles.textInput,
-                    email ? styles.filledText : styles.placeholderText,
-                  ]}
-                >
-                  {email || "Email"}
-                </Text>
-              </GlassInput>
-            </TouchableOpacity>
-
-            {/* Password */}
-            <TouchableOpacity
-              onPress={() => openField("password")}
-              activeOpacity={0.8}
-            >
-              <GlassInput
-                style={{ flexDirection: "row", alignItems: "center" }}
-              >
-                <Text
-                  style={[
-                    styles.textInput,
-                    { flex: 1 },
-                    password ? styles.filledText : styles.placeholderText,
-                  ]}
-                >
-                  {password
-                    ? "•".repeat(Math.min(password.length, 20))
-                    : "Password"}
-                </Text>
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={18}
-                  color="rgba(255,230,167,0.5)"
-                />
-              </GlassInput>
-            </TouchableOpacity>
-
-            {/* Country picker */}
-            <TouchableOpacity
-              onPress={() => setCountryModalVisible(true)}
-              activeOpacity={0.8}
-            >
-              <GlassInput
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  minHeight: 50,
-                }}
-              >
-                <Text style={[styles.textInput, { flex: 1, color: "#FFE6A7" }]}>
-                  {selectedCountry
-                    ? `${selectedCountry.flag}  ${selectedCountry.name}`
-                    : " Country"}
-                </Text>
-                <Text style={{ color: "rgba(255,230,167,0.7)", fontSize: 11 }}>
-                  ▼
-                </Text>
-              </GlassInput>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleRegister}
-              disabled={loading}
-              activeOpacity={0.85}
-              style={[
-                styles.nextBtn,
-                loading && { backgroundColor: "#4A6A9E" },
-              ]}
-            >
-              <Text style={styles.nextBtnText}>
-                {loading ? "Creating..." : "Register"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={goToLogin}
-              activeOpacity={0.7}
-              style={{ alignItems: "center", marginTop: 12 }}
-            >
-              <Text
-                style={{
-                  color: "#FFE6A7",
-                  fontSize: 14,
-                  fontWeight: "600",
-                  textDecorationLine: "underline",
-                  letterSpacing: 0.3,
-                }}
-              >
-                Sign in to your account
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-
-        {/* ✅ FIXED FLOATING INPUT BOTTOM SHEET */}
-        <Modal
-          visible={activeField !== null}
-          transparent
-          animationType="slide"
-          statusBarTranslucent // ← ADDED
-          onRequestClose={cancelField}
-        >
-          {/* ← ADDED: fixes keyboard pushing sheet correctly in APK */}
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          <TouchableOpacity
+            onPress={() => openField("username")}
+            activeOpacity={0.8}
           >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={cancelField}
-              style={styles.floatBackdrop}
-            >
-              <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-                <View style={styles.floatSheet}>
-                  {/* Drag Handle */}
-                  <View style={styles.modalHandle} />
+            <View style={styles.inputBox}>
+              <Text style={[styles.inputText, username && styles.filledText]}>
+                {username || "Username"}
+              </Text>
+            </View>
+          </TouchableOpacity>
 
-                  {/* Header */}
-                  <View style={styles.floatHeader}>
-                    <TouchableOpacity
-                      onPress={cancelField}
-                      style={styles.floatHeaderBtn}
-                    >
-                      <Text style={styles.floatCancelText}>Cancel</Text>
-                    </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => openField("email")}
+            activeOpacity={0.8}
+          >
+            <View style={styles.inputBox}>
+              <Text style={[styles.inputText, email && styles.filledText]}>
+                {email || "Email"}
+              </Text>
+            </View>
+          </TouchableOpacity>
 
-                    <Text style={styles.floatTitle}>{getFieldLabel()}</Text>
+          <TouchableOpacity
+            onPress={() => openField("password")}
+            activeOpacity={0.8}
+          >
+            <View style={styles.inputBox}>
+              <Text style={[styles.inputText, password && styles.filledText]}>
+                {password
+                  ? "•".repeat(Math.min(password.length, 20))
+                  : "Password"}
+              </Text>
 
-                    <TouchableOpacity
-                      onPress={confirmField}
-                      style={[
-                        styles.floatHeaderBtn,
-                        { alignItems: "flex-end" },
-                      ]}
-                    >
-                      <Text style={styles.floatDoneText}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
+              <Ionicons name="lock-closed-outline" size={20} color="#9B9588" />
+            </View>
+          </TouchableOpacity>
 
-                  <View style={styles.modalDivider} />
+          <TouchableOpacity
+            onPress={() => setCountryModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.inputBox}>
+              <Text
+                style={[styles.inputText, selectedCountry && styles.filledText]}
+              >
+                {selectedCountry
+                  ? `${selectedCountry.flag} ${selectedCountry.name}`
+                  : "Country"}
+              </Text>
 
-                  {/* Input */}
-                  <View style={styles.floatInputRow}>
-                    <TextInput
-                      ref={floatInputRef}
-                      value={tempValue}
-                      onChangeText={setTempValue}
-                      style={styles.floatTextInput}
-                      placeholder={`Enter ${getFieldLabel()}`}
-                      placeholderTextColor="#C0B8A8"
-                      secureTextEntry={
-                        activeField === "password" && !showTempPassword
-                      }
-                      keyboardType={
-                        activeField === "email" ? "email-address" : "default"
-                      }
-                      autoCapitalize={
-                        activeField === "email" || activeField === "password"
-                          ? "none"
-                          : "words"
-                      }
-                      returnKeyType="done"
-                      onSubmitEditing={confirmField}
-                      autoCorrect={false}
-                    />
+              <Ionicons name="chevron-down" size={20} color="#9B9588" />
+            </View>
+          </TouchableOpacity>
 
-                    {activeField === "password" && (
-                      <TouchableOpacity
-                        onPress={() => setShowTempPassword((prev) => !prev)}
-                        style={styles.eyeBtn}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Ionicons
-                          name={
-                            showTempPassword ? "eye-outline" : "eye-off-outline"
-                          }
-                          size={24}
-                          color="#C8922A"
-                        />
-                      </TouchableOpacity>
-                    )}
-                  </View>
+          <TouchableOpacity
+            onPress={handleRegister}
+            disabled={loading}
+            style={styles.primaryButton}
+          >
+            <Text style={styles.primaryButtonText}>
+              {loading ? "Creating..." : "Register"}
+            </Text>
+          </TouchableOpacity>
 
-                  {activeField === "password" && (
-                    <Text style={styles.floatHelperText}>
-                      {showTempPassword
-                        ? "Password is visible"
-                        : "Password is hidden"}
-                    </Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          </KeyboardAvoidingView>
-        </Modal>
+          <Text style={styles.secondaryText}>Already have an account?</Text>
 
-        {/* ✅ FIXED COUNTRY PICKER MODAL */}
-        <Modal
-          visible={countryModalVisible}
-          transparent
-          animationType="slide"
-          statusBarTranslucent // ← ADDED
-          onRequestClose={() => setCountryModalVisible(false)}
+          <TouchableOpacity onPress={goToLogin} style={styles.outlineButton}>
+            <Text style={styles.outlineButtonText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+      {/* Floating Input Bottom Sheet */}
+
+      <Modal
+        visible={activeField !== null}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={cancelField}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <TouchableOpacity
             activeOpacity={1}
-            onPress={() => setCountryModalVisible(false)}
-            style={styles.modalBackdrop}
+            onPress={cancelField}
+            style={styles.floatBackdrop}
           >
-            <TouchableOpacity activeOpacity={1} onPress={() => undefined}>
-              <View style={styles.modalSheet}>
+            <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+              <View style={styles.floatSheet}>
                 <View style={styles.modalHandle} />
-                <Text style={styles.modalTitle}>Select Your Country</Text>
+
+                <View style={styles.floatHeader}>
+                  <TouchableOpacity
+                    onPress={cancelField}
+                    style={styles.floatHeaderBtn}
+                  >
+                    <Text style={styles.floatCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.floatTitle}>{getFieldLabel()}</Text>
+
+                  <TouchableOpacity
+                    onPress={confirmField}
+                    style={[styles.floatHeaderBtn, { alignItems: "flex-end" }]}
+                  >
+                    <Text style={styles.floatDoneText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+
                 <View style={styles.modalDivider} />
-                <FlatList
-                  data={COUNTRIES}
-                  keyExtractor={(item) => item.code}
-                  showsVerticalScrollIndicator={false}
-                  renderItem={({ item }) => {
-                    const isSelected = selectedCountry?.code === item.code;
-                    return (
-                      <TouchableOpacity
-                        onPress={() => {
-                          setSelectedCountry(item);
-                          setCountryModalVisible(false);
-                        }}
-                        style={[
-                          styles.countryRow,
-                          isSelected && styles.countryRowSelected,
-                        ]}
-                      >
-                        <Text style={styles.countryFlag}>{item.flag}</Text>
-                        <Text
-                          style={[
-                            styles.countryName,
-                            isSelected && { fontWeight: "700" },
-                          ]}
-                        >
-                          {item.name}
-                        </Text>
-                        {isSelected && <Text style={styles.checkmark}>✓</Text>}
-                      </TouchableOpacity>
-                    );
-                  }}
-                />
+
+                <View style={styles.floatInputRow}>
+                  <TextInput
+                    ref={floatInputRef}
+                    value={tempValue}
+                    onChangeText={setTempValue}
+                    style={styles.floatTextInput}
+                    placeholder={`Enter ${getFieldLabel()}`}
+                    placeholderTextColor="#C0B8A8"
+                    secureTextEntry={
+                      activeField === "password" && !showTempPassword
+                    }
+                    keyboardType={
+                      activeField === "email" ? "email-address" : "default"
+                    }
+                    autoCapitalize={
+                      activeField === "email" || activeField === "password"
+                        ? "none"
+                        : "words"
+                    }
+                    returnKeyType="done"
+                    onSubmitEditing={confirmField}
+                    autoCorrect={false}
+                  />
+
+                  {activeField === "password" && (
+                    <TouchableOpacity
+                      onPress={() => setShowTempPassword((prev) => !prev)}
+                      style={styles.eyeBtn}
+                    >
+                      <Ionicons
+                        name={
+                          showTempPassword ? "eye-outline" : "eye-off-outline"
+                        }
+                        size={24}
+                        color="#1F3A6E"
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {activeField === "password" && (
+                  <Text style={styles.floatHelperText}>
+                    {showTempPassword
+                      ? "Password is visible"
+                      : "Password is hidden"}
+                  </Text>
+                )}
               </View>
             </TouchableOpacity>
           </TouchableOpacity>
-        </Modal>
-      </ImageBackground>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Country Picker */}
+
+      <Modal
+        visible={countryModalVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setCountryModalVisible(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setCountryModalVisible(false)}
+          style={styles.floatBackdrop}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+            <View style={styles.countrySheet}>
+              <View style={styles.modalHandle} />
+
+              <Text style={styles.countryTitle}>Select Your Country</Text>
+
+              <View style={styles.modalDivider} />
+
+              <FlatList
+                data={COUNTRIES}
+                keyExtractor={(item) => item.code}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const selected = selectedCountry?.code === item.code;
+
+                  return (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectedCountry(item);
+                        setCountryModalVisible(false);
+                      }}
+                      style={[
+                        styles.countryRow,
+                        selected && styles.countrySelected,
+                      ]}
+                    >
+                      <Text style={styles.flag}>{item.flag}</Text>
+
+                      <Text style={styles.countryName}>{item.name}</Text>
+
+                      {selected && <Text style={styles.check}>✓</Text>}
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#000" },
-  bg: {
+  container: {
     flex: 1,
-    width: "100%",
-    height: "100%",
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    backgroundColor: "#FFFDF7",
   },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: "space-between",
-    paddingBottom: 48,
-    minHeight: "100%",
-  },
-  heroSection: {
-    paddingTop: 90,
-    paddingHorizontal: 28,
-    paddingBottom: 20,
-  },
-  heroTitle: {
-    fontFamily: FONT_BODY_SEMIBOLD,
-    fontSize: 34,
-    color: "#1F3A6E",
-    textAlign: "center",
-    letterSpacing: 0.4,
-    lineHeight: 42,
-    marginBottom: 12,
-    fontWeight: "400",
-  },
-  taglineContainer: {
-    position: "absolute",
-    top: 180,
-    left: 250,
-  },
-  heroTagline: {
-    fontFamily: "PlayfairDisplay_400Regular_Italic",
-    fontSize: 23,
-    color: "#FFE6A7",
-    position: "absolute",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
-  },
-  pauseText: { top: 0, left: -50 },
-  listenText: { top: 34, left: 5 },
-  prayText: { top: 68, left: 50 },
-  formSection: {
-    paddingHorizontal: 20,
-    gap: 8,
-    paddingTop: 20,
-  },
-  glassContainer: {
-    height: 52,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "rgba(200,170,90,0.7)",
-    paddingHorizontal: 18,
 
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+  },
+
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    gap: 16,
+    paddingVertical: 60,
+  },
+
+  logo: {
+    width: 240,
+    height: 240,
+    resizeMode: "contain",
+    alignSelf: "center",
+    marginBottom: 20,
+  },
+
+  title: {
+    textAlign: "center",
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1F3A6E",
+    marginBottom: 8,
+  },
+
+  inputBox: {
+    height: 56,
+    backgroundColor: "#F6F3E8",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    justifyContent: "center",
     flexDirection: "row",
     alignItems: "center",
+  },
 
-    backgroundColor: "rgba(150,175,215,0.45)",
-  },
-  glassAndroid: {
-    backgroundColor: "rgba(150,175,215,0.68)",
-  },
-  textInput: {
+  inputText: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: "400",
-    letterSpacing: 0.2,
-    color: "#FFE6A7",
-    textAlignVertical: "center",
-    includeFontPadding: false, // Android
+    fontSize: 16,
+    color: "#9B9588",
   },
+
   filledText: {
-    color: "#FFE6A7",
+    color: "#1C1C1C",
   },
-  placeholderText: {
-    color: "rgba(255,230,167,0.7)",
-  },
-  nextBtn: {
-    backgroundColor: "#C8922A",
-    borderRadius: 50,
+
+  primaryButton: {
     height: 56,
+    backgroundColor: "#1F3A6E",
+    borderRadius: 50,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
   },
-  nextBtnText: {
+
+  primaryButtonText: {
     color: "#FFFDF7",
-    fontWeight: "800",
     fontSize: 16,
-    letterSpacing: 0.6,
+    fontWeight: "bold",
   },
+
+  secondaryText: {
+    textAlign: "center",
+    marginTop: 8,
+    color: "#6F6A5F",
+    fontSize: 14,
+  },
+
+  outlineButton: {
+    height: 56,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: "#D4A017",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  outlineButtonText: {
+    color: "#D4A017",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+
+  /* Floating sheet */
+
   floatBackdrop: {
     flex: 1,
     justifyContent: "flex-end",
     backgroundColor: "rgba(0,0,0,0.45)",
   },
+
   floatSheet: {
     backgroundColor: "#FFFDF7",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 10,
-    paddingBottom: Platform.OS === "ios" ? 50 : 48,
+    paddingBottom: Platform.OS === "ios" ? 40 : 28,
   },
+
   floatHeader: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
+
   floatHeaderBtn: {
     minWidth: 64,
   },
+
   floatTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1F3A6E",
-    textAlign: "center",
     flex: 1,
-  },
-  floatCancelText: {
-    fontSize: 14,
-    color: "#888",
-    fontWeight: "500",
-  },
-  floatDoneText: {
-    fontSize: 14,
-    color: "#C8922A",
+    textAlign: "center",
+    color: "#1F3A6E",
     fontWeight: "700",
-    textAlign: "right",
+    fontSize: 15,
   },
+
+  floatCancelText: {
+    color: "#888",
+    fontSize: 14,
+  },
+
+  floatDoneText: {
+    color: "#1F3A6E",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+
   floatInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
     marginHorizontal: 20,
     marginTop: 16,
     borderWidth: 1.5,
-    borderColor: "#D4A017",
+    borderColor: "#1F3A6E",
     borderRadius: 10,
     paddingHorizontal: 14,
-    paddingVertical: 4,
-    backgroundColor: "#FFF8EE",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F6F3E8",
   },
+
   floatTextInput: {
     flex: 1,
     height: 48,
     fontSize: 16,
     color: "#1C1C1C",
-    fontWeight: "400",
   },
+
   eyeBtn: {
     paddingLeft: 8,
-    justifyContent: "center",
-    alignItems: "center",
   },
+
   floatHelperText: {
-    fontSize: 11,
-    color: "#AAA",
     marginTop: 6,
     marginLeft: 22,
+    color: "#AAA",
+    fontSize: 11,
   },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  modalSheet: {
-    backgroundColor: "#FFFDF7",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 10,
-    paddingBottom: 40,
-    maxHeight: 420,
-  },
+
   modalHandle: {
     width: 40,
     height: 4,
@@ -679,38 +563,58 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 14,
   },
-  modalTitle: {
+
+  modalDivider: {
+    height: 1,
+    backgroundColor: "#F0EDE4",
+  },
+
+  /* Country */
+
+  countrySheet: {
+    backgroundColor: "#FFFDF7",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: 420,
+    paddingTop: 10,
+    paddingBottom: 40,
+  },
+
+  countryTitle: {
     textAlign: "center",
     fontSize: 15,
     fontWeight: "700",
     color: "#1F3A6E",
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  modalDivider: {
-    height: 1,
-    backgroundColor: "#F0EDE4",
-    marginBottom: 4,
-  },
+
   countryRow: {
-    paddingVertical: 12,
+    height: 52,
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F5F0E8",
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F5F0E8",
   },
-  countryRowSelected: { backgroundColor: "#F5F0E8" },
-  countryFlag: { fontSize: 20 },
+
+  countrySelected: {
+    backgroundColor: "#F6F3E8",
+  },
+
+  flag: {
+    fontSize: 22,
+    marginRight: 12,
+  },
+
   countryName: {
-    fontSize: 14,
-    color: "#1C1C1C",
     flex: 1,
-    fontWeight: "400",
+    fontSize: 15,
+    color: "#1C1C1C",
   },
-  checkmark: {
+
+  check: {
     color: "#D4A017",
-    fontSize: 16,
     fontWeight: "bold",
+    fontSize: 18,
   },
 });

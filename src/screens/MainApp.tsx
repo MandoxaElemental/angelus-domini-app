@@ -10,10 +10,10 @@ import {
   StatusBar,
   Dimensions,
 } from "react-native";
-import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
+import NetInfo from "@react-native-community/netinfo";
 
 import { getNextPrayer, getPrayerStatus, PrayerStatus } from "../utils/prayer";
 
@@ -26,7 +26,6 @@ import {
   loadOfflineSessions,
   saveOfflineSessions,
 } from "../storage/offlineStorage";
-import { syncOfflinePrayers } from "../../services/syncOfflinePrayers";
 import React from "react";
 import {
   format12Hour,
@@ -37,6 +36,8 @@ import {
   hourToSlotKey,
   slotToKey,
 } from "../utils/prayerHelpers";
+import { isOnline } from "../storage/offlineSync";
+import OfflineBanner from "../../components/OfflineBanner";
 
 const { width } = Dimensions.get("window");
 const isSmallScreen = width < 390;
@@ -80,8 +81,8 @@ const completeImages: Record<string, any> = {
 };
 
 export default function MainApp() {
-  const [angelusMode, setAngelusMode] = useState<AngelusMode>("all_three");
   const [isOffline, setIsOffline] = useState(false);
+  const [angelusMode, setAngelusMode] = useState<AngelusMode>("all_three");
   const [fontsLoaded] = useFonts({
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
     EBGaramond: require("../../assets/fonts/EBGaramond.ttf"),
@@ -89,9 +90,7 @@ export default function MainApp() {
     Inter: require("../../assets/fonts/Inter.ttf"),
     CormorantGaramondItalic: require("../../assets/fonts/CormorantGaramond-Italic.ttf"),
   });
-  const [showOfflineBanner, setShowOfflineBanner] = useState(false);
 
-  const bannerY = useRef(new Animated.Value(-120)).current;
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
@@ -134,6 +133,13 @@ export default function MainApp() {
   const [currentPrayer, setCurrentPrayer] = useState(() =>
     getNextPrayerForMode(angelusMode),
   );
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOffline(!state.isConnected);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     setCurrentPrayer(getNextPrayerForMode(angelusMode));
@@ -141,39 +147,6 @@ export default function MainApp() {
   const triggeredToday = useRef<Map<number, string>>(new Map());
   const dailyVerse = useMemo(() => getDailyVerse(), [todayKey]);
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
-
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(async (state) => {
-      const offline =
-        state.isConnected === false || state.isInternetReachable === false;
-      setIsOffline(offline);
-
-      if (offline) {
-        setShowOfflineBanner(true);
-
-        Animated.spring(bannerY, {
-          toValue: 0,
-          useNativeDriver: true,
-        }).start();
-      } else {
-        Animated.timing(bannerY, {
-          toValue: -120,
-          duration: 250,
-          useNativeDriver: true,
-        }).start(() => {
-          setShowOfflineBanner(false);
-        });
-
-        if (userId) {
-          await syncOfflinePrayers(userId);
-          await fetchTodayPrayers(userId);
-          await refreshGlobalStats();
-        }
-      }
-    });
-
-    return unsubscribe;
-  }, [userId]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -197,19 +170,18 @@ export default function MainApp() {
   const currentCount =
     globalStats[currentWindow.key as keyof typeof globalStats];
 
-  const greeting =
-    currentHour < 12 ? "Morning" : currentHour < 18 ? "Afternoon" : "Evening";
-
+  const greeting = useMemo(() => {
+    if (currentHour < 12) return "Morning";
+    if (currentHour < 18) return "Afternoon";
+    return "Evening";
+  }, [currentHour]);
   // ── Fetch today's completed prayers from DB ───────────────────────────────
   const fetchTodayPrayers = useCallback(async (uid: string) => {
     setPrayerLoadError(false);
     setPrayersLoading(true);
 
-    const netInfo = await NetInfo.fetch();
-
-    if (!netInfo.isConnected || !netInfo.isInternetReachable) {
-      const sessions = await loadOfflineSessions();
-
+    const sessions = await loadOfflineSessions();
+    if (!(await isOnline())) {
       const updated = {
         morning: false,
         noon: false,
@@ -234,27 +206,36 @@ export default function MainApp() {
 
     try {
       const prayerDay = getPrayerDay();
-
-      const { data, error } = await supabase
-        .from("PrayerSessions")
-        .select("Slot, Completed")
-        .eq("UserId", uid)
-        .like("Slot", `${prayerDay}_%`);
-
-      if (error) throw error;
-
       const updated = {
         morning: false,
         noon: false,
         evening: false,
       };
 
-      data?.forEach((s) => {
-        if (!s.Completed) return;
+      sessions.forEach((session) => {
+        if (!session.completed) return;
+        if (!session.slot.startsWith(prayerDay)) return;
 
-        const key = slotToKey(s.Slot);
+        const key = slotToKey(session.slot);
         if (key) updated[key] = true;
       });
+
+      // If online, merge Supabase results over the top
+      {
+        const { data } = await supabase
+          .from("PrayerSessions")
+          .select("Slot,Completed")
+          .eq("UserId", uid)
+          .like("Slot", `${prayerDay}_%`);
+
+        data?.forEach((s) => {
+          if (!s.Completed) return;
+
+          const key = slotToKey(s.Slot);
+
+          if (key) updated[key] = true;
+        });
+      }
 
       setCompletedPrayers(updated);
     } catch (err) {
@@ -264,10 +245,6 @@ export default function MainApp() {
       setPrayersLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    console.log("completedPrayers state changed:", completedPrayers);
-  }, [completedPrayers]);
 
   async function getGlobalPrayerStats() {
     const prayerDay = getPrayerDay();
@@ -309,7 +286,7 @@ export default function MainApp() {
           table: "PrayerSessions",
         },
         async () => {
-          await refreshGlobalStats();
+          await queueRefresh();
         },
       )
       .subscribe();
@@ -327,6 +304,18 @@ export default function MainApp() {
       // Keep previous stats while offline
     }
   }, []);
+
+  const refreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const queueRefresh = useCallback(() => {
+    if (refreshTimeout.current) {
+      clearTimeout(refreshTimeout.current);
+    }
+
+    refreshTimeout.current = setTimeout(() => {
+      refreshGlobalStats();
+    }, 500);
+  }, [refreshGlobalStats]);
 
   useEffect(() => {
     const id = setInterval(async () => {
@@ -347,12 +336,12 @@ export default function MainApp() {
           await fetchTodayPrayers(userId);
         }
 
-        await refreshGlobalStats();
+        queueRefresh();
       }
     }, 60000);
 
     return () => clearInterval(id);
-  }, [todayKey, userId, fetchTodayPrayers, refreshGlobalStats]);
+  }, [todayKey, userId, fetchTodayPrayers]);
 
   useEffect(() => {
     let channel: any = null;
@@ -381,7 +370,6 @@ export default function MainApp() {
         if (!auth?.user?.id) return;
         const uid = auth.user.id;
         setUserId(uid);
-        await syncOfflinePrayers(uid);
 
         const meta =
           auth.user.user_metadata?.username || auth.user.user_metadata?.name;
@@ -398,7 +386,7 @@ export default function MainApp() {
 
         const sess = await startPrayer(uid);
         setSession(sess);
-        await refreshGlobalStats();
+        await queueRefresh();
         try {
           setCount(await getGlobalCount(sess.slot));
         } catch {
@@ -470,20 +458,23 @@ export default function MainApp() {
     return "Morning";
   }, [currentHour]);
 
-  const globalPrayerSlides = [
-    {
-      label: "Morning Angelus",
-      count: globalStats.morning,
-    },
-    {
-      label: "Noon Angelus",
-      count: globalStats.noon,
-    },
-    {
-      label: "Evening Angelus",
-      count: globalStats.evening,
-    },
-  ];
+  const globalPrayerSlides = useMemo(
+    () => [
+      {
+        label: "Morning Angelus",
+        count: globalStats.morning,
+      },
+      {
+        label: "Noon Angelus",
+        count: globalStats.noon,
+      },
+      {
+        label: "Evening Angelus",
+        count: globalStats.evening,
+      },
+    ],
+    [globalStats],
+  );
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -541,7 +532,7 @@ export default function MainApp() {
             try {
               if (!freshSession || !userId) return;
               await completePrayer(userId, freshSession.sessionId);
-              await refreshGlobalStats();
+              await queueRefresh();
               try {
                 setCount(await getGlobalCount(freshSession.slot));
               } catch {
@@ -556,7 +547,7 @@ export default function MainApp() {
       }, 7000);
     };
 
-    const id = setInterval(check, 1000);
+    const id = setInterval(check, 15000);
     return () => clearInterval(id);
   }, [session, userId, navigation, angelusMode]);
 
@@ -573,7 +564,7 @@ export default function MainApp() {
         try {
           await completePrayer(userId, session.sessionId);
 
-          await refreshGlobalStats();
+          await queueRefresh();
 
           try {
             setCount(await getGlobalCount(session.slot));
@@ -620,45 +611,14 @@ export default function MainApp() {
     <>
       <StatusBar hidden />
       <View style={styles.container}>
-        {showOfflineBanner && (
-          <Animated.View
-            style={[
-              styles.offlineBanner,
-              {
-                transform: [{ translateY: bannerY }],
-              },
-            ]}
-          >
-            <View style={styles.offlineLeft}>
-              <Ionicons
-                name="cloud-offline-outline"
-                size={24}
-                color="#B89A5A"
-              />
-
-              <Text style={styles.offlineText}>
-                You're offline - changes will sync once you're back online
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => {
-                Animated.timing(bannerY, {
-                  toValue: -120,
-                  duration: 250,
-                  useNativeDriver: true,
-                }).start(() => setShowOfflineBanner(false));
-              }}
-            >
-              <Ionicons name="close" size={28} color="white" />
-            </TouchableOpacity>
-          </Animated.View>
-        )}
         {/* HEADER */}
         <AppHeader />
+        <OfflineBanner
+          visible={isOffline}
+          message="You're offline. Your prayer will be saved and synced when you're back online."
+        />{" "}
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* GREETING */}
-
           <View style={styles.greetingRow}>
             <View style={styles.sunIcon}>
               <Image

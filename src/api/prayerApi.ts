@@ -12,6 +12,7 @@ import {
 } from "../storage/offlineStorage";
 
 import { OfflinePrayerSession } from "../storage/offlineStorage";
+import { syncOfflinePrayers } from "../../services/syncOfflinePrayers";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -169,6 +170,8 @@ export const completePrayer = async (
     // Still offline
     // We'll sync later
   }
+
+  syncOfflinePrayers(userId);
 };
 
 // ─── Get Global Count ─────────────────────────────────────────────────────────
