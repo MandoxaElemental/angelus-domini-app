@@ -33,6 +33,7 @@ export async function syncOfflinePrayers(userId: string) {
           ScheduledTime: session.scheduledTime,
           Completed: session.completed,
           CompletedAt: session.completed ? session.completedAt : null,
+          CreatedAt: session.createdAt,
         },
         {
           onConflict: "SessionId",

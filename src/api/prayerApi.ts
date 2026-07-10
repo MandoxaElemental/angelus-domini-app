@@ -75,6 +75,7 @@ export const startPrayer = async (userId: string): Promise<PrayerSession> => {
         slot: existing.Slot,
         completed: existing.Completed ?? false,
         synced: true,
+        createdAt: existing.createdAt,
       };
 
       await saveCurrentSession(session);
@@ -110,6 +111,7 @@ export const startPrayer = async (userId: string): Promise<PrayerSession> => {
       slot: data.Slot,
       completed: data.Completed,
       synced: true,
+      createdAt: data.createdAt,
     };
 
     await saveCurrentSession(session);
@@ -125,6 +127,7 @@ export const startPrayer = async (userId: string): Promise<PrayerSession> => {
       slot: slot,
       completed: false,
       synced: false,
+      createdAt: now,
     };
 
     await saveCurrentSession(session);
@@ -171,7 +174,7 @@ export const completePrayer = async (
     // We'll sync later
   }
 
-  syncOfflinePrayers(userId);
+  await syncOfflinePrayers(userId);
 };
 
 // ─── Get Global Count ─────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ export type OfflinePrayerSession = PrayerSession & {
   completed: boolean;
   completedAt?: string;
   synced: boolean;
+  createdAt: string;
 };
 
 export async function saveCurrentSession(session: OfflinePrayerSession) {

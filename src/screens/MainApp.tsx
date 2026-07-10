@@ -38,6 +38,7 @@ import {
 } from "../utils/prayerHelpers";
 import { isOnline } from "../storage/offlineSync";
 import OfflineBanner from "../../components/OfflineBanner";
+import SyncBanner from "../../components/SyncBanner";
 import { syncOfflinePrayers } from "../../services/syncOfflinePrayers";
 
 const { width } = Dimensions.get("window");
@@ -83,6 +84,8 @@ const completeImages: Record<string, any> = {
 
 export default function MainApp() {
   const [isOffline, setIsOffline] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [angelusMode, setAngelusMode] = useState<AngelusMode>("all_three");
   const [fontsLoaded] = useFonts({
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
@@ -118,8 +121,6 @@ export default function MainApp() {
 
   const [session, setSession] = useState<any>(null);
 
-  const [count, setCount] = useState(0);
-
   const [userId, setUserId] = useState("");
 
   const [username, setUsername] = useState("");
@@ -134,22 +135,44 @@ export default function MainApp() {
   const [currentPrayer, setCurrentPrayer] = useState(() =>
     getNextPrayerForMode(angelusMode),
   );
+
+  const refreshPendingSyncCount = useCallback(async () => {
+    const sessions = await loadOfflineSessions();
+
+    setPendingSyncCount(
+      sessions.filter((s) => s.completed && !s.synced).length,
+    );
+  }, []);
+
+  useEffect(() => {
+    refreshPendingSyncCount();
+  }, [refreshPendingSyncCount]);
+
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
       const online = !!state.isConnected && state.isInternetReachable !== false;
 
       setIsOffline(!online);
 
+      refreshPendingSyncCount();
+
       if (online && userId) {
-        setTimeout(() => {
-          syncOfflinePrayers(userId).catch(console.error);
+        setIsSyncing(true);
+
+        setTimeout(async () => {
+          try {
+            await syncOfflinePrayers(userId);
+            await refreshGlobalStats();
+            await refreshPendingSyncCount();
+          } finally {
+            setIsSyncing(false);
+          }
         }, 1000);
       }
     });
 
     return () => unsubscribe();
-  }, [userId]);
-
+  }, [userId, refreshPendingSyncCount]);
   useEffect(() => {
     setCurrentPrayer(getNextPrayerForMode(angelusMode));
   }, [angelusMode]);
@@ -379,6 +402,7 @@ export default function MainApp() {
         const uid = auth.user.id;
         setUserId(uid);
         await syncOfflinePrayers(uid);
+        await refreshGlobalStats();
         await queueRefresh();
 
         const meta =
@@ -398,7 +422,7 @@ export default function MainApp() {
         setSession(sess);
         await queueRefresh();
         try {
-          setCount(await getGlobalCount(sess.slot));
+          await getGlobalCount(sess.slot);
         } catch {
           // offline
         }
@@ -417,7 +441,7 @@ export default function MainApp() {
             async () => {
               await fetchTodayPrayers(uid);
               try {
-                setCount(await getGlobalCount(sess.slot));
+                await getGlobalCount(sess.slot);
               } catch {
               } finally {
               }
@@ -542,9 +566,10 @@ export default function MainApp() {
             try {
               if (!freshSession || !userId) return;
               await completePrayer(userId, freshSession.sessionId);
+              await refreshPendingSyncCount();
               await queueRefresh();
               try {
-                setCount(await getGlobalCount(freshSession.slot));
+                await getGlobalCount(freshSession.slot);
               } catch {
                 // offline
               }
@@ -573,11 +598,11 @@ export default function MainApp() {
       onComplete: async () => {
         try {
           await completePrayer(userId, session.sessionId);
-
+          await refreshPendingSyncCount();
           await queueRefresh();
 
           try {
-            setCount(await getGlobalCount(session.slot));
+            await getGlobalCount(session.slot);
           } catch {}
 
           const key = slotToKey(session.slot);
@@ -626,7 +651,8 @@ export default function MainApp() {
         <OfflineBanner
           visible={isOffline}
           message="You're offline. Your prayer will be saved and synced when you're back online."
-        />{" "}
+        />
+        <SyncBanner visible={isSyncing} pendingCount={pendingSyncCount} />
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* GREETING */}
           <View style={styles.greetingRow}>
@@ -1398,49 +1424,5 @@ const styles = StyleSheet.create({
   activeDot: {
     width: 18,
     backgroundColor: COLORS.gold,
-  },
-  offlineBanner: {
-    position: "absolute",
-    top: 55,
-    left: 16,
-    right: 16,
-
-    zIndex: 999,
-
-    backgroundColor: "#23385fc6",
-
-    borderRadius: 20,
-
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-
-    elevation: 12,
-  },
-
-  offlineLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    marginRight: 10,
-  },
-
-  offlineText: {
-    color: "white",
-    fontSize: 17,
-    marginLeft: 14,
-    flex: 1,
-    lineHeight: 24,
   },
 });

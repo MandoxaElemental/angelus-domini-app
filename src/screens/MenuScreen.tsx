@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { getPrayerStatus, PrayerStatus } from "../utils/prayer";
-import { getGlobalCount, startPrayer } from "../api/prayerApi";
+import { startPrayer } from "../api/prayerApi";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
 import { AngelusMode, getAngelusMode } from "../services/notificationService";
@@ -159,8 +159,6 @@ export default function MenuScreen() {
 
       setCompletedPrayers(updated);
       if (todaySessions) {
-        const updated = { morning: false, noon: false, evening: false };
-
         todaySessions.forEach((s: any) => {
           if (!s.Completed) return;
           const key = slotToKey(s.Slot);
@@ -306,7 +304,6 @@ export default function MenuScreen() {
         setUserId(uid);
 
         const sess = await startPrayer(uid);
-        const globalCount = await getGlobalCount(sess.slot);
 
         await fetchData(uid);
 
@@ -327,9 +324,6 @@ export default function MenuScreen() {
             },
             async () => {
               await fetchData(uid);
-              try {
-                const newCount = await getGlobalCount(sess.slot);
-              } catch {}
             },
           )
           .subscribe();
