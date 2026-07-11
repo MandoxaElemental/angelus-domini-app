@@ -56,7 +56,6 @@ export default function RegisterScreen({
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -119,6 +118,8 @@ export default function RegisterScreen({
   };
 
   const handleRegister = async () => {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
     if (!username || !email || !password) {
       alert("Fill all fields");
       return;
@@ -137,6 +138,7 @@ export default function RegisterScreen({
         username,
         password,
         selectedCountry.name,
+        timezone,
       );
 
       if (data.session) {

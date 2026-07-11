@@ -303,8 +303,6 @@ export default function MenuScreen() {
         const uid = authSession.user.id;
         setUserId(uid);
 
-        const sess = await startPrayer(uid);
-
         await fetchData(uid);
 
         supabase.getChannels().forEach((c) => {

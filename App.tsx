@@ -46,6 +46,8 @@ import {
   startPrayer,
 } from "./src/api/prayerApi";
 import { syncOfflinePrayers } from "./services/syncOfflinePrayers";
+import { syncUserTimezone } from "./src/api/userApi";
+import { getUserTimezone } from "./src/utils/timezone";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -174,6 +176,7 @@ export default function App() {
         } = await supabase.auth.getUser();
 
         if (user) {
+          await syncUserTimezone();
           await syncOfflinePrayers(user.id);
         }
 
@@ -201,6 +204,7 @@ export default function App() {
 
   // ── Notification tap → navigate to Prayer ────────────────────────────────
   const navigateToPrayer = async () => {
+    pendingPrayerNavigation.current = false;
     try {
       const {
         data: { user },
@@ -208,7 +212,9 @@ export default function App() {
 
       if (!user) return;
 
-      const session = await startPrayer(user.id);
+      const timezone = getUserTimezone();
+
+      const session = await startPrayer(user.id, timezone);
 
       navigationRef.current?.navigate("Prayer", {
         autoPlay: true,
@@ -302,10 +308,9 @@ export default function App() {
           <NavigationContainer
             ref={navigationRef}
             onReady={() => {
-              if (!pendingPrayerNavigation.current) return;
-
-              pendingPrayerNavigation.current = false;
-              navigateToPrayer();
+              if (pendingPrayerNavigation.current) {
+                navigateToPrayer();
+              }
             }}
           >
             <TabLayout onLogout={() => setScreen("login")} />

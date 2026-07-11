@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PrayerSession } from "../api/prayerApi";
 import { getSlot } from "../utils/prayer";
+import { getUserTimezone } from "../utils/timezone";
 
 const CURRENT_SESSION_KEY = "current_prayer_session";
 const OFFLINE_SESSIONS_KEY = "offline_prayer_sessions";
@@ -61,7 +62,8 @@ export async function pruneOfflineSessions(currentSlot: string) {
 }
 
 export async function initializeOfflineStorage() {
-  const slot = getSlot();
+  const timezone = getUserTimezone();
+  const slot = getSlot(timezone);
 
   const currentSession = await loadCurrentSession();
 

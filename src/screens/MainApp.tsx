@@ -40,6 +40,7 @@ import { isOnline } from "../storage/offlineSync";
 import OfflineBanner from "../../components/OfflineBanner";
 import SyncBanner from "../../components/SyncBanner";
 import { syncOfflinePrayers } from "../../services/syncOfflinePrayers";
+import { getUserTimezone } from "../utils/timezone";
 
 const { width } = Dimensions.get("window");
 const isSmallScreen = width < 390;
@@ -83,6 +84,7 @@ const completeImages: Record<string, any> = {
 };
 
 export default function MainApp() {
+  const timezone = getUserTimezone();
   const [isOffline, setIsOffline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
@@ -162,6 +164,7 @@ export default function MainApp() {
         setTimeout(async () => {
           try {
             await syncOfflinePrayers(userId);
+            await fetchTodayPrayers(userId);
             await refreshGlobalStats();
             await refreshPendingSyncCount();
           } finally {
@@ -179,6 +182,7 @@ export default function MainApp() {
   const triggeredToday = useRef<Map<number, string>>(new Map());
   const dailyVerse = useMemo(() => getDailyVerse(), [todayKey]);
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -229,7 +233,12 @@ export default function MainApp() {
         if (key) updated[key] = true;
       });
 
-      setCompletedPrayers(updated);
+      setCompletedPrayers((prev) => ({
+        ...prev,
+        morning: prev.morning || updated.morning,
+        noon: prev.noon || updated.noon,
+        evening: prev.evening || updated.evening,
+      }));
       setPrayerLoadError(true);
       setPrayersLoading(false);
       return;
@@ -268,7 +277,12 @@ export default function MainApp() {
         });
       }
 
-      setCompletedPrayers(updated);
+      setCompletedPrayers((prev) => ({
+        ...prev,
+        morning: prev.morning || updated.morning,
+        noon: prev.noon || updated.noon,
+        evening: prev.evening || updated.evening,
+      }));
     } catch (err) {
       console.error(err);
       setPrayerLoadError(true);
@@ -402,6 +416,7 @@ export default function MainApp() {
         const uid = auth.user.id;
         setUserId(uid);
         await syncOfflinePrayers(uid);
+        await fetchTodayPrayers(uid);
         await refreshGlobalStats();
         await queueRefresh();
 
@@ -418,7 +433,7 @@ export default function MainApp() {
           if (u?.username) setUsername(u.username);
         }
 
-        const sess = await startPrayer(uid);
+        const sess = await startPrayer(uid, timezone);
         setSession(sess);
         await queueRefresh();
         try {
@@ -555,7 +570,7 @@ export default function MainApp() {
         let freshSession = session;
         if (userId) {
           try {
-            freshSession = await startPrayer(userId);
+            freshSession = await startPrayer(userId, timezone);
             setSession(freshSession);
           } catch {}
         }

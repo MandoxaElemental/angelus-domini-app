@@ -9,10 +9,12 @@ import {
   pruneOfflineSessions,
   saveCurrentSession,
   upsertOfflineSession,
+  OfflinePrayerSession,
 } from "../storage/offlineStorage";
 
-import { OfflinePrayerSession } from "../storage/offlineStorage";
 import { syncOfflinePrayers } from "../../services/syncOfflinePrayers";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
+import { getUserTimezone } from "../utils/timezone";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,25 +25,30 @@ export type PrayerSession = {
   slot: string;
 };
 
-export const getScheduledTime = () => {
-  const now = new Date();
+export const getScheduledTime = (timezone: string) => {
+  const utcNow = new Date();
 
-  if (now.getHours() < 12) {
-    now.setHours(6, 0, 0, 0);
-  } else if (now.getHours() < 18) {
-    now.setHours(12, 0, 0, 0);
+  const localNow = toZonedTime(utcNow, timezone);
+
+  if (localNow.getHours() < 12) {
+    localNow.setHours(6, 0, 0, 0);
+  } else if (localNow.getHours() < 18) {
+    localNow.setHours(12, 0, 0, 0);
   } else {
-    now.setHours(18, 0, 0, 0);
+    localNow.setHours(18, 0, 0, 0);
   }
 
-  return now.toISOString();
+  return fromZonedTime(localNow, timezone).toISOString();
 };
 
 // ─── Start Prayer ─────────────────────────────────────────────────────────────
 
-export const startPrayer = async (userId: string): Promise<PrayerSession> => {
-  const slot = getSlot();
-  const scheduledTime = getScheduledTime();
+export const startPrayer = async (
+  userId: string,
+  timezone: string,
+): Promise<PrayerSession> => {
+  const slot = getSlot(timezone);
+  const scheduledTime = getScheduledTime(timezone);
   const now = new Date().toISOString();
 
   let localSession = await loadCurrentSession();
@@ -206,7 +213,8 @@ export const getHistory = async (userId: string) => {
 };
 
 export async function initializeOfflineStorage() {
-  const slot = getSlot();
+  const timezone = getUserTimezone();
+  const slot = getSlot(timezone);
 
   const currentSession = await loadCurrentSession();
 

@@ -5,6 +5,7 @@ export const register = async (
   username: string,
   password: string,
   country?: string,
+  timezone?: string,
 ) => {
   // 1. Create auth user
   const { data, error } = await supabase.auth.signUp({
@@ -27,6 +28,7 @@ export const register = async (
     Salt: "supabase_managed",
     Hash: "supabase_managed",
     CreatedAt: new Date().toISOString(),
+    Timezone: timezone ?? null,
   });
 
   if (insertError) throw insertError;
