@@ -193,9 +193,16 @@ export default function App() {
 
     handleActive();
 
-    const appStateSub = AppState.addEventListener("change", (state) => {
-      if (state === "active") {
-        handleActive();
+    const appStateSub = AppState.addEventListener("change", async (state) => {
+      if (state !== "active") return;
+
+      await handleActive();
+
+      if (
+        pendingPrayerNavigation.current &&
+        navigationRef.current?.isReady?.()
+      ) {
+        navigateToPrayer();
       }
     });
 
@@ -204,7 +211,6 @@ export default function App() {
 
   // ── Notification tap → navigate to Prayer ────────────────────────────────
   const navigateToPrayer = async () => {
-    pendingPrayerNavigation.current = false;
     try {
       const {
         data: { user },
@@ -222,6 +228,8 @@ export default function App() {
           await completePrayer(user.id, session.sessionId);
         },
       });
+
+      pendingPrayerNavigation.current = false;
     } catch (error) {
       console.warn("Prayer navigation failed:", error);
     }
@@ -235,29 +243,16 @@ export default function App() {
         if (notificationResponseId.current === id) return;
 
         notificationResponseId.current = id;
+        pendingPrayerNavigation.current = true;
 
         if (navigationRef.current?.isReady?.()) {
           navigateToPrayer();
-        } else {
-          pendingPrayerNavigation.current = true;
         }
       },
     );
 
     return () => tapSub.remove();
   }, []);
-
-  useEffect(() => {
-    if (screen !== "main") return;
-
-    if (!pendingPrayerNavigation.current) return;
-
-    if (!navigationRef.current?.isReady?.()) return;
-
-    pendingPrayerNavigation.current = false;
-
-    navigateToPrayer();
-  }, [screen]);
 
   const [queryClient] = useState(
     () =>

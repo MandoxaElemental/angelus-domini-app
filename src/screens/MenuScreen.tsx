@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { getPrayerStatus, PrayerStatus } from "../utils/prayer";
-import { startPrayer } from "../api/prayerApi";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
 import { AngelusMode, getAngelusMode } from "../services/notificationService";
@@ -50,6 +49,14 @@ function getWeekSunday(now: Date): Date {
 function toLocalDateKey(d: Date): string {
   const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 10);
+}
+
+function toDateKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 type DotStatus = "completed" | "missed" | "upcoming" | "loading";
@@ -157,7 +164,6 @@ export default function MenuScreen() {
         .eq("UserId", uid)
         .like("Slot", `${todayKey}%`);
 
-      setCompletedPrayers(updated);
       if (todaySessions) {
         todaySessions.forEach((s: any) => {
           if (!s.Completed) return;
@@ -192,8 +198,7 @@ export default function MenuScreen() {
           if (!key) return;
 
           const d = new Date(s.ScheduledTime);
-          const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
+          const day = toDateKey(d);
           if (key === "morning") morningDays.add(day);
           if (key === "noon") noonDays.add(day);
           if (key === "evening") eveningDays.add(day);
@@ -672,27 +677,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.cream },
   scroll: { paddingBottom: 20 },
 
-  header: {
-    height: 100,
-    backgroundColor: "#2F4A7A",
-    paddingRight: 24,
-    paddingLeft: 12,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  logo: { width: 140, height: 40, resizeMode: "contain" },
-  bellContainer: {
-    width: 85,
-    height: 85,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  bellImage: { width: 85, height: 85, position: "absolute", zIndex: 2 },
-  bellEffect: { width: 85, height: 85, position: "absolute", zIndex: 1 },
-
   // ── Date & Time Bar ────────────────────────────────────────────────────────
   dateTimeBar: {
     flexDirection: "row",
@@ -939,20 +923,7 @@ const styles = StyleSheet.create({
     fontFamily: "EBGaramond",
     marginTop: 4,
   },
-
-  logoutBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#D4A017",
-  },
-  logoutText: { fontSize: 13, fontWeight: "600", color: "#C8922A" },
   angelusRowDisabled: {
     opacity: 0.45,
-  },
-
-  disabledText: {
-    color: "#A8A8A8",
   },
 });
