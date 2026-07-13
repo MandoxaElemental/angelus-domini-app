@@ -83,9 +83,9 @@ export default function App() {
           data: { user },
         } = await supabase.auth.getUser();
 
-        if (user) {
-          syncOfflinePrayers(user.id);
-        }
+        // if (user) {
+        //   syncOfflinePrayers(user.id);
+        // }
       }
     });
 

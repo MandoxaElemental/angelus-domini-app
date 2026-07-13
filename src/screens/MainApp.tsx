@@ -97,24 +97,6 @@ export default function MainApp() {
     CormorantGaramondItalic: require("../../assets/fonts/CormorantGaramond-Italic.ttf"),
   });
 
-  useFocusEffect(
-    useCallback(() => {
-      let mounted = true;
-
-      (async () => {
-        const mode = await getAngelusMode();
-
-        if (mounted) {
-          setAngelusMode(mode);
-        }
-      })();
-
-      return () => {
-        mounted = false;
-      };
-    }, []),
-  );
-
   const [todayKey, setTodayKey] = useState(new Date().toDateString());
 
   const navigation = useNavigation<any>();
@@ -164,9 +146,15 @@ export default function MainApp() {
         setTimeout(async () => {
           try {
             await syncOfflinePrayers(userId);
+
             await fetchTodayPrayers(userId);
             await refreshGlobalStats();
             await refreshPendingSyncCount();
+
+            setTimeout(async () => {
+              await fetchTodayPrayers(userId);
+              await refreshGlobalStats();
+            }, 1500);
           } finally {
             setIsSyncing(false);
           }
@@ -200,11 +188,6 @@ export default function MainApp() {
     noon: 0,
     evening: 0,
   });
-  const currentCount = useMemo(() => {
-    const currentWindow = getCurrentPrayerWindow();
-
-    return globalStats[currentWindow.key as keyof typeof globalStats];
-  }, [globalStats]);
   const greeting = useMemo(() => {
     if (currentHour < 12) return "Morning";
     if (currentHour < 18) return "Afternoon";
@@ -233,12 +216,7 @@ export default function MainApp() {
         if (key) updated[key] = true;
       });
 
-      setCompletedPrayers((prev) => ({
-        ...prev,
-        morning: prev.morning || updated.morning,
-        noon: prev.noon || updated.noon,
-        evening: prev.evening || updated.evening,
-      }));
+      setCompletedPrayers(updated);
       setPrayerLoadError(true);
       setPrayersLoading(false);
       return;
@@ -277,12 +255,7 @@ export default function MainApp() {
         });
       }
 
-      setCompletedPrayers((prev) => ({
-        ...prev,
-        morning: prev.morning || updated.morning,
-        noon: prev.noon || updated.noon,
-        evening: prev.evening || updated.evening,
-      }));
+      setCompletedPrayers(updated);
     } catch (err) {
       console.error(err);
       setPrayerLoadError(true);
@@ -416,6 +389,11 @@ export default function MainApp() {
         const uid = auth.user.id;
         setUserId(uid);
         await syncOfflinePrayers(uid);
+        setCompletedPrayers({
+          morning: false,
+          noon: false,
+          evening: false,
+        });
         await fetchTodayPrayers(uid);
         await refreshGlobalStats();
         await queueRefresh();
@@ -543,7 +521,7 @@ export default function MainApp() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [globalPrayerSlides.length]);
 
   const [globalSlide, setGlobalSlide] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -654,9 +632,60 @@ export default function MainApp() {
     : angelusMode === "noon_only"
       ? "disabled"
       : getPrayerStatus("evening", completedPrayers.evening);
+
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+
+      const refresh = async () => {
+        const newKey = new Date().toDateString();
+
+        if (newKey !== todayKey) {
+          setTodayKey(newKey);
+
+          await saveOfflineSessions([]);
+
+          setCompletedPrayers({
+            morning: false,
+            noon: false,
+            evening: false,
+          });
+        }
+
+        const mode = await getAngelusMode();
+
+        if (mounted) {
+          setAngelusMode(mode);
+        }
+
+        if (userId) {
+          await fetchTodayPrayers(userId);
+          await refreshGlobalStats();
+          await refreshPendingSyncCount();
+        }
+
+        queueRefresh();
+      };
+
+      refresh();
+
+      return () => {
+        mounted = false;
+      };
+    }, [
+      todayKey,
+      userId,
+      fetchTodayPrayers,
+      refreshGlobalStats,
+      refreshPendingSyncCount,
+      queueRefresh,
+    ]),
+  );
+
   if (!fontsLoaded) {
     return null;
   }
+
   return (
     <>
       <StatusBar hidden />

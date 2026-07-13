@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Animated,
   StyleSheet,
@@ -17,21 +18,32 @@ export default function OfflineBanner({
   visible,
   message = "You're offline. Some features may be unavailable until you're back online.",
 }: Props) {
+  const insets = useSafeAreaInsets();
   const [dismissed, setDismissed] = useState(false);
 
   const bannerY = useRef(new Animated.Value(-70)).current;
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+
     if (visible) {
-      setDismissed(false);
+      timer = setTimeout(() => {
+        setDismissed(false);
+
+        Animated.spring(bannerY, {
+          toValue: 0,
+          useNativeDriver: true,
+        }).start();
+      }, 800); // wait 0.8s before showing
+    } else {
+      Animated.spring(bannerY, {
+        toValue: -180,
+        useNativeDriver: true,
+      }).start();
     }
 
-    Animated.spring(bannerY, {
-      toValue: visible && !dismissed ? 0 : -70,
-      useNativeDriver: true,
-    }).start();
+    return () => clearTimeout(timer);
   }, [visible, dismissed]);
-
   if (!visible && dismissed) {
     return null;
   }
@@ -41,11 +53,8 @@ export default function OfflineBanner({
       style={[
         styles.banner,
         {
-          transform: [
-            {
-              translateY: bannerY,
-            },
-          ],
+          top: insets.top + 70,
+          transform: [{ translateY: bannerY }],
         },
       ]}
     >
@@ -76,7 +85,6 @@ const styles = StyleSheet.create({
   banner: {
     position: "absolute",
 
-    top: 10,
     left: 16,
     right: 16,
 

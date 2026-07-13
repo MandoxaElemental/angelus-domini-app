@@ -23,6 +23,7 @@ type ActiveField = "email" | "password" | null;
 export default function LoginScreen({ onLogin, goToRegister }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
 
   const [activeField, setActiveField] = useState<ActiveField>(null);
   const [tempValue, setTempValue] = useState("");
@@ -59,22 +60,46 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
   };
 
   const getFieldLabel = () => {
-    if (activeField === "email") return "Username/Email";
+    if (activeField === "email") return "Email";
     if (activeField === "password") return "Password";
     return "";
   };
 
   const handleLogin = async () => {
+    if (loggingIn) return;
+
+    if (!email.trim()) {
+      alert("Please enter your email.");
+      return;
+    }
+
+    if (!password) {
+      alert("Please enter your password.");
+      return;
+    }
+
+    setLoggingIn(true);
+
     try {
-      const res = await login(email, password);
+      const res = await login(email.trim(), password);
+
       if (!res.token) throw new Error("No session");
+
       await saveAuth(res.token, res.userId);
+
       onLogin();
     } catch (err: any) {
-      alert(err.message || "Invalid login");
+      if (err.message?.includes("Invalid login")) {
+        alert("Incorrect email or password.");
+      } else if (err.message?.includes("Email not confirmed")) {
+        alert("Please verify your email before logging in.");
+      } else {
+        alert("Unable to sign in. Please try again.");
+      }
+    } finally {
+      setLoggingIn(false);
     }
   };
-
   return (
     <View style={{ flex: 1, backgroundColor: "#FFFDF7" }}>
       <ScrollView
@@ -161,6 +186,7 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
           {/* Login Button */}
           <TouchableOpacity
             onPress={handleLogin}
+            disabled={loggingIn}
             style={{
               backgroundColor: "#1F3A6E",
               borderRadius: 50,
@@ -173,7 +199,7 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
             <Text
               style={{ color: "#FFFDF7", fontWeight: "bold", fontSize: 16 }}
             >
-              Login
+              {loggingIn ? "Signing In..." : "Login"}
             </Text>
           </TouchableOpacity>
 
@@ -265,6 +291,20 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
                     }
                     keyboardType={
                       activeField === "email" ? "email-address" : "default"
+                    }
+                    autoComplete={
+                      activeField === "email"
+                        ? "email"
+                        : activeField === "password"
+                          ? "password"
+                          : "off"
+                    }
+                    textContentType={
+                      activeField === "email"
+                        ? "emailAddress"
+                        : activeField === "password"
+                          ? "password"
+                          : "none"
                     }
                     autoCapitalize={
                       activeField === "email" || activeField === "password"

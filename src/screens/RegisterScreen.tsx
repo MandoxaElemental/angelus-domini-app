@@ -118,9 +118,12 @@ export default function RegisterScreen({
   };
 
   const handleRegister = async () => {
+    if (loading) return;
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const cleanUsername = username.trim();
+    const cleanEmail = email.trim();
 
-    if (!username || !email || !password) {
+    if (!cleanUsername || !cleanEmail || !password) {
       alert("Fill all fields");
       return;
     }
@@ -134,8 +137,8 @@ export default function RegisterScreen({
       setLoading(true);
 
       const data = await register(
-        email,
-        username,
+        cleanEmail,
+        cleanUsername,
         password,
         selectedCountry.name,
         timezone,
@@ -148,7 +151,13 @@ export default function RegisterScreen({
         goToLogin();
       }
     } catch (err: any) {
-      alert(err.message || "Something went wrong");
+      const msg = err?.message ?? "";
+
+      if (msg.toLowerCase().includes("already")) {
+        alert("An account with this email already exists.");
+      } else {
+        alert(msg || "Unable to create your account.");
+      }
     } finally {
       setLoading(false);
     }
@@ -223,7 +232,7 @@ export default function RegisterScreen({
           <TouchableOpacity
             onPress={handleRegister}
             disabled={loading}
-            style={styles.primaryButton}
+            style={[styles.primaryButton, loading && { opacity: 0.6 }]}
           >
             <Text style={styles.primaryButtonText}>
               {loading ? "Creating..." : "Register"}
@@ -293,14 +302,24 @@ export default function RegisterScreen({
                     keyboardType={
                       activeField === "email" ? "email-address" : "default"
                     }
-                    autoCapitalize={
-                      activeField === "email" || activeField === "password"
-                        ? "none"
-                        : "words"
-                    }
+                    autoCapitalize="none"
                     returnKeyType="done"
                     onSubmitEditing={confirmField}
                     autoCorrect={false}
+                    textContentType={
+                      activeField === "email"
+                        ? "emailAddress"
+                        : activeField === "password"
+                          ? "newPassword"
+                          : "username"
+                    }
+                    autoComplete={
+                      activeField === "email"
+                        ? "email"
+                        : activeField === "password"
+                          ? "new-password"
+                          : "username"
+                    }
                   />
 
                   {activeField === "password" && (

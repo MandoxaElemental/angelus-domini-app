@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import {
   Animated,
   StyleSheet,
@@ -15,8 +17,8 @@ type Props = {
 };
 
 export default function SyncBanner({ visible, pendingCount = 0 }: Props) {
+  const insets = useSafeAreaInsets();
   const [dismissed, setDismissed] = useState(false);
-
   const bannerY = useRef(new Animated.Value(-70)).current;
   const spin = useRef(new Animated.Value(0)).current;
 
@@ -48,7 +50,7 @@ export default function SyncBanner({ visible, pendingCount = 0 }: Props) {
     return () => animation.stop();
   }, [visible]);
 
-  if (!visible && dismissed) {
+  if (pendingCount === 0 || (!visible && dismissed)) {
     return null;
   }
 
@@ -62,6 +64,7 @@ export default function SyncBanner({ visible, pendingCount = 0 }: Props) {
       style={[
         styles.banner,
         {
+          top: insets.top + 70,
           transform: [{ translateY: bannerY }],
         },
       ]}
@@ -89,7 +92,7 @@ export default function SyncBanner({ visible, pendingCount = 0 }: Props) {
       <TouchableOpacity
         onPress={() => {
           Animated.timing(bannerY, {
-            toValue: -70,
+            toValue: -180,
             duration: 220,
             useNativeDriver: true,
           }).start(() => {
@@ -106,8 +109,6 @@ export default function SyncBanner({ visible, pendingCount = 0 }: Props) {
 const styles = StyleSheet.create({
   banner: {
     position: "absolute",
-
-    top: 10,
     left: 16,
     right: 16,
 
