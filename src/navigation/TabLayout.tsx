@@ -15,9 +15,10 @@ const Stack = createNativeStackNavigator();
 
 type Props = {
   onLogout: () => void;
+  initialNotificationRoute?: { screen: "Prayer"; params?: any } | null;
 };
 
-function TabNavigator({ onLogout }: Props) {
+function TabNavigator({ onLogout }: { onLogout: () => void }) {
   const insets = useSafeAreaInsets();
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
 
@@ -40,9 +41,9 @@ function TabNavigator({ onLogout }: Props) {
           </Text>
         ),
         tabBarStyle: {
-          paddingTop: 8,
+          paddingTop: 4,
           paddingBottom: bottomPadding,
-          height: 56 + bottomPadding,
+          height: 60 + bottomPadding,
           backgroundColor: "#fff",
           borderTopColor: "#E8D9C0",
           borderTopWidth: 0.5,
@@ -93,16 +94,26 @@ function TabNavigator({ onLogout }: Props) {
   );
 }
 
-export default function TabLayout({ onLogout }: Props) {
+export default function TabLayout({
+  onLogout,
+  initialNotificationRoute,
+}: Props) {
+  const initialRouteName =
+    initialNotificationRoute?.screen === "Prayer" ? "Prayer" : "Tabs";
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName={initialRouteName}
+    >
       <Stack.Screen name="Tabs">
         {() => <TabNavigator onLogout={onLogout} />}
       </Stack.Screen>
       <Stack.Screen
         name="Prayer"
         component={PrayerScreen}
-        options={{ animation: "fade" }}
+        initialParams={initialNotificationRoute?.params}
+        options={{ animation: "fade", animationDuration: 1000 }}
       />
     </Stack.Navigator>
   );

@@ -41,6 +41,7 @@ import OnboardingScreen from "./src/screens/OnboardingScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import {
+  canStartCurrentPrayer,
   completePrayer,
   initializeOfflineStorage,
   startPrayer,
@@ -66,6 +67,8 @@ type Screen = "onboarding" | "register" | "login" | "main";
 
 export default function App() {
   const navigationRef = useRef<any>(null);
+  const navigationReady = useRef(false);
+
   const pendingPrayerNavigation = useRef(false);
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
@@ -73,8 +76,41 @@ export default function App() {
   const [insets] = useState<EdgeInsets>(initialInsets);
   const [frame] = useState<Rect>(initialFrame);
   const notificationResponseId = useRef<string | null>(null);
-
   const [isReady, setIsReady] = useState(false);
+
+  const navigateToPrayer = async () => {
+    const canStart = await canStartCurrentPrayer();
+
+    if (!canStart) {
+      pendingPrayerNavigation.current = false;
+      return;
+    }
+    const tryNavigate = (attempts = 0) => {
+      if (
+        screen === "main" &&
+        navigationReady.current &&
+        navigationRef.current
+      ) {
+        navigationRef.current.reset({
+          index: 0,
+          routes: [
+            {
+              name: "Prayer",
+              params: { autoPlay: true },
+            },
+          ],
+        });
+
+        return;
+      }
+
+      if (attempts < 30) {
+        setTimeout(() => tryNavigate(attempts + 1), 150);
+      }
+    };
+
+    tryNavigate();
+  };
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(async (state) => {
@@ -210,50 +246,18 @@ export default function App() {
   }, []);
 
   // ── Notification tap → navigate to Prayer ────────────────────────────────
-  const navigateToPrayer = async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) return;
-
-      const timezone = getUserTimezone();
-
-      const session = await startPrayer(user.id, timezone);
-
-      navigationRef.current?.navigate("Prayer", {
-        autoPlay: true,
-        onComplete: async () => {
-          await completePrayer(user.id, session.sessionId);
-        },
-      });
-
-      pendingPrayerNavigation.current = false;
-    } catch (error) {
-      console.warn("Prayer navigation failed:", error);
-    }
-  };
-
   useEffect(() => {
     const tapSub = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const id = response.notification.request.identifier;
-
         if (notificationResponseId.current === id) return;
-
         notificationResponseId.current = id;
-        pendingPrayerNavigation.current = true;
-
-        if (navigationRef.current?.isReady?.()) {
-          navigateToPrayer();
-        }
+        navigateToPrayer();
       },
     );
 
     return () => tapSub.remove();
-  }, []);
-
+  }, [screen]);
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -303,9 +307,7 @@ export default function App() {
           <NavigationContainer
             ref={navigationRef}
             onReady={() => {
-              if (pendingPrayerNavigation.current) {
-                navigateToPrayer();
-              }
+              navigationReady.current = true;
             }}
           >
             <TabLayout onLogout={() => setScreen("login")} />

@@ -238,6 +238,8 @@ export default function MainApp() {
         if (key) updated[key] = true;
       });
 
+      setCompletedPrayers(updated);
+
       // If online, merge Supabase results over the top
       {
         const { data } = await supabase
@@ -388,15 +390,19 @@ export default function MainApp() {
         if (!auth?.user?.id) return;
         const uid = auth.user.id;
         setUserId(uid);
-        await syncOfflinePrayers(uid);
-        setCompletedPrayers({
-          morning: false,
-          noon: false,
-          evening: false,
-        });
+
+        // Show offline data immediately.
         await fetchTodayPrayers(uid);
+
+        // Refresh global stats.
         await refreshGlobalStats();
         await queueRefresh();
+
+        // Sync in the background.
+        syncOfflinePrayers(uid).then(async () => {
+          await fetchTodayPrayers(uid);
+          await refreshGlobalStats();
+        });
 
         const meta =
           auth.user.user_metadata?.username || auth.user.user_metadata?.name;

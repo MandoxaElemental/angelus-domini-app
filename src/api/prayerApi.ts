@@ -2,6 +2,7 @@ import "react-native-get-random-values";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../lib/supabaseClient";
 import { getSlot } from "../utils/prayer";
+import * as Notifications from "expo-notifications";
 
 import {
   clearCurrentSession,
@@ -70,6 +71,7 @@ export const startPrayer = async (
       .select("*")
       .eq("UserId", userId)
       .eq("Slot", slot)
+      .limit(1)
       .maybeSingle();
 
     if (fetchError) throw fetchError;
@@ -97,15 +99,21 @@ export const startPrayer = async (
 
     const { data, error } = await supabase
       .from("PrayerSessions")
-      .insert({
-        SessionId: sessionId,
-        UserId: userId,
-        Slot: slot,
-        PrayerTypeId: 1,
-        ScheduledTime: scheduledTime,
-        CreatedAt: now,
-        Completed: false,
-      })
+      .upsert(
+        {
+          SessionId: sessionId,
+          UserId: userId,
+          Slot: slot,
+          PrayerTypeId: 1,
+          ScheduledTime: scheduledTime,
+          CreatedAt: now,
+          Completed: false,
+        },
+        {
+          onConflict: "UserId,Slot",
+          ignoreDuplicates: false,
+        },
+      )
       .select()
       .single();
 
@@ -150,24 +158,35 @@ export const completePrayer = async (
   userId: string,
   sessionId: string,
 ): Promise<void> => {
+  const completedAt = new Date().toISOString();
+
   const session = await loadCurrentSession();
 
   if (session) {
     session.completed = true;
-    session.completedAt = new Date().toISOString();
+    session.completedAt = completedAt;
     await saveCurrentSession(session);
     await upsertOfflineSession(session);
   }
 
   try {
-    const { error } = await supabase
-      .from("PrayerSessions")
-      .update({
+    const completedAt = new Date().toISOString();
+
+    const { error } = await supabase.from("PrayerSessions").upsert(
+      {
+        SessionId: sessionId,
+        UserId: userId,
+        Slot: session?.slot ?? getSlot(getUserTimezone()),
+        PrayerTypeId: session?.prayerTypeId ?? 1,
+        ScheduledTime: session?.scheduledTime,
+        CreatedAt: session?.createdAt,
         Completed: true,
-        CompletedAt: new Date().toISOString(),
-      })
-      .eq("SessionId", sessionId)
-      .eq("UserId", userId);
+        CompletedAt: completedAt,
+      },
+      {
+        onConflict: "SessionId",
+      },
+    );
 
     if (error) throw error;
 
@@ -182,6 +201,7 @@ export const completePrayer = async (
   }
 
   await syncOfflinePrayers(userId);
+  await Notifications.dismissAllNotificationsAsync();
 };
 
 // ─── Get Global Count ─────────────────────────────────────────────────────────
@@ -223,4 +243,27 @@ export async function initializeOfflineStorage() {
   }
 
   await pruneOfflineSessions(slot);
+}
+
+export async function canStartCurrentPrayer(): Promise<boolean> {
+  const timezone = getUserTimezone();
+  const currentSlot = getSlot(timezone);
+
+  const session = await loadCurrentSession();
+
+  if (!session) {
+    return true;
+  }
+
+  // Session is from an older prayer.
+  if (session.slot !== currentSlot) {
+    return true;
+  }
+
+  // Already completed today's prayer.
+  if (session.completed) {
+    return false;
+  }
+
+  return true;
 }

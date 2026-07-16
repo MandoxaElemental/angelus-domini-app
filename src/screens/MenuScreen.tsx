@@ -135,7 +135,6 @@ export default function MenuScreen() {
 
   if (!fontsLoaded) return null;
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
   const [userId, setUserId] = useState("");
   const [completedPrayers, setCompletedPrayers] = useState({
     morning: false,
@@ -145,7 +144,6 @@ export default function MenuScreen() {
 
   const fetchData = useCallback(async (uid: string) => {
     setLoading(true);
-    setLoadError(false);
 
     try {
       const nowSnap = new Date();
@@ -236,7 +234,6 @@ export default function MenuScreen() {
       setTotalYear(yearCount ?? 0);
     } catch (err) {
       console.error("❌ MenuScreen fetchData error:", err);
-      setLoadError(true);
     } finally {
       setLoading(false);
     }
