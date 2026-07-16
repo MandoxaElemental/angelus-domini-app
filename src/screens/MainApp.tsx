@@ -29,7 +29,6 @@ import {
 import React from "react";
 import {
   format12Hour,
-  getCurrentPrayerWindow,
   getDailyVerse,
   getNextPrayerForMode,
   getPrayerDay,
@@ -84,7 +83,7 @@ const completeImages: Record<string, any> = {
 };
 
 export default function MainApp() {
-  const timezone = getUserTimezone();
+  const timezone = useMemo(() => getUserTimezone(), []);
   const [isOffline, setIsOffline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
@@ -170,8 +169,7 @@ export default function MainApp() {
   const triggeredToday = useRef<Map<number, string>>(new Map());
   const dailyVerse = useMemo(() => getDailyVerse(), [todayKey]);
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
-  const [now, setNow] = useState(Date.now());
-
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const id = setInterval(() => {
       const hour = new Date().getHours();
@@ -306,7 +304,7 @@ export default function MainApp() {
           table: "PrayerSessions",
         },
         async () => {
-          await queueRefresh();
+          queueRefresh();
         },
       )
       .subscribe();
@@ -326,6 +324,14 @@ export default function MainApp() {
   }, []);
 
   const refreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimeout.current) {
+        clearTimeout(refreshTimeout.current);
+      }
+    };
+  }, []);
 
   const queueRefresh = useCallback(() => {
     if (refreshTimeout.current) {
@@ -396,7 +402,7 @@ export default function MainApp() {
 
         // Refresh global stats.
         await refreshGlobalStats();
-        await queueRefresh();
+        queueRefresh();
 
         // Sync in the background.
         syncOfflinePrayers(uid).then(async () => {
@@ -550,7 +556,7 @@ export default function MainApp() {
 
       const slotKey = hourToSlotKey(h);
 
-      setTimeout(async () => {
+      timeoutRef.current = setTimeout(async () => {
         let freshSession = session;
         if (userId) {
           try {
@@ -582,8 +588,22 @@ export default function MainApp() {
     };
 
     const id = setInterval(check, 15000);
-    return () => clearInterval(id);
-  }, [session, userId, navigation, angelusMode]);
+    return () => {
+      clearInterval(id);
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [
+    session,
+    userId,
+    navigation,
+    angelusMode,
+    timezone,
+    refreshPendingSyncCount,
+    queueRefresh,
+  ]);
 
   // ─────────────────────────────────────────────────────────────
   // COMPLETE PRAYER
@@ -598,7 +618,7 @@ export default function MainApp() {
         try {
           await completePrayer(userId, session.sessionId);
           await refreshPendingSyncCount();
-          await queueRefresh();
+          queueRefresh();
 
           try {
             await getGlobalCount(session.slot);

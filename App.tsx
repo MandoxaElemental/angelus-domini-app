@@ -42,13 +42,10 @@ import RegisterScreen from "./src/screens/RegisterScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import {
   canStartCurrentPrayer,
-  completePrayer,
   initializeOfflineStorage,
-  startPrayer,
 } from "./src/api/prayerApi";
 import { syncOfflinePrayers } from "./services/syncOfflinePrayers";
 import { syncUserTimezone } from "./src/api/userApi";
-import { getUserTimezone } from "./src/utils/timezone";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -101,6 +98,8 @@ export default function App() {
           ],
         });
 
+        pendingPrayerNavigation.current = false;
+
         return;
       }
 
@@ -119,9 +118,9 @@ export default function App() {
           data: { user },
         } = await supabase.auth.getUser();
 
-        // if (user) {
-        //   syncOfflinePrayers(user.id);
-        // }
+        if (user) {
+          syncOfflinePrayers(user.id);
+        }
       }
     });
 
@@ -144,7 +143,7 @@ export default function App() {
 
   useEffect(() => {
     if (isReady) {
-      SplashScreen.hideAsync();
+      SplashScreen.preventAutoHideAsync().catch(() => {});
     }
   }, [isReady]);
   const [screen, setScreen] = useState<Screen>("onboarding");
@@ -257,7 +256,8 @@ export default function App() {
     );
 
     return () => tapSub.remove();
-  }, [screen]);
+  }, []);
+
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -308,6 +308,10 @@ export default function App() {
             ref={navigationRef}
             onReady={() => {
               navigationReady.current = true;
+            }}
+            onStateChange={() => {
+              navigationReady.current =
+                navigationRef.current?.isReady?.() ?? false;
             }}
           >
             <TabLayout onLogout={() => setScreen("login")} />

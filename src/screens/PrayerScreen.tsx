@@ -200,8 +200,7 @@ export default function PrayerScreen() {
     if (m >= 12 * 60 && m < 18 * 60) return "12pm";
     return "6pm";
   };
-  const item = PRAYER_SEQUENCE[currentStep];
-
+  const item = PRAYER_SEQUENCE[currentStep] ?? PRAYER_SEQUENCE[0];
   const isHailMary =
     item.text === HAIL_MARY_PART_1 || item.text === HAIL_MARY_PART_2;
 
@@ -212,6 +211,7 @@ export default function PrayerScreen() {
   const ringOpacity = useRef(new Animated.Value(0.4)).current;
   const bellRotate = useRef(new Animated.Value(0)).current;
   const audioRef = useRef<any>(null);
+  const hasCompleted = useRef(false);
 
   const [contentHeight, setContentHeight] = useState(0);
   const [layoutHeight, setLayoutHeight] = useState(0);
@@ -302,7 +302,13 @@ export default function PrayerScreen() {
 
     return () => {
       clearTimeout(timer);
-      player.remove();
+
+      try {
+        player.pause();
+        player.remove();
+      } catch (e) {
+        console.warn("Audio cleanup failed:", e);
+      }
     };
   }, [currentStep, autoPlay]);
 
@@ -375,13 +381,6 @@ export default function PrayerScreen() {
       player.remove();
     }
   };
-
-  useEffect(() => {
-    const update = () => setSelectedTime(getCurrentPrayerTime());
-    update();
-    const interval = setInterval(update, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     if (item.type !== "bell") return;
@@ -530,13 +529,21 @@ export default function PrayerScreen() {
   // Completion handler
   useEffect(() => {
     if (currentStep !== PRAYER_SEQUENCE.length - 1) return;
+
+    if (hasCompleted.current) return;
+
     const timeout = setTimeout(async () => {
-      if (onComplete) await onComplete();
+      hasCompleted.current = true;
+
+      if (onComplete) {
+        await onComplete();
+      }
+
       setShowCompletionModal(true);
     }, item.duration);
-    return () => clearTimeout(timeout);
-  }, [currentStep, onComplete, item.duration]);
 
+    return () => clearTimeout(timeout);
+  }, [currentStep, item.duration, onComplete]);
   const handleNext = () => {
     if (currentStep < PRAYER_SEQUENCE.length - 1) {
       setCurrentStep((p) => p + 1);
@@ -546,6 +553,8 @@ export default function PrayerScreen() {
   const handleRestart = () => {
     audioRef.current = null;
     isTransitioning.current = false;
+    hasCompleted.current = false;
+
     setAutoPlay(true);
 
     scrollRef.current?.scrollTo({
@@ -910,7 +919,15 @@ export default function PrayerScreen() {
               style={styles.modalButton}
               onPress={() => {
                 setShowCompletionModal(false);
-                navigation.goBack();
+
+                navigation.reset({
+                  index: 0,
+                  routes: [
+                    {
+                      name: "Home",
+                    },
+                  ],
+                });
               }}
             >
               <Text style={styles.modalButtonText}>Return Home</Text>
