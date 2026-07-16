@@ -143,7 +143,7 @@ export default function App() {
 
   useEffect(() => {
     if (isReady) {
-      SplashScreen.preventAutoHideAsync().catch(() => {});
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [isReady]);
   const [screen, setScreen] = useState<Screen>("onboarding");
