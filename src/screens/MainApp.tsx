@@ -87,6 +87,7 @@ export default function MainApp() {
   const [isOffline, setIsOffline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+
   const [angelusMode, setAngelusMode] = useState<AngelusMode>("all_three");
   const [fontsLoaded] = useFonts({
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
@@ -108,6 +109,7 @@ export default function MainApp() {
 
   const [username, setUsername] = useState("");
   const [prayersLoading, setPrayersLoading] = useState(true);
+  const hasLoadedPrayers = useRef(false);
   const [prayerLoadError, setPrayerLoadError] = useState(false);
 
   const [completedPrayers, setCompletedPrayers] = useState({
@@ -170,6 +172,7 @@ export default function MainApp() {
   const dailyVerse = useMemo(() => getDailyVerse(), [todayKey]);
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchingRef = useRef(false);
   useEffect(() => {
     const id = setInterval(() => {
       const hour = new Date().getHours();
@@ -193,77 +196,75 @@ export default function MainApp() {
   }, [currentHour]);
   // ── Fetch today's completed prayers from DB ───────────────────────────────
   const fetchTodayPrayers = useCallback(async (uid: string) => {
-    setPrayerLoadError(false);
-    setPrayersLoading(true);
-
-    const sessions = await loadOfflineSessions();
-    if (!(await isOnline())) {
-      const updated = {
-        morning: false,
-        noon: false,
-        evening: false,
-      };
-
-      const prayerDay = getPrayerDay();
-
-      sessions.forEach((session) => {
-        if (!session.completed) return;
-        if (!session.slot.startsWith(prayerDay)) return;
-
-        const key = slotToKey(session.slot);
-        if (key) updated[key] = true;
-      });
-
-      setCompletedPrayers(updated);
-      setPrayerLoadError(true);
-      setPrayersLoading(false);
+    if (fetchingRef.current) {
+      console.log("Skipped duplicate fetch");
       return;
     }
 
+    fetchingRef.current = true;
+
     try {
+      setPrayerLoadError(false);
+
+      const sessions = await loadOfflineSessions();
+
       const prayerDay = getPrayerDay();
+
       const updated = {
         morning: false,
         noon: false,
         evening: false,
       };
 
+      // Load local offline completions first
       sessions.forEach((session) => {
         if (!session.completed) return;
         if (!session.slot.startsWith(prayerDay)) return;
 
         const key = slotToKey(session.slot);
-        if (key) updated[key] = true;
+
+        if (key) {
+          updated[key] = true;
+        }
+      });
+
+      // If offline, stop here
+      if (!(await isOnline())) {
+        setCompletedPrayers(updated);
+        setPrayerLoadError(true);
+        return;
+      }
+
+      // Online: merge Supabase results
+      const { data } = await supabase
+        .from("PrayerSessions")
+        .select("Slot,Completed")
+        .eq("UserId", uid)
+        .like("Slot", `${prayerDay}_%`);
+
+      data?.forEach((s) => {
+        if (!s.Completed) return;
+
+        const key = slotToKey(s.Slot);
+
+        if (key) {
+          updated[key] = true;
+        }
       });
 
       setCompletedPrayers(updated);
-
-      // If online, merge Supabase results over the top
-      {
-        const { data } = await supabase
-          .from("PrayerSessions")
-          .select("Slot,Completed")
-          .eq("UserId", uid)
-          .like("Slot", `${prayerDay}_%`);
-
-        data?.forEach((s) => {
-          if (!s.Completed) return;
-
-          const key = slotToKey(s.Slot);
-
-          if (key) updated[key] = true;
-        });
-      }
-
-      setCompletedPrayers(updated);
     } catch (err) {
-      console.error(err);
+      console.error("fetchTodayPrayers error:", err);
       setPrayerLoadError(true);
     } finally {
-      setPrayersLoading(false);
+      fetchingRef.current = false;
+
+      if (!hasLoadedPrayers.current) {
+        hasLoadedPrayers.current = true;
+        setPrayersLoading(false);
+      }
     }
   }, []);
-
   async function getGlobalPrayerStats() {
     const prayerDay = getPrayerDay();
 
@@ -350,16 +351,20 @@ export default function MainApp() {
       if (newKey !== todayKey) {
         setTodayKey(newKey);
 
-        await saveOfflineSessions([]);
+        if (newKey !== todayKey) {
+          setTodayKey(newKey);
 
-        setCompletedPrayers({
-          morning: false,
-          noon: false,
-          evening: false,
-        });
+          setCompletedPrayers({
+            morning: false,
+            noon: false,
+            evening: false,
+          });
 
-        if (userId) {
-          await fetchTodayPrayers(userId);
+          await saveOfflineSessions([]);
+
+          if (userId) {
+            await fetchTodayPrayers(userId);
+          }
         }
 
         queueRefresh();
@@ -916,10 +921,13 @@ const ProgressCard = React.memo(function ProgressCard({
   const isDisabled = status === "disabled";
   const isLoading = status === "loading";
 
-  const prayerImage = useMemo(
-    () => (isCompleted ? completeImages[title] : progressImages[title]),
-    [isCompleted, title],
-  );
+  const prayerImage = useMemo(() => {
+    if (isLoading) {
+      return progressImages[title];
+    }
+
+    return isCompleted ? completeImages[title] : progressImages[title];
+  }, [isLoading, isCompleted, title]);
 
   const statusConfig = isCompleted
     ? {

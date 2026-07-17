@@ -8,6 +8,7 @@ import { AngelusMode, getAngelusMode } from "../services/notificationService";
 import { useFonts } from "expo-font";
 import { useFocusEffect } from "@react-navigation/native";
 import { slotToKey } from "../utils/prayerHelpers";
+import { loadOfflineSessions } from "../storage/offlineStorage";
 
 const COLORS = {
   navy: "#2F4A7A",
@@ -133,7 +134,6 @@ export default function MenuScreen() {
     EBGaramond: require("../../assets/fonts/EBGaramond-Medium.ttf"),
   });
 
-  if (!fontsLoaded) return null;
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState("");
   const [completedPrayers, setCompletedPrayers] = useState({
@@ -156,6 +156,21 @@ export default function MenuScreen() {
         evening: false,
       };
 
+      const offlineSessions = await loadOfflineSessions();
+
+      offlineSessions
+        .filter(
+          (s: any) =>
+            s.userId === uid && s.completed && s.slot.startsWith(todayKey),
+        )
+        .forEach((s: any) => {
+          const key = slotToKey(s.slot);
+
+          if (key) {
+            updated[key] = true;
+          }
+        });
+
       const { data: todaySessions } = await supabase
         .from("PrayerSessions")
         .select("Slot, Completed")
@@ -168,9 +183,8 @@ export default function MenuScreen() {
           const key = slotToKey(s.Slot);
           if (key) updated[key] = true;
         });
-
-        setCompletedPrayers(updated);
       }
+      setCompletedPrayers(updated);
 
       const weekStart = getWeekSunday(nowSnap);
       weekStart.setHours(0, 0, 0, 0);
@@ -180,18 +194,36 @@ export default function MenuScreen() {
 
       const { data: weekSessions } = await supabase
         .from("PrayerSessions")
-        .select("Slot, ScheduledTime")
+        .select("Slot, ScheduledTime, Completed")
         .eq("UserId", uid)
         .eq("Completed", true)
         .gte("ScheduledTime", weekStart.toISOString())
         .lt("ScheduledTime", weekEnd.toISOString());
 
-      if (weekSessions) {
+      const offlineWeekSessions = offlineSessions
+        .filter(
+          (s: any) =>
+            s.userId === uid &&
+            s.completed &&
+            new Date(s.scheduledTime) >= weekStart &&
+            new Date(s.scheduledTime) < weekEnd,
+        )
+        .map((s: any) => ({
+          Slot: s.slot,
+          ScheduledTime: s.scheduledTime,
+        }));
+
+      const combinedWeekSessions = [
+        ...(weekSessions ?? []),
+        ...offlineWeekSessions,
+      ];
+
+      if (combinedWeekSessions.length > 0) {
         const morningDays = new Set<string>();
         const noonDays = new Set<string>();
         const eveningDays = new Set<string>();
 
-        weekSessions.forEach((s: any) => {
+        combinedWeekSessions.forEach((s: any) => {
           const key = slotToKey(s.Slot);
           if (!key) return;
 
@@ -260,10 +292,11 @@ export default function MenuScreen() {
       };
     }, [userId, fetchData]),
   );
+  type PrayerDayKey = string;
 
-  const [weekMorning, setWeekMorning] = useState<Set<string>>(new Set());
-  const [weekNoon, setWeekNoon] = useState<Set<string>>(new Set());
-  const [weekEvening, setWeekEvening] = useState<Set<string>>(new Set());
+  const [weekMorning, setWeekMorning] = useState<Set<PrayerDayKey>>(new Set());
+  const [weekNoon, setWeekNoon] = useState<Set<PrayerDayKey>>(new Set());
+  const [weekEvening, setWeekEvening] = useState<Set<PrayerDayKey>>(new Set());
 
   const [totalMonth, setTotalMonth] = useState(0);
   const [totalYear, setTotalYear] = useState(0);
@@ -384,6 +417,8 @@ export default function MenuScreen() {
   const noonCount = noonDots.filter((d) => d === "completed").length;
   const eveningCount = eveningDots.filter((d) => d === "completed").length;
   const todayColIndex = now.getDay();
+
+  if (!fontsLoaded) return null;
 
   return (
     <View style={styles.container}>

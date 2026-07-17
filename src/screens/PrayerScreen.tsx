@@ -917,18 +917,20 @@ export default function PrayerScreen() {
             </Text>
             <TouchableOpacity
               style={styles.modalButton}
-              onPress={() => {
-                setShowCompletionModal(false);
-
+              onPress={() =>
                 navigation.reset({
                   index: 0,
                   routes: [
                     {
-                      name: "Home",
+                      name: "Tabs",
+                      state: {
+                        index: 0,
+                        routes: [{ name: "Home" }],
+                      },
                     },
                   ],
-                });
-              }}
+                })
+              }
             >
               <Text style={styles.modalButtonText}>Return Home</Text>
             </TouchableOpacity>
