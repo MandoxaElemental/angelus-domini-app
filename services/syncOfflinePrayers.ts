@@ -22,12 +22,11 @@ export async function syncOfflinePrayers(userId: string) {
     const sessions = await loadOfflineSessions();
 
     for (const session of sessions) {
-      if (session.synced) continue;
-
+      if (session.synced && session.completed) continue;
       const { error } = await supabase.from("PrayerSessions").upsert(
         {
           SessionId: session.sessionId,
-          UserId: userId,
+          UserId: session.userId,
           Slot: session.slot,
           PrayerTypeId: session.prayerTypeId,
           ScheduledTime: session.scheduledTime,

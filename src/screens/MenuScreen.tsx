@@ -432,10 +432,15 @@ export default function MenuScreen() {
         <View style={styles.heroSection}>
           <Text style={styles.heroTitle}>Your Prayer Rhythm</Text>
           <Text style={styles.heroSubtitle}>
-            Returning in Prayer at 6 · 12 · 6.
+            {angelusMode === "noon_only"
+              ? "Returning in Prayer at Noon."
+              : "Returning in Prayer at 6 · 12 · 6."}
           </Text>
+
           <Text style={styles.heroSubtitle}>
-            The 6-12-6 Rhythm of the Angelus.
+            {angelusMode === "noon_only"
+              ? "The Daily Angelus."
+              : "The 6-12-6 Rhythm of the Angelus."}
           </Text>
         </View>
 
@@ -454,11 +459,6 @@ export default function MenuScreen() {
           <Text style={styles.dateTimeTime} numberOfLines={1}>
             {formatTime(now)}
           </Text>
-          <Ionicons
-            name="chevron-down"
-            size={14}
-            color={COLORS.textSecondary}
-          />
         </View>
 
         {/* ── LIGHT THROUGH THE DAY ── */}
@@ -576,7 +576,7 @@ export default function MenuScreen() {
 
         {/* ── TOTAL PRAYERS OFFERED ── */}
         <View style={styles.statsCard}>
-          <Text style={styles.statsLabel}>Total Prayers Offered</Text>
+          <Text style={styles.statsLabel}>Prayers Offered</Text>
           <View style={styles.statsDividerH} />
           <View style={styles.statsRow}>
             <View style={styles.statsHalf}>
@@ -631,8 +631,7 @@ function AngelusRow({
       >
         <Image
           source={imageSource}
-          style={styles.angelusIcon}
-          resizeMode="contain"
+          style={[styles.angelusIcon, isDisabled && { opacity: 0.55 }]}
         />
       </View>
       <View style={styles.angelusTextWrap}>
@@ -781,7 +780,7 @@ const styles = StyleSheet.create({
 
   sectionCard: {
     marginHorizontal: 20,
-    marginTop: 18,
+    marginTop: 14,
     backgroundColor: COLORS.card,
     borderRadius: 24,
     borderWidth: 2,
@@ -915,7 +914,7 @@ const styles = StyleSheet.create({
 
   statsCard: {
     marginHorizontal: 20,
-    marginTop: 18,
+    marginTop: 14,
     backgroundColor: COLORS.card,
     borderRadius: 24,
     borderWidth: 2,

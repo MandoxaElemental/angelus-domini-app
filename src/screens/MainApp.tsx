@@ -13,7 +13,7 @@ import {
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
-import NetInfo from "@react-native-community/netinfo";
+// import NetInfo from "@react-native-community/netinfo";
 
 import { getPrayerStatus, PrayerStatus } from "../utils/prayer";
 
@@ -133,38 +133,39 @@ export default function MainApp() {
     refreshPendingSyncCount();
   }, [refreshPendingSyncCount]);
 
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      const online = !!state.isConnected && state.isInternetReachable !== false;
+  // useEffect(() => {
+  //   const unsubscribe = NetInfo.addEventListener((state) => {
+  //     const online = !!state.isConnected && state.isInternetReachable !== false;
 
-      setIsOffline(!online);
+  //     setIsOffline((prev) => (prev !== !online ? !online : prev));
+  //     refreshPendingSyncCount();
 
-      refreshPendingSyncCount();
+  //     if (online && userId && !syncingRef.current) {
+  //       syncingRef.current = true;
+  //       setIsSyncing(true);
 
-      if (online && userId) {
-        setIsSyncing(true);
+  //       (async () => {
+  //         try {
+  //           await syncOfflinePrayers(userId);
 
-        setTimeout(async () => {
-          try {
-            await syncOfflinePrayers(userId);
+  //           await fetchTodayPrayers(userId);
+  //           await refreshGlobalStats();
+  //           await refreshPendingSyncCount();
 
-            await fetchTodayPrayers(userId);
-            await refreshGlobalStats();
-            await refreshPendingSyncCount();
+  //           setTimeout(async () => {
+  //             await fetchTodayPrayers(userId);
+  //             await refreshGlobalStats();
+  //           }, 1500);
+  //         } finally {
+  //           syncingRef.current = false;
+  //           setIsSyncing(false);
+  //         }
+  //       })();
+  //     }
+  //   });
 
-            setTimeout(async () => {
-              await fetchTodayPrayers(userId);
-              await refreshGlobalStats();
-            }, 1500);
-          } finally {
-            setIsSyncing(false);
-          }
-        }, 1000);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [userId, refreshPendingSyncCount]);
+  //   return () => unsubscribe();
+  // }, [userId, refreshPendingSyncCount]);
   useEffect(() => {
     setCurrentPrayer(getNextPrayerForMode(angelusMode));
   }, [angelusMode]);
@@ -173,6 +174,7 @@ export default function MainApp() {
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchingRef = useRef(false);
+  const syncingRef = useRef(false);
   useEffect(() => {
     const id = setInterval(() => {
       const hour = new Date().getHours();
@@ -236,7 +238,7 @@ export default function MainApp() {
       }
 
       // Online: merge Supabase results
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("PrayerSessions")
         .select("Slot,Completed")
         .eq("UserId", uid)
@@ -250,6 +252,7 @@ export default function MainApp() {
         if (key) {
           updated[key] = true;
         }
+        if (error) throw error;
       });
 
       setCompletedPrayers(updated);
@@ -351,20 +354,16 @@ export default function MainApp() {
       if (newKey !== todayKey) {
         setTodayKey(newKey);
 
-        if (newKey !== todayKey) {
-          setTodayKey(newKey);
+        setCompletedPrayers({
+          morning: false,
+          noon: false,
+          evening: false,
+        });
 
-          setCompletedPrayers({
-            morning: false,
-            noon: false,
-            evening: false,
-          });
+        await saveOfflineSessions([]);
 
-          await saveOfflineSessions([]);
-
-          if (userId) {
-            await fetchTodayPrayers(userId);
-          }
+        if (userId) {
+          await fetchTodayPrayers(userId);
         }
 
         queueRefresh();
@@ -410,10 +409,14 @@ export default function MainApp() {
         queueRefresh();
 
         // Sync in the background.
-        syncOfflinePrayers(uid).then(async () => {
+        try {
+          await syncOfflinePrayers(uid);
+
           await fetchTodayPrayers(uid);
           await refreshGlobalStats();
-        });
+        } catch (err) {
+          console.warn("Startup sync failed:", err);
+        }
 
         const meta =
           auth.user.user_metadata?.username || auth.user.user_metadata?.name;
@@ -430,7 +433,7 @@ export default function MainApp() {
 
         const sess = await startPrayer(uid, timezone);
         setSession(sess);
-        await queueRefresh();
+        queueRefresh();
         try {
           await getGlobalCount(sess.slot);
         } catch {
@@ -577,7 +580,7 @@ export default function MainApp() {
               if (!freshSession || !userId) return;
               await completePrayer(userId, freshSession.sessionId);
               await refreshPendingSyncCount();
-              await queueRefresh();
+              queueRefresh();
               try {
                 await getGlobalCount(freshSession.slot);
               } catch {

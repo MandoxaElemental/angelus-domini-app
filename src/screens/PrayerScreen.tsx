@@ -238,8 +238,8 @@ export default function PrayerScreen() {
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-      const offline = !state.isConnected || !state.isInternetReachable;
-
+      const offline =
+        state.isConnected === false || state.isInternetReachable === false;
       if (offline && !wasOffline.current) {
         setBannerDismissed(false);
       }
@@ -488,7 +488,7 @@ export default function PrayerScreen() {
     }, item.duration);
 
     return () => clearTimeout(timeout);
-  }, [currentStep, autoPlay, audioEnabled, item]);
+  }, [currentStep, autoPlay, item]);
 
   // Auto-scroll for closing prayer
   useEffect(() => {
@@ -535,8 +535,12 @@ export default function PrayerScreen() {
     const timeout = setTimeout(async () => {
       hasCompleted.current = true;
 
-      if (onComplete) {
-        await onComplete();
+      try {
+        if (onComplete) {
+          await onComplete();
+        }
+      } catch (e) {
+        console.warn("Prayer completion failed", e);
       }
 
       setShowCompletionModal(true);
@@ -551,6 +555,11 @@ export default function PrayerScreen() {
   };
 
   const handleRestart = () => {
+    try {
+      audioRef.current?.pause();
+      audioRef.current?.remove();
+    } catch {}
+
     audioRef.current = null;
     isTransitioning.current = false;
     hasCompleted.current = false;

@@ -76,8 +76,7 @@ export function getSlot(timezone: string) {
   const localNow = toZonedTime(utcNow, timezone);
 
   const hourSlot =
-    localNow.getHours() < 9 ? 6 : localNow.getHours() < 15 ? 12 : 18;
-
+    localNow.getHours() < 12 ? 6 : localNow.getHours() < 18 ? 12 : 18;
   return `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(
     2,
     "0",

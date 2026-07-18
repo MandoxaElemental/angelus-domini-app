@@ -20,7 +20,13 @@ export async function saveCurrentSession(session: OfflinePrayerSession) {
 
 export async function loadCurrentSession(): Promise<OfflinePrayerSession | null> {
   const value = await AsyncStorage.getItem(CURRENT_SESSION_KEY);
-  return value ? JSON.parse(value) : null;
+
+  try {
+    return value ? JSON.parse(value) : null;
+  } catch (err) {
+    console.warn("Failed to load current prayer session:", err);
+    return null;
+  }
 }
 
 export async function clearCurrentSession() {
@@ -29,7 +35,13 @@ export async function clearCurrentSession() {
 
 export async function loadOfflineSessions(): Promise<OfflinePrayerSession[]> {
   const value = await AsyncStorage.getItem(OFFLINE_SESSIONS_KEY);
-  return value ? JSON.parse(value) : [];
+
+  try {
+    return value ? JSON.parse(value) : [];
+  } catch (err) {
+    console.warn("Failed to load offline prayer sessions:", err);
+    return [];
+  }
 }
 export async function saveOfflineSessions(sessions: OfflinePrayerSession[]) {
   await AsyncStorage.setItem(OFFLINE_SESSIONS_KEY, JSON.stringify(sessions));

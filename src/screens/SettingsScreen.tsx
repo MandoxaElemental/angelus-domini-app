@@ -235,13 +235,10 @@ type TogglesState = Record<AngelusTime, boolean>;
 export default function SettingsScreen({ onLogout }: Props) {
   const navigation = useNavigation<any>();
 
-  useFonts({
+  const [fontsLoaded] = useFonts({
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
     EBGaramond_Medium: require("../../assets/fonts/EBGaramond-Medium.ttf"),
   });
-  const ringScale = useRef(new Animated.Value(1)).current;
-  const ringOpacity = useRef(new Animated.Value(0.4)).current;
-  const bellRotate = useRef(new Animated.Value(0)).current;
 
   // Default all toggles to TRUE — notifications are on by default
   const [toggles, setToggles] = useState<TogglesState>({
@@ -255,6 +252,15 @@ export default function SettingsScreen({ onLogout }: Props) {
   const [selectedLang, setSelectedLang] = useState("en");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const busyRef = useRef(false);
+  if (busyRef.current) return;
+
+  busyRef.current = true;
+
+  try {
+  } finally {
+    busyRef.current = false;
+  }
 
   const [angelusMode, setAngelusModeState] = useState<AngelusMode>("all_three");
   useEffect(() => {
@@ -404,81 +410,6 @@ export default function SettingsScreen({ onLogout }: Props) {
     })();
   }, []);
 
-  // Bell pulse animation
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(ringScale, {
-            toValue: 1.25,
-            duration: 900,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(ringOpacity, {
-            toValue: 0,
-            duration: 900,
-            useNativeDriver: false,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.timing(ringScale, {
-            toValue: 1,
-            duration: 0,
-            useNativeDriver: false,
-          }),
-          Animated.timing(ringOpacity, {
-            toValue: 0.4,
-            duration: 0,
-            useNativeDriver: false,
-          }),
-        ]),
-      ]),
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, []);
-
-  // Bell swing animation
-  useEffect(() => {
-    const swing = () => {
-      Animated.sequence([
-        Animated.timing(bellRotate, {
-          toValue: 1,
-          duration: 180,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-        Animated.timing(bellRotate, {
-          toValue: -1,
-          duration: 180,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-        Animated.timing(bellRotate, {
-          toValue: 0.5,
-          duration: 140,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-        Animated.timing(bellRotate, {
-          toValue: -0.4,
-          duration: 140,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-        Animated.timing(bellRotate, {
-          toValue: 0,
-          duration: 120,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: false,
-        }),
-      ]).start(() => setTimeout(swing, 3000));
-    };
-    const timer = setTimeout(swing, 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
   // Toggle a single notification on/off
   const handleToggle = async (key: AngelusTime, enabled: boolean) => {
     const granted = await requestPermissions();
@@ -559,13 +490,17 @@ export default function SettingsScreen({ onLogout }: Props) {
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      await AsyncStorage.removeItem(NOTIF_IDS_KEY);
       await logout();
       onLogout();
     } catch (err) {
       console.error("Logout error:", err);
     }
   };
-
+  if (!fontsLoaded) {
+    return null;
+  }
   return (
     <>
       {/* Logout Modal */}

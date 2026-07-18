@@ -1,13 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "react-native-get-random-values";
 // import * as SplashScreen from "expo-splash-screen";
-import {
-  ActivityIndicator,
-  AppState,
-  Platform,
-  View,
-  StyleSheet,
-} from "react-native";
+import { ActivityIndicator, AppState, Platform, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import NetInfo from "@react-native-community/netinfo";
 
@@ -64,7 +58,6 @@ export default function App() {
   const navigationRef = useRef<any>(null);
   const navigationReady = useRef(false);
 
-  const pendingPrayerNavigation = useRef(false);
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
 
@@ -80,10 +73,6 @@ export default function App() {
   const navigateToPrayer = async () => {
     const canStart = await canStartCurrentPrayer();
 
-    if (!canStart) {
-      pendingPrayerNavigation.current = false;
-      return;
-    }
     const tryNavigate = (attempts = 0) => {
       if (
         screen === "main" &&
@@ -99,8 +88,6 @@ export default function App() {
             },
           ],
         });
-
-        pendingPrayerNavigation.current = false;
 
         return;
       }
@@ -353,21 +340,3 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  nav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingVertical: 12,
-    backgroundColor: "#eee",
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-  },
-
-  link: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#2F4A7A",
-  },
-});

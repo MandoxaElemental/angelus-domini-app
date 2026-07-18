@@ -133,7 +133,7 @@ export default function CommunityScreen() {
   const isFetchingRef = useRef(false);
   const fetchCounts = useCallback(async () => {
     if (isFetchingRef.current) return;
-    setLoading(true);
+    if (!countries.length) setLoading(true);
     isFetchingRef.current = true;
     try {
       const now = new Date();
@@ -145,7 +145,7 @@ export default function CommunityScreen() {
 
       const { data: sessions, error: sessErr } = await supabase
         .from("PrayerSessions")
-        .select("UserId")
+        .select("UserId", { count: "exact" })
         .eq("Completed", true)
         .gte("ScheduledTime", startOfDay.toISOString())
         .lte("ScheduledTime", endOfDay.toISOString());
@@ -244,11 +244,19 @@ export default function CommunityScreen() {
     return max;
   }, [countries]);
 
-  const today = new Date().toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const today = useMemo(
+    () =>
+      new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
+    [],
+  );
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: C.cream }}>

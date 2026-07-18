@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../lib/supabaseClient";
 import { getSlot } from "../utils/prayer";
 import * as Notifications from "expo-notifications";
+import NetInfo from "@react-native-community/netinfo";
 
 import {
   clearCurrentSession,
@@ -181,8 +182,6 @@ export const completePrayer = async (
   }
 
   try {
-    const completedAt = new Date().toISOString();
-
     const { error } = await supabase.from("PrayerSessions").upsert(
       {
         SessionId: sessionId,
@@ -206,12 +205,19 @@ export const completePrayer = async (
       await saveCurrentSession(session);
       await upsertOfflineSession(session);
     }
-  } catch {
-    // Still offline
-    // We'll sync later
+  } catch (err) {
+    console.warn("Unable to upload completed prayer:", err);
   }
 
-  await syncOfflinePrayers(userId);
+  const net = await NetInfo.fetch();
+
+  if (net.isConnected && net.isInternetReachable !== false) {
+    try {
+      await syncOfflinePrayers(userId);
+    } catch {
+      // keep offline copy
+    }
+  }
   await Notifications.dismissAllNotificationsAsync();
 };
 
