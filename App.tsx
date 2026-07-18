@@ -40,12 +40,10 @@ import TabLayout from "./src/navigation/TabLayout";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import LoginScreen from "./src/screens/LoginScreen";
-import {
-  canStartCurrentPrayer,
-  initializeOfflineStorage,
-} from "./src/api/prayerApi";
+import { canStartCurrentPrayer } from "./src/api/prayerApi";
 import { syncOfflinePrayers } from "./services/syncOfflinePrayers";
 import { syncUserTimezone } from "./src/api/userApi";
+import { initializeOfflineStorage } from "./src/storage/offlineStorage";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -74,6 +72,10 @@ export default function App() {
   const [frame] = useState<Rect>(initialFrame);
   const notificationResponseId = useRef<string | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [launchNotificationRoute, setLaunchNotificationRoute] = useState<{
+    screen: "Prayer";
+    params?: any;
+  } | null>(null);
 
   const navigateToPrayer = async () => {
     const canStart = await canStartCurrentPrayer();
@@ -159,11 +161,13 @@ export default function App() {
           await Notifications.getLastNotificationResponseAsync();
 
         if (lastResponse) {
-          pendingPrayerNavigation.current = true;
-
-          // Prevent handling the same notification again later.
           notificationResponseId.current =
             lastResponse.notification.request.identifier;
+
+          setLaunchNotificationRoute({
+            screen: "Prayer",
+            params: { autoPlay: true },
+          });
 
           await Notifications.clearLastNotificationResponseAsync();
         }
@@ -232,13 +236,6 @@ export default function App() {
       if (state !== "active") return;
 
       await handleActive();
-
-      if (
-        pendingPrayerNavigation.current &&
-        navigationRef.current?.isReady?.()
-      ) {
-        navigateToPrayer();
-      }
     });
 
     return () => appStateSub.remove();
@@ -256,7 +253,7 @@ export default function App() {
     );
 
     return () => tapSub.remove();
-  }, []);
+  }, [screen]);
 
   const [queryClient] = useState(
     () =>
@@ -314,7 +311,10 @@ export default function App() {
                 navigationRef.current?.isReady?.() ?? false;
             }}
           >
-            <TabLayout onLogout={() => setScreen("login")} />
+            <TabLayout
+              onLogout={() => setScreen("login")}
+              initialNotificationRoute={launchNotificationRoute}
+            />
           </NavigationContainer>
         ) : screen === "onboarding" ? (
           <OnboardingScreen onDone={handleOnboardingDone} />

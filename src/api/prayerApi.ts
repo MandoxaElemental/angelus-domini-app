@@ -61,7 +61,7 @@ export const startPrayer = async (
 
   await pruneOfflineSessions(slot);
 
-  if (localSession) {
+  if (localSession && !localSession.completed) {
     return localSession;
   }
 
@@ -78,13 +78,14 @@ export const startPrayer = async (
 
     if (existing) {
       const session: OfflinePrayerSession = {
+        userId,
         sessionId: existing.SessionId,
         prayerTypeId: existing.PrayerTypeId ?? 1,
         scheduledTime: existing.ScheduledTime,
         slot: existing.Slot,
         completed: existing.Completed ?? false,
         synced: true,
-        createdAt: existing.createdAt,
+        createdAt: existing.CreatedAt,
       };
 
       await saveCurrentSession(session);
@@ -120,13 +121,14 @@ export const startPrayer = async (
     if (error) throw error;
 
     const session: OfflinePrayerSession = {
+      userId,
       sessionId: data.SessionId,
       prayerTypeId: data.PrayerTypeId,
       scheduledTime: data.ScheduledTime,
       slot: data.Slot,
       completed: data.Completed,
       synced: true,
-      createdAt: data.createdAt,
+      createdAt: data.CreatedAt,
     };
 
     await saveCurrentSession(session);
@@ -136,6 +138,7 @@ export const startPrayer = async (
     // 4. Offline fallback
 
     const session: OfflinePrayerSession = {
+      userId,
       sessionId: uuidv4(),
       prayerTypeId: 1,
       scheduledTime: scheduledTime,
@@ -160,8 +163,16 @@ export const completePrayer = async (
 ): Promise<void> => {
   const completedAt = new Date().toISOString();
 
-  const session = await loadCurrentSession();
+  let session = await loadCurrentSession();
 
+  if (!session || session.sessionId !== sessionId) {
+    console.warn("Session mismatch during completion", {
+      passedSessionId: sessionId,
+      storedSessionId: session?.sessionId,
+    });
+
+    return;
+  }
   if (session) {
     session.completed = true;
     session.completedAt = completedAt;
@@ -176,7 +187,7 @@ export const completePrayer = async (
       {
         SessionId: sessionId,
         UserId: userId,
-        Slot: session?.slot ?? getSlot(getUserTimezone()),
+        Slot: session.slot,
         PrayerTypeId: session?.prayerTypeId ?? 1,
         ScheduledTime: session?.scheduledTime,
         CreatedAt: session?.createdAt,
@@ -231,19 +242,6 @@ export const getHistory = async (userId: string) => {
 
   return data;
 };
-
-export async function initializeOfflineStorage() {
-  const timezone = getUserTimezone();
-  const slot = getSlot(timezone);
-
-  const currentSession = await loadCurrentSession();
-
-  if (currentSession && currentSession.slot !== slot) {
-    await clearCurrentSession();
-  }
-
-  await pruneOfflineSessions(slot);
-}
 
 export async function canStartCurrentPrayer(): Promise<boolean> {
   const timezone = getUserTimezone();

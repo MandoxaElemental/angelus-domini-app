@@ -7,6 +7,7 @@ const CURRENT_SESSION_KEY = "current_prayer_session";
 const OFFLINE_SESSIONS_KEY = "offline_prayer_sessions";
 
 export type OfflinePrayerSession = PrayerSession & {
+  userId: string;
   completed: boolean;
   completedAt?: string;
   synced: boolean;

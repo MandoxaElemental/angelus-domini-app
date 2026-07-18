@@ -161,7 +161,9 @@ export default function MenuScreen() {
       offlineSessions
         .filter(
           (s: any) =>
-            s.userId === uid && s.completed && s.slot.startsWith(todayKey),
+            s.userId === uid &&
+            s.completed &&
+            s.slot.split("_")[0] === todayKey,
         )
         .forEach((s: any) => {
           const key = slotToKey(s.slot);
@@ -227,8 +229,7 @@ export default function MenuScreen() {
           const key = slotToKey(s.Slot);
           if (!key) return;
 
-          const d = new Date(s.ScheduledTime);
-          const day = toDateKey(d);
+          const day = s.Slot.split("_")[0];
           if (key === "morning") morningDays.add(day);
           if (key === "noon") noonDays.add(day);
           if (key === "evening") eveningDays.add(day);
