@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import * as NavigationBar from "expo-navigation-bar";
+
 
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
@@ -191,6 +193,15 @@ export default function App() {
       mounted = false;
       unsubscribe();
     };
+  }, []);
+
+  
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── Hide the Android system navigation bar (immersive mode) ──────────────
+  useEffect(() => {
+    NavigationBar.setVisibilityAsync("hidden");
+    NavigationBar.setBehaviorAsync("overlay-swipe");
   }, []);
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -456,6 +467,7 @@ export default function App() {
           <LoginScreen
             onLogin={() => setScreen("main")}
             goToRegister={() => setScreen("register")}
+            goBack={() => setScreen("onboarding")} // ←
           />
         )}
 

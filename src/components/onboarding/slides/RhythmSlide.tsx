@@ -1,75 +1,89 @@
 import React from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { Video, ResizeMode } from "expo-av";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles } from "../styles/sharedStyles";
-import {
-  BLUE,
-  GOLD,
-  IVORY,
-  TEXT_MUTED,
-  TEXT_SECONDARY,
-} from "../../../lib/constants/colors";
+import { BLUE, GOLD, IVORY, TEXT_SECONDARY } from "../../../lib/constants/colors";
 import {
   FONT_BODY,
-  FONT_BODY_SEMIBOLD,
   FONT_TITLE_BOLD,
 } from "../../../lib/constants/fonts";
-import { SlotItem } from "../../../lib/types/onboarding";
-import { SectionHeader } from "../../sectionHeader";
+
+const NAVY_DARK = "#16264A";
 
 type Props = {
   title: string;
   description: string;
-  slots: SlotItem[];
   isActive: boolean;
   onNext: () => void;
+  dotCount?: number;
+  activeDotIndex?: number;
 };
 
 export function RhythmSlide({
   title,
   description,
-  slots,
   isActive,
   onNext,
+  dotCount = 6,
+  activeDotIndex = 2,
 }: Props) {
   return (
     <View style={sharedStyles.slide}>
       <View style={sharedStyles.centerContent}>
+        {/* Illustration */}
         <FadeIn delay={100} isVisible={isActive}>
+          <Video
+            // ← REPLACE this path with your own onboarding video asset if needed
+            source={require("../../../../assets/onboarding_vid1_transparent.webm")}
+            style={styles.image}
+            resizeMode={ResizeMode.CONTAIN}
+            isLooping
+            shouldPlay={isActive}
+            isMuted
+            useNativeControls={false}
+          />
+        </FadeIn>
+
+        {/* Title */}
+        <FadeIn delay={480} isVisible={isActive}>
           <Text style={styles.heading}>{title}</Text>
         </FadeIn>
-        <FadeIn delay={150} isVisible={isActive}>
-          <SectionHeader />
+
+        {/* Ornament divider */}
+        <FadeIn delay={620} isVisible={isActive}>
+          <View style={styles.ornamentRow}>
+            <View style={styles.ornamentLine} />
+            <Text style={styles.ornamentMark}>✦</Text>
+            <View style={styles.ornamentLine} />
+          </View>
         </FadeIn>
-        <FadeIn delay={280} isVisible={isActive}>
+
+        {/* Description */}
+        <FadeIn delay={740} isVisible={isActive}>
           <Text style={styles.subheading}>{description}</Text>
         </FadeIn>
-        <View style={styles.rhythmList}>
-          {slots.map((slot, i) => (
-            <FadeIn
-              key={slot.label}
-              delay={380 + i * 140}
-              isVisible={isActive}
-              style={styles.cardWrap}
-            >
-              <Image
-                source={slot.image}
-                style={styles.image}
-                resizeMode="contain"
-              />
-              <View style={styles.textWrap}>
-                <Text style={styles.cardLabel}>{slot.label}</Text>
-                <Text style={styles.cardTime}>{slot.time}</Text>
-              </View>
-            </FadeIn>
+      </View>
+
+      <View style={sharedStyles.navArea}>
+        {/* Dots */}
+        <View style={styles.dotsRow}>
+          {Array.from({ length: dotCount }).map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                i === activeDotIndex ? styles.dotActive : styles.dotInactive,
+              ]}
+            />
           ))}
         </View>
-      </View>
-      <View style={sharedStyles.navArea}>
-        <FadeIn delay={840} isVisible={isActive} style={sharedStyles.ctaWrap}>
+
+        {/* Continue button */}
+        <FadeIn delay={940} isVisible={isActive} style={sharedStyles.ctaWrap}>
           <TouchableOpacity
             onPress={onNext}
-            style={[sharedStyles.primaryBtn, { backgroundColor: BLUE }]}
+            style={[sharedStyles.primaryBtn, { backgroundColor: NAVY_DARK }]}
           >
             <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
               Continue
@@ -82,66 +96,63 @@ export function RhythmSlide({
 }
 
 const styles = StyleSheet.create({
+  image: {
+    width: 300,
+    height: 300,
+    marginBottom: 18,
+  },
   heading: {
-    fontFamily: FONT_BODY_SEMIBOLD,
-    fontSize: 40,
+    fontFamily: FONT_TITLE_BOLD,
+    fontSize: 32,
     color: BLUE,
     textAlign: "center",
-    letterSpacing: 0.3,
-    lineHeight: 46,
-    marginBottom: 12,
-    fontWeight: "400",
+    letterSpacing: 0.2,
+    lineHeight: 38,
+    fontWeight: "600",
+  },
+  ornamentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 14,
+    marginBottom: 14,
+    width: 130,
+  },
+  ornamentLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: GOLD,
+    opacity: 0.6,
+  },
+  ornamentMark: {
+    color: GOLD,
+    fontSize: 14,
+    marginHorizontal: 8,
   },
   subheading: {
     fontFamily: FONT_BODY,
-    fontSize: 20,
-    color: "#6F8FAF",
+    fontSize: 15,
+    color: TEXT_SECONDARY,
     textAlign: "center",
     lineHeight: 22,
-    marginTop: 15,
   },
-  rhythmList: {
-    width: "100%",
-    marginTop: 50,
-  },
-  cardWrap: {
+  dotsRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFAF2",
-    borderColor: "#E7DCCB",
-    borderWidth: 1,
-    borderRadius: 18,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 14,
-    width: "100%",
-    shadowColor: "#3B2E22",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
+    justifyContent: "center",
+    marginBottom: 16,
   },
-  image: {
-    width: 91,
-    height: 91,
-    marginRight: 18,
+  dot: {
+    borderRadius: 5,
+    marginHorizontal: 4,
   },
-  textWrap: {
-    flex: 1,
-    flexDirection: "column",
+  dotActive: {
+    width: 9,
+    height: 9,
+    backgroundColor: BLUE,
   },
-  cardLabel: {
-    fontFamily: FONT_BODY_SEMIBOLD,
-    fontSize: 20,
-    color: "TEXT_SECONDARY",
-    letterSpacing: 0.2,
-    marginBottom: 3,
-    fontWeight: "400",
-  },
-  cardTime: {
-    fontFamily: FONT_BODY_SEMIBOLD,
-    fontSize: 20,
-    color: GOLD,
-    fontWeight: "500",
-    letterSpacing: 0.3,
+  dotInactive: {
+    width: 7,
+    height: 7,
+    backgroundColor: "#D9DCE3",
   },
 });

@@ -13,16 +13,36 @@ import {
   FONT_BODY_SEMIBOLD,
   FONT_TITLE_BOLD,
 } from "../../../lib/constants/fonts";
-import { SectionHeader } from "../../sectionHeader";
+
+const NAVY = "#1F3A6E";
+const NAVY_DARK = "#16264A";
 
 type Props = {
   title: string;
   description: string;
-  prayerTimes: string[];
+  prayerTimes: string[]; // e.g. ["Morning Angelus", "Noon Angelus", "Evening Angelus"]
   isActive: boolean;
   onNext: () => void;
   onSkip: () => void;
+  dotCount?: number;
+  activeDotIndex?: number;
 };
+
+// ← ADDED: timeline data — replace the `require(...)` paths with your own icon image files
+const TIMELINE = [
+  {
+    roman: "VI",
+    icon: require("../../../../assets/Morning_Solid.png"), // ← replace with your sunrise icon
+  },
+  {
+    roman: "XII",
+    icon: require("../../../../assets/Noon_Solid.png"), // ← replace with your sun icon
+  },
+  {
+    roman: "VI",
+    icon: require("../../../../assets/Evening_Solid.png"), // ← replace with your moon icon
+  },
+];
 
 export function WelcomeSlide({
   title,
@@ -31,48 +51,91 @@ export function WelcomeSlide({
   isActive,
   onNext,
   onSkip,
+  dotCount = 6,
+  activeDotIndex = 1,
 }: Props) {
+  const labels =
+    prayerTimes && prayerTimes.length === 3
+      ? prayerTimes
+      : ["Morning\nAngelus", "Noon\nAngelus", "Evening\nAngelus"];
+
   return (
     <View style={sharedStyles.slide}>
       <View style={sharedStyles.centerContent}>
+        {/* Timeline */}
         <FadeIn delay={100} isVisible={isActive}>
-          <Image
-            source={require("../../../../assets/angelusdominibell.png")}
-            style={styles.appIcon}
-            resizeMode="contain"
-          />
-        </FadeIn>
-        <FadeIn delay={200} isVisible={isActive}>
-          <Text style={styles.title}>{title}</Text>
-        </FadeIn>
-        <FadeIn delay={300} isVisible={isActive}>
-          <SectionHeader />
+          <View style={styles.timeline}>
+            {TIMELINE.map((item, i) => (
+              <View key={i}>
+                <View style={styles.timelineRow}>
+                  <Text style={styles.roman}>{item.roman}</Text>
+
+                  <View style={styles.iconCircle}>
+                    <Image
+                      source={item.icon}
+                      style={styles.iconImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+
+                  <Text style={styles.timelineLabel}>{labels[i]}</Text>
+                </View>
+
+                {i < TIMELINE.length - 1 && (
+                  <View style={styles.connectorWrap}>
+                    <View style={styles.connectorLine} />
+                    <View style={styles.connectorDot} />
+                    <View style={styles.connectorLine} />
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
         </FadeIn>
 
-        <FadeIn delay={400} isVisible={isActive}>
+        {/* Title */}
+        <FadeIn delay={500} isVisible={isActive}>
+          <Text style={styles.title}>{title}</Text>
+        </FadeIn>
+
+        {/* Ornament divider */}
+        <FadeIn delay={650} isVisible={isActive}>
+          <View style={styles.ornamentRow}>
+            <View style={styles.ornamentLine} />
+            <Text style={styles.ornamentMark}>✦</Text>
+            <View style={styles.ornamentLine} />
+          </View>
+        </FadeIn>
+
+        {/* Description */}
+        <FadeIn delay={750} isVisible={isActive}>
           <Text style={styles.desc}>{description}</Text>
         </FadeIn>
-        <FadeIn delay={720} isVisible={isActive}>
-          <Text style={styles.goldTimes}>{prayerTimes.join("  ·  ")}</Text>
-        </FadeIn>
       </View>
+
       <View style={sharedStyles.navArea}>
-        <FadeIn delay={1060} isVisible={isActive} style={sharedStyles.ctaWrap}>
+        {/* Dots */}
+        <View style={styles.dotsRow}>
+          {Array.from({ length: dotCount }).map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                i === activeDotIndex ? styles.dotActive : styles.dotInactive,
+              ]}
+            />
+          ))}
+        </View>
+
+        {/* Continue button */}
+        <FadeIn delay={950} isVisible={isActive} style={sharedStyles.ctaWrap}>
           <TouchableOpacity
             onPress={onNext}
-            style={[sharedStyles.primaryBtn, { backgroundColor: BLUE }]}
+            style={[sharedStyles.primaryBtn, { backgroundColor: NAVY_DARK }]}
           >
             <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
               Continue
             </Text>
-          </TouchableOpacity>
-        </FadeIn>
-        <FadeIn delay={1200} isVisible={isActive}>
-          <TouchableOpacity
-            onPress={onSkip}
-            style={sharedStyles.skipUnderlineWrap}
-          >
-            <Text style={sharedStyles.skipUnderlineText}>Skip</Text>
           </TouchableOpacity>
         </FadeIn>
       </View>
@@ -81,36 +144,117 @@ export function WelcomeSlide({
 }
 
 const styles = StyleSheet.create({
-  appIcon: {
-    width: 160,
-    height: 160,
-    marginBottom: -6,
+  timeline: {
+    alignItems: "center",
+    marginBottom: 36,
+  },
+  timelineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 250,
+  },
+  roman: {
+    fontFamily: FONT_TITLE_BOLD,
+    fontSize: 32,
+    color: "#7C8AA8",
+    width: 66,
+    textAlign: "right",
+    marginRight: 18,
+  },
+  iconCircle: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: NAVY,
+    borderWidth: 3,
+    borderColor: GOLD,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  iconImage: {
+    width: 120,
+    height: 120,
+  },
+  timelineLabel: {
+    fontFamily: FONT_BODY_SEMIBOLD,
+    fontSize: 18,
+    color: NAVY,
+    marginLeft: 18,
+    flex: 1,
+    lineHeight: 23,
+  },
+  connectorWrap: {
+    alignItems: "center",
+    marginLeft: 0,
+    height: 44,
+    justifyContent: "center",
+  },
+  connectorLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: GOLD,
+    opacity: 0.5,
+  },
+  connectorDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: GOLD,
+    marginVertical: 2,
   },
   title: {
-    fontFamily: FONT_BODY_SEMIBOLD,
-    fontSize: 40,
+    fontFamily: FONT_TITLE_BOLD,
+    fontSize: 34,
     color: BLUE,
     textAlign: "center",
     letterSpacing: 0.2,
-    lineHeight: 42,
-    marginBottom: 10,
-    fontWeight: "400",
+    lineHeight: 40,
+    fontWeight: "600",
+  },
+  ornamentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 14,
+    marginBottom: 14,
+    width: 130,
+  },
+  ornamentLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: GOLD,
+    opacity: 0.6,
+  },
+  ornamentMark: {
+    color: GOLD,
+    fontSize: 14,
+    marginHorizontal: 8,
   },
   desc: {
     fontFamily: FONT_BODY,
-    color: "#6F8FAF",
+    color: TEXT_SECONDARY,
     textAlign: "center",
-    marginTop: 12,
-    marginBottom: 4,
     lineHeight: 24,
-    fontSize: 20,
+    fontSize: 15,
   },
-  goldTimes: {
-    fontFamily: FONT_BODY_SEMIBOLD,
-    color: GOLD,
-    fontSize: 28,
-    fontWeight: "500",
-    marginTop: 80,
-    textAlign: "center",
+  dotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  dot: {
+    borderRadius: 5,
+    marginHorizontal: 4,
+  },
+  dotActive: {
+    width: 9,
+    height: 9,
+    backgroundColor: NAVY,
+  },
+  dotInactive: {
+    width: 7,
+    height: 7,
+    backgroundColor: "#D9DCE3",
   },
 });

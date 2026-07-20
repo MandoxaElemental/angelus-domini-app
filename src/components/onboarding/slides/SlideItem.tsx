@@ -47,7 +47,7 @@ export function SlideItem({
         <RhythmSlide
           title={s.title}
           description={s.description}
-          slots={s.slots}
+         
           isActive={isActive}
           onNext={onNext}
         />

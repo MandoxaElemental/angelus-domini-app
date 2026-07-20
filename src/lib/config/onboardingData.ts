@@ -10,16 +10,16 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
   {
     id: 2,
     type: "welcome",
-    title: "Welcome to\nAngelus Domini",
+    title: "Set your Daily Rhythm",
     description:
-      "Join Catholics around the world praying the Angelus each day.",
+      "Pause with the Church at the traditional hours of prayer.",
     prayerTimes: ["6 AM", "12 PM", "6 PM"],
   },
   {
     id: 3,
     type: "rhythm",
-    title: "Set your\nDaily Rhythm",
-    description: "Pause with the Church at the\ntraditional hours of prayer.",
+    title: "Let the Bell Remind You",
+    description: "Receive a gentle reminder when \n it’s time to pray the Angelus.",
     slots: [
       {
         label: "Morning",
@@ -38,16 +38,7 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
       },
     ],
   },
-  {
-    id: 4,
-    type: "bells",
-    title: "Hear the Bells",
-    description:
-      "Your phone rings like Church\nBells when it's time to pray the\nAngelus.",
-    illustration: require("../../../assets/notificationsbg.png"),
-    buttonText: "Continue",
-    isNotificationSlide: false,
-  },
+ 
   {
     id: 5,
     type: "community",

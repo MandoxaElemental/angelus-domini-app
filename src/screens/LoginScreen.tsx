@@ -20,7 +20,7 @@ const angelusIcon = require("../../assets/login_icons.png");
 
 type ActiveField = "email" | "password" | null;
 
-export default function LoginScreen({ onLogin, goToRegister }: any) {
+export default function LoginScreen({ onLogin, goToRegister, goBack }: any) { // ← ADDED goBack
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -207,6 +207,18 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
               Register
             </Text>
           </TouchableOpacity>
+
+          {/* ← ADDED: Back button below Register, for onboarding */}
+          {goBack && (
+            <TouchableOpacity
+              onPress={goBack}
+              style={styles.backButton} // ← ADDED
+              activeOpacity={0.8}
+            >
+              <Ionicons name="chevron-back" size={18} color="#6F6A5F" />
+              <Text style={styles.backButtonText}>Back</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
@@ -313,6 +325,19 @@ export default function LoginScreen({ onLogin, goToRegister }: any) {
 }
 
 const styles = StyleSheet.create({
+  backButton: { // ← ADDED
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 8,
+    paddingVertical: 10,
+  },
+  backButtonText: { // ← ADDED
+    color: "#6F6A5F",
+    fontSize: 14,
+    fontWeight: "500",
+  },
   floatBackdrop: {
     flex: 1,
     justifyContent: "flex-end",

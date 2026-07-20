@@ -27,7 +27,7 @@ import { register } from "../api/authApi";
 
 SplashScreen.preventAutoHideAsync();
 
-const churchBg = require("../../assets/bgchurch.png");
+const churchBg = require("../../assets/bgchurch1.png");
 
 const COUNTRIES = [
   { code: "PH", name: "Philippines", flag: "🇵🇭" },
