@@ -4,10 +4,8 @@
 docs
 screenshots
 videos
-*.mp4
 *.mov
 *.zip
 *.ipa
-*.apk
 *.aab
 coverage
