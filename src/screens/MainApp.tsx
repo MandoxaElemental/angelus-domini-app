@@ -197,77 +197,82 @@ export default function MainApp() {
     return "Evening";
   }, [currentHour]);
   // ── Fetch today's completed prayers from DB ───────────────────────────────
-  const fetchTodayPrayers = useCallback(async (uid: string) => {
-    if (fetchingRef.current) {
-      console.log("Skipped duplicate fetch");
-      return;
-    }
-
-    fetchingRef.current = true;
-
-    try {
-      setPrayerLoadError(false);
-
-      const sessions = await loadOfflineSessions();
-
-      const prayerDay = getPrayerDay();
-
-      const updated = {
-        morning: false,
-        noon: false,
-        evening: false,
-      };
-
-      // Load local offline completions first
-      sessions.forEach((session) => {
-        if (!session.completed) return;
-        if (!session.slot.startsWith(prayerDay)) return;
-
-        const key = slotToKey(session.slot);
-
-        if (key) {
-          updated[key] = true;
-        }
-      });
-
-      // If offline, stop here
-      if (!(await isOnline())) {
-        setCompletedPrayers(updated);
-        setPrayerLoadError(true);
+  const fetchTodayPrayers = useCallback(
+    async (uid: string) => {
+      if (fetchingRef.current) {
+        console.log("Skipped duplicate fetch");
         return;
       }
 
-      // Online: merge Supabase results
-      const { data, error } = await supabase
-        .from("PrayerSessions")
-        .select("Slot,Completed")
-        .eq("UserId", uid)
-        .like("Slot", `${prayerDay}_%`);
+      fetchingRef.current = true;
 
-      data?.forEach((s) => {
-        if (!s.Completed) return;
+      try {
+        setPrayerLoadError(false);
 
-        const key = slotToKey(s.Slot);
+        const sessions = await loadOfflineSessions();
 
-        if (key) {
-          updated[key] = true;
+        const prayerDay = getPrayerDay();
+
+        const updated = {
+          morning: false,
+          noon: false,
+          evening: false,
+        };
+
+        // Load local offline completions first
+        sessions.forEach((session) => {
+          if (!session.completed) return;
+          if (!session.slot.startsWith(prayerDay)) return;
+
+          const key = slotToKey(session.slot);
+
+          if (key) {
+            updated[key] = true;
+          }
+        });
+
+        const online = await isOnline();
+
+        if (online) {
+          const { data, error } = await supabase
+            .from("PrayerSessions")
+            .select("Slot,Completed")
+            .eq("UserId", uid)
+            .like("Slot", `${prayerDay}_%`);
+
+          if (error) throw error;
+
+          data?.forEach((s) => {
+            if (!s.Completed) return;
+
+            const key = slotToKey(s.Slot);
+
+            if (key) {
+              updated[key] = true;
+            }
+          });
+
+          setPrayerLoadError(false);
+        } else {
+          setPrayerLoadError(true);
         }
-        if (error) throw error;
-      });
 
-      setCompletedPrayers(updated);
-    } catch (err) {
-      console.error("fetchTodayPrayers error:", err);
-      setPrayerLoadError(true);
-    } finally {
-      fetchingRef.current = false;
+        setCompletedPrayers(updated);
+        await refreshPendingSyncCount();
+      } catch (err) {
+        console.error("fetchTodayPrayers error:", err);
+        setPrayerLoadError(true);
+      } finally {
+        fetchingRef.current = false;
 
-      if (!hasLoadedPrayers.current) {
-        hasLoadedPrayers.current = true;
-        setPrayersLoading(false);
+        if (!hasLoadedPrayers.current) {
+          hasLoadedPrayers.current = true;
+          setPrayersLoading(false);
+        }
       }
-    }
-  }, []);
+    },
+    [refreshPendingSyncCount],
+  );
   async function getGlobalPrayerStats() {
     const prayerDay = getPrayerDay();
 
@@ -405,7 +410,9 @@ export default function MainApp() {
         await fetchTodayPrayers(uid);
 
         // Refresh global stats.
-        await refreshGlobalStats();
+        if (await isOnline()) {
+          await refreshGlobalStats();
+        }
         queueRefresh();
 
         // Sync in the background.
@@ -413,7 +420,9 @@ export default function MainApp() {
           await syncOfflinePrayers(uid);
 
           await fetchTodayPrayers(uid);
-          await refreshGlobalStats();
+          if (await isOnline()) {
+            await refreshGlobalStats();
+          }
         } catch (err) {
           console.warn("Startup sync failed:", err);
         }
@@ -422,16 +431,24 @@ export default function MainApp() {
           auth.user.user_metadata?.username || auth.user.user_metadata?.name;
         if (meta) {
           setUsername(meta);
-        } else {
+        } else if (await isOnline()) {
           const { data: u } = await supabase
             .from("users")
             .select("username")
             .eq("id", uid)
             .single();
-          if (u?.username) setUsername(u.username);
+
+          if (u?.username) {
+            setUsername(u.username);
+          }
         }
 
         const sess = await startPrayer(uid, timezone);
+        const online = await isOnline();
+
+        if (!online) {
+          // create/load offline session immediately
+        }
         setSession(sess);
         queueRefresh();
         try {
@@ -579,6 +596,7 @@ export default function MainApp() {
             try {
               if (!freshSession || !userId) return;
               await completePrayer(userId, freshSession.sessionId);
+              await fetchTodayPrayers(userId);
               await refreshPendingSyncCount();
               queueRefresh();
               try {
@@ -625,7 +643,9 @@ export default function MainApp() {
       onComplete: async () => {
         try {
           await completePrayer(userId, session.sessionId);
+          await fetchTodayPrayers(userId);
           await refreshPendingSyncCount();
+          await refreshGlobalStats();
           queueRefresh();
 
           try {

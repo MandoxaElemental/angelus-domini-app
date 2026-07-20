@@ -124,7 +124,7 @@ const PRAYER_SEQUENCE: PrayerItem[] = [
   {
     type: "response",
     text: HAIL_MARY_PART_2,
-    duration: 6900,
+    duration: 7400,
     audio: require("../../assets/audio/HolyMaryV3.mp3"),
   },
   {

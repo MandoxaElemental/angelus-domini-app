@@ -108,7 +108,7 @@ export default function App() {
         } = await supabase.auth.getUser();
 
         if (user) {
-          syncOfflinePrayers(user.id);
+          await syncOfflinePrayers(user.id);
         }
       }
     });
@@ -197,11 +197,16 @@ export default function App() {
       try {
         await initializeOfflineStorage();
 
+        await initializeOfflineStorage();
+
+        const netInfo = await NetInfo.fetch();
+        const online =
+          netInfo.isConnected === true && netInfo.isInternetReachable !== false;
         const {
           data: { user },
         } = await supabase.auth.getUser();
 
-        if (user) {
+        if (user && online) {
           await syncUserTimezone();
           await syncOfflinePrayers(user.id);
         }
