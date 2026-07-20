@@ -43,7 +43,7 @@ export function CommunitySlide({
         <FadeIn delay={80} isVisible={isActive} style={{ width: "100%", alignItems: "center" }}>
           <View style={styles.artworkWrap}>
             <Video
-              source={require("../../../../assets/globe.mp4")}
+              source={require("../../../../assets/Globe_onboarding.mp4")}
               style={[styles.worldMap, { height: mapHeight }]}
               resizeMode={ResizeMode.CONTAIN}
               isLooping
