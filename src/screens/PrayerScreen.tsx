@@ -20,6 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
 import { useKeepAwake } from "expo-keep-awake";
 import NetInfo from "@react-native-community/netinfo";
+import { completePrayer } from "../api/prayerApi";
 type PrayerItem =
   | {
       type: "versicle" | "response" | "prayer";
@@ -222,6 +223,8 @@ export default function PrayerScreen() {
 
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const sessionId = route.params?.sessionId;
+  const userId = route.params?.userId;
   const [showCompletionModal, setShowCompletionModal] = useState(false);
 
   const onComplete = route.params?.onComplete;
@@ -533,12 +536,15 @@ export default function PrayerScreen() {
     if (hasCompleted.current) return;
 
     const timeout = setTimeout(async () => {
-      hasCompleted.current = true;
-
       try {
+        if (userId && sessionId) {
+          await completePrayer(userId, sessionId);
+        }
+
         if (onComplete) {
           await onComplete();
         }
+        hasCompleted.current = true;
       } catch (e) {
         console.warn("Prayer completion failed", e);
       }
@@ -547,7 +553,7 @@ export default function PrayerScreen() {
     }, item.duration);
 
     return () => clearTimeout(timeout);
-  }, [currentStep, item.duration, onComplete]);
+  }, [currentStep, item.duration, onComplete, userId, sessionId]);
   const handleNext = () => {
     if (currentStep < PRAYER_SEQUENCE.length - 1) {
       setCurrentStep((p) => p + 1);

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Angelus Domini",
     "slug": "angelus-domini",
-    "version": "1.1.2",
+    "version": "1.2.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

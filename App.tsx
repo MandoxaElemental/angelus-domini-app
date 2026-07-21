@@ -34,10 +34,11 @@ import TabLayout from "./src/navigation/TabLayout";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import LoginScreen from "./src/screens/LoginScreen";
-import { canStartCurrentPrayer } from "./src/api/prayerApi";
+import { startPrayer } from "./src/api/prayerApi";
 import { syncOfflinePrayers } from "./services/syncOfflinePrayers";
 import { syncUserTimezone } from "./src/api/userApi";
 import { initializeOfflineStorage } from "./src/storage/offlineStorage";
+import { getUserTimezone } from "./src/utils/timezone";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -65,39 +66,57 @@ export default function App() {
   const [frame] = useState<Rect>(initialFrame);
   const notificationResponseId = useRef<string | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [screen, setScreen] = useState<Screen>("onboarding");
+
   const [launchNotificationRoute, setLaunchNotificationRoute] = useState<{
     screen: "Prayer";
     params?: any;
   } | null>(null);
 
   const navigateToPrayer = async () => {
-    const canStart = await canStartCurrentPrayer();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    const tryNavigate = (attempts = 0) => {
-      if (
-        screen === "main" &&
-        navigationReady.current &&
-        navigationRef.current
-      ) {
-        navigationRef.current.reset({
-          index: 0,
-          routes: [
-            {
-              name: "Prayer",
-              params: { autoPlay: true },
-            },
-          ],
-        });
+      if (!user) return;
 
-        return;
-      }
+      const timezone = await getUserTimezone();
 
-      if (attempts < 30) {
-        setTimeout(() => tryNavigate(attempts + 1), 150);
-      }
-    };
+      const session = await startPrayer(user.id, timezone);
 
-    tryNavigate();
+      const tryNavigate = (attempts = 0) => {
+        if (
+          screen === "main" &&
+          navigationReady.current &&
+          navigationRef.current
+        ) {
+          navigationRef.current.reset({
+            index: 0,
+            routes: [
+              {
+                name: "Prayer",
+                params: {
+                  autoPlay: true,
+                  sessionId: session.sessionId,
+                  userId: user.id,
+                },
+              },
+            ],
+          });
+
+          return;
+        }
+
+        if (attempts < 30) {
+          setTimeout(() => tryNavigate(attempts + 1), 150);
+        }
+      };
+
+      tryNavigate();
+    } catch (error) {
+      console.warn("Unable to open prayer from notification:", error);
+    }
   };
 
   useEffect(() => {
@@ -135,8 +154,6 @@ export default function App() {
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [isReady]);
-  const [screen, setScreen] = useState<Screen>("onboarding");
-
   // ── Auth + initial screen ─────────────────────────────────────────────────
   useEffect(() => {
     let mounted = true;
@@ -153,7 +170,9 @@ export default function App() {
 
           setLaunchNotificationRoute({
             screen: "Prayer",
-            params: { autoPlay: true },
+            params: {
+              autoPlay: true,
+            },
           });
 
           await Notifications.clearLastNotificationResponseAsync();
@@ -195,8 +214,6 @@ export default function App() {
   useEffect(() => {
     const handleActive = async () => {
       try {
-        await initializeOfflineStorage();
-
         await initializeOfflineStorage();
 
         const netInfo = await NetInfo.fetch();
@@ -245,7 +262,7 @@ export default function App() {
     );
 
     return () => tapSub.remove();
-  }, [screen]);
+  }, []);
 
   const [queryClient] = useState(
     () =>
@@ -322,7 +339,7 @@ export default function App() {
           />
         )}
 
-        <StatusBar style="auto" />
+        <StatusBar hidden />
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
