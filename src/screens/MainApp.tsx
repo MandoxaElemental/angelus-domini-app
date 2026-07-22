@@ -592,10 +592,11 @@ export default function MainApp() {
 
         navigation.navigate("Prayer", {
           autoPlay: true,
+          userId,
+          sessionId: session.sessionId,
           onComplete: async () => {
             try {
               if (!freshSession || !userId) return;
-              await completePrayer(userId, freshSession.sessionId);
               await fetchTodayPrayers(userId);
               await refreshPendingSyncCount();
               queueRefresh();
@@ -640,6 +641,8 @@ export default function MainApp() {
 
     navigation.navigate("Prayer", {
       autoPlay: true,
+      userId,
+      sessionId: session.sessionId,
       onComplete: async () => {
         await fetchTodayPrayers(userId);
         await refreshPendingSyncCount();
