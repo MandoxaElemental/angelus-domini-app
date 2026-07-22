@@ -641,27 +641,22 @@ export default function MainApp() {
     navigation.navigate("Prayer", {
       autoPlay: true,
       onComplete: async () => {
+        await fetchTodayPrayers(userId);
+        await refreshPendingSyncCount();
+        await refreshGlobalStats();
+        queueRefresh();
+
         try {
-          await completePrayer(userId, session.sessionId);
-          await fetchTodayPrayers(userId);
-          await refreshPendingSyncCount();
-          await refreshGlobalStats();
-          queueRefresh();
+          await getGlobalCount(session.slot);
+        } catch {}
 
-          try {
-            await getGlobalCount(session.slot);
-          } catch {}
+        const key = slotToKey(session.slot);
 
-          const key = slotToKey(session.slot);
-
-          if (key) {
-            setCompletedPrayers((prev) => ({
-              ...prev,
-              [key]: true,
-            }));
-          }
-        } catch (err) {
-          console.error(err);
+        if (key) {
+          setCompletedPrayers((prev) => ({
+            ...prev,
+            [key]: true,
+          }));
         }
       },
     });

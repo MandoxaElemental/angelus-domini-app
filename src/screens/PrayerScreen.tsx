@@ -541,10 +541,11 @@ export default function PrayerScreen() {
           await completePrayer(userId, sessionId);
         }
 
-        if (onComplete) {
+        hasCompleted.current = true;
+
+        if (typeof onComplete === "function") {
           await onComplete();
         }
-        hasCompleted.current = true;
       } catch (e) {
         console.warn("Prayer completion failed", e);
       }

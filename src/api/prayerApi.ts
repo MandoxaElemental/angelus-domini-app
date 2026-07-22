@@ -250,7 +250,7 @@ export const getHistory = async (userId: string) => {
 };
 
 export async function canStartCurrentPrayer(): Promise<boolean> {
-  const timezone = getUserTimezone();
+  const timezone = await getUserTimezone();
   const currentSlot = getSlot(timezone);
 
   const session = await loadCurrentSession();

@@ -85,35 +85,22 @@ export default function App() {
 
       const session = await startPrayer(user.id, timezone);
 
-      const tryNavigate = (attempts = 0) => {
-        if (
-          screen === "main" &&
-          navigationReady.current &&
-          navigationRef.current
-        ) {
-          navigationRef.current.reset({
-            index: 0,
-            routes: [
-              {
-                name: "Prayer",
-                params: {
-                  autoPlay: true,
-                  sessionId: session.sessionId,
-                  userId: user.id,
-                },
-              },
-            ],
-          });
-
-          return;
-        }
-
-        if (attempts < 30) {
-          setTimeout(() => tryNavigate(attempts + 1), 150);
-        }
-      };
-
-      tryNavigate();
+      if (navigationReady.current && navigationRef.current) {
+        navigationRef.current.navigate("Prayer", {
+          autoPlay: true,
+          sessionId: session.sessionId,
+          userId: user.id,
+        });
+      } else {
+        setLaunchNotificationRoute({
+          screen: "Prayer",
+          params: {
+            autoPlay: true,
+            sessionId: session.sessionId,
+            userId: user.id,
+          },
+        });
+      }
     } catch (error) {
       console.warn("Unable to open prayer from notification:", error);
     }
@@ -167,11 +154,25 @@ export default function App() {
         if (lastResponse) {
           notificationResponseId.current =
             lastResponse.notification.request.identifier;
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+
+          if (!user) {
+            await Notifications.clearLastNotificationResponseAsync();
+            return;
+          }
+
+          const timezone = await getUserTimezone();
+
+          const session = await startPrayer(user.id, timezone);
 
           setLaunchNotificationRoute({
             screen: "Prayer",
             params: {
               autoPlay: true,
+              sessionId: session.sessionId,
+              userId: user.id,
             },
           });
 
@@ -314,6 +315,15 @@ export default function App() {
             ref={navigationRef}
             onReady={() => {
               navigationReady.current = true;
+
+              if (launchNotificationRoute && navigationRef.current) {
+                navigationRef.current.navigate(
+                  launchNotificationRoute.screen,
+                  launchNotificationRoute.params,
+                );
+
+                setLaunchNotificationRoute(null);
+              }
             }}
             onStateChange={() => {
               navigationReady.current =

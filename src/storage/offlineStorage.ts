@@ -75,7 +75,7 @@ export async function pruneOfflineSessions(currentSlot: string) {
 }
 
 export async function initializeOfflineStorage() {
-  const timezone = getUserTimezone();
+  const timezone = await getUserTimezone();
   const slot = getSlot(timezone);
 
   const currentSession = await loadCurrentSession();
