@@ -207,6 +207,13 @@ export const completePrayer = async (
     }
   } catch (err) {
     console.warn("Unable to upload completed prayer:", err);
+
+    // Keep offline copy, but don't treat it as synced
+    if (session) {
+      session.synced = false;
+      await saveCurrentSession(session);
+      await upsertOfflineSession(session);
+    }
   }
 
   const net = await NetInfo.fetch();

@@ -106,21 +106,21 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(async (state) => {
-      if (state.isConnected && state.isInternetReachable !== false) {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+  // useEffect(() => {
+  //   const unsubscribe = NetInfo.addEventListener(async (state) => {
+  //     if (state.isConnected && state.isInternetReachable !== false) {
+  //       const {
+  //         data: { user },
+  //       } = await supabase.auth.getUser();
 
-        if (user) {
-          await syncOfflinePrayers(user.id);
-        }
-      }
-    });
+  //       if (user) {
+  //         await syncOfflinePrayers(user.id);
+  //       }
+  //     }
+  //   });
 
-    return unsubscribe;
-  }, []);
+  //   return unsubscribe;
+  // }, []);
 
   useEffect(() => {
     const {

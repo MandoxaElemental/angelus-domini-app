@@ -13,7 +13,7 @@ import {
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
-// import NetInfo from "@react-native-community/netinfo";
+import NetInfo from "@react-native-community/netinfo";
 
 import { getPrayerStatus, PrayerStatus } from "../utils/prayer";
 
@@ -26,6 +26,7 @@ import {
   loadOfflineSessions,
   saveOfflineSessions,
 } from "../storage/offlineStorage";
+import { subscribePrayerCompleted } from "../services/prayerEvents";
 import React from "react";
 import {
   format12Hour,
@@ -133,39 +134,39 @@ export default function MainApp() {
     refreshPendingSyncCount();
   }, [refreshPendingSyncCount]);
 
-  // useEffect(() => {
-  //   const unsubscribe = NetInfo.addEventListener((state) => {
-  //     const online = !!state.isConnected && state.isInternetReachable !== false;
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const online = !!state.isConnected && state.isInternetReachable !== false;
 
-  //     setIsOffline((prev) => (prev !== !online ? !online : prev));
-  //     refreshPendingSyncCount();
+      setIsOffline((prev) => (prev !== !online ? !online : prev));
+      refreshPendingSyncCount();
 
-  //     if (online && userId && !syncingRef.current) {
-  //       syncingRef.current = true;
-  //       setIsSyncing(true);
+      if (online && userId && !syncingRef.current) {
+        syncingRef.current = true;
+        setIsSyncing(true);
 
-  //       (async () => {
-  //         try {
-  //           await syncOfflinePrayers(userId);
+        (async () => {
+          try {
+            await syncOfflinePrayers(userId);
 
-  //           await fetchTodayPrayers(userId);
-  //           await refreshGlobalStats();
-  //           await refreshPendingSyncCount();
+            await fetchTodayPrayers(userId);
+            await refreshGlobalStats();
+            await refreshPendingSyncCount();
 
-  //           setTimeout(async () => {
-  //             await fetchTodayPrayers(userId);
-  //             await refreshGlobalStats();
-  //           }, 1500);
-  //         } finally {
-  //           syncingRef.current = false;
-  //           setIsSyncing(false);
-  //         }
-  //       })();
-  //     }
-  //   });
+            setTimeout(async () => {
+              await fetchTodayPrayers(userId);
+              await refreshGlobalStats();
+            }, 1500);
+          } finally {
+            syncingRef.current = false;
+            setIsSyncing(false);
+          }
+        })();
+      }
+    });
 
-  //   return () => unsubscribe();
-  // }, [userId, refreshPendingSyncCount]);
+    return () => unsubscribe();
+  }, [userId, refreshPendingSyncCount]);
   useEffect(() => {
     setCurrentPrayer(getNextPrayerForMode(angelusMode));
   }, [angelusMode]);
@@ -593,13 +594,14 @@ export default function MainApp() {
         navigation.navigate("Prayer", {
           autoPlay: true,
           userId,
-          sessionId: session.sessionId,
+          sessionId: freshSession.sessionId,
           onComplete: async () => {
             try {
               if (!freshSession || !userId) return;
               await fetchTodayPrayers(userId);
               await refreshPendingSyncCount();
               queueRefresh();
+              await refreshGlobalStats();
               try {
                 await getGlobalCount(freshSession.slot);
               } catch {
@@ -611,7 +613,7 @@ export default function MainApp() {
             }
           },
         });
-      }, 7000);
+      }, 1000);
     };
 
     const id = setInterval(check, 15000);
@@ -733,6 +735,26 @@ export default function MainApp() {
       queueRefresh,
     ]),
   );
+
+  useEffect(() => {
+    const unsubscribe = subscribePrayerCompleted(async () => {
+      if (!userId) return;
+
+      await fetchTodayPrayers(userId);
+      await refreshGlobalStats();
+      await refreshPendingSyncCount();
+
+      queueRefresh();
+    });
+
+    return unsubscribe;
+  }, [
+    userId,
+    fetchTodayPrayers,
+    refreshGlobalStats,
+    refreshPendingSyncCount,
+    queueRefresh,
+  ]);
 
   if (!fontsLoaded) {
     return null;

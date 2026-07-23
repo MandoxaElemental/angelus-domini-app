@@ -21,6 +21,7 @@ import { useFonts } from "expo-font";
 import { useKeepAwake } from "expo-keep-awake";
 import NetInfo from "@react-native-community/netinfo";
 import { completePrayer } from "../api/prayerApi";
+import { emitPrayerCompleted } from "../services/prayerEvents";
 type PrayerItem =
   | {
       type: "versicle" | "response" | "prayer";
@@ -542,6 +543,9 @@ export default function PrayerScreen() {
         }
 
         hasCompleted.current = true;
+
+        // Tell the rest of the app
+        emitPrayerCompleted();
 
         if (typeof onComplete === "function") {
           await onComplete();
