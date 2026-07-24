@@ -103,8 +103,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 28,
-    paddingTop: 20,
+   marginBottom: 30,
   },
   icons: {
      width: 300,
@@ -147,7 +146,7 @@ const styles = StyleSheet.create({
   desc: {
     fontFamily: FONT_BODY,
     fontSize: 15,
-    color: TEXT_SECONDARY,
+    color: "#6F8FAF",
     textAlign: "center",
     lineHeight: 22,
     paddingHorizontal: 4,

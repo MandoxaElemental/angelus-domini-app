@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   tagline: {
     fontFamily: FONT_BODY,
     fontSize: 17,
-    color: "#6B7280",
+    color: "#6F8FAF",
     textAlign: "center",
     letterSpacing: 0.2,
   },

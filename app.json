@@ -29,8 +29,9 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.USE_EXACT_ALARM",
         "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.POST_NOTIFICATIONS"
-       
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -55,9 +56,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "8e82e525-cbe6-4fa7-8bd0-a57a56ffe041"
+        "projectId": "9cc5775a-9f17-43e7-a424-c086dec06b8c"
       }
     },
-    "owner": "anita-02"
+    "owner": "anita-04"
   }
 }

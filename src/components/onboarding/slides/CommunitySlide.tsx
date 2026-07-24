@@ -1,6 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Video, ResizeMode } from "expo-av";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width, height } from "../styles/sharedStyles";
 import {
@@ -42,14 +41,10 @@ export function CommunitySlide({
         {/* Globe illustration */}
         <FadeIn delay={80} isVisible={isActive} style={{ width: "100%", alignItems: "center" }}>
           <View style={styles.artworkWrap}>
-            <Video
-              source={require("../../../../assets/Globe_onboarding.mp4")}
+            <Image
+              source={require("../../../../assets/globe_prayer.png")}
               style={[styles.worldMap, { height: mapHeight }]}
-              resizeMode={ResizeMode.CONTAIN}
-              isLooping
-              shouldPlay={isActive}
-              isMuted
-              useNativeControls={false} 
+              resizeMode="contain"
             />
 
             {/* Floating stat card, overlapping bottom of the globe */}
@@ -183,7 +178,7 @@ const styles = StyleSheet.create({
   },
   desc: {
     fontFamily: FONT_BODY,
-    color: TEXT_SECONDARY,
+    color: "#6F8FAF",
     textAlign: "center",
     fontSize: 15,
     lineHeight: 22,

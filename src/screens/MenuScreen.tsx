@@ -5,7 +5,7 @@ import { getPrayerStatus, PrayerStatus } from "../utils/prayer";
 import { getGlobalCount, startPrayer } from "../api/prayerApi";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
-import { AngelusMode, getAngelusMode } from "../services/notificationService";
+import { AngelusMode, getAngelusMode, getAllSlotStates, SlotToggles } from "../services/notificationService"; // ← CHANGED (added getAllSlotStates, SlotToggles)
 import { useFonts } from "expo-font";
 import { useFocusEffect } from "@react-navigation/native";
 
@@ -251,28 +251,38 @@ export default function MenuScreen() {
       setLoading(false);
     }
   }, []);
-  const [angelusMode, setAngelusModeState] = useState<AngelusMode>("all_three");
-  useFocusEffect(
-    useCallback(() => {
-      let mounted = true;
+const [angelusMode, setAngelusModeState] = useState<AngelusMode>("all_three");
 
-      (async () => {
-        const mode = await getAngelusMode();
+// ← ADDED
+const [slotEnabled, setSlotEnabled] = useState<SlotToggles>({
+  morning: true,
+  noon: true,
+  evening: true,
+});
 
-        if (mounted) {
-          setAngelusModeState(mode);
+useFocusEffect(
+  useCallback(() => {
+    let mounted = true;
 
-          if (userId) {
-            await fetchData(userId);
-          }
+    (async () => {
+      const mode = await getAngelusMode();
+      const states = await getAllSlotStates(); // ← ADDED
+
+      if (mounted) {
+        setAngelusModeState(mode);
+        setSlotEnabled(states); // ← ADDED
+
+        if (userId) {
+          await fetchData(userId);
         }
-      })();
+      }
+    })();
 
-      return () => {
-        mounted = false;
-      };
-    }, [userId, fetchData]),
-  );
+    return () => {
+      mounted = false;
+    };
+  }, [userId, fetchData]),
+);
 
   const [weekMorning, setWeekMorning] = useState<Set<string>>(new Set());
   const [weekNoon, setWeekNoon] = useState<Set<string>>(new Set());
@@ -455,49 +465,51 @@ export default function MenuScreen() {
             <View style={styles.sectionDividerLine} />
           </View>
           <AngelusRow
-            title="Morning Angelus"
-            subtitle={
-              angelusMode === "noon_only"
-                ? "Disabled"
-                : getSubtitle(morningStatus)
-            }
-            status={angelusMode === "noon_only" ? "disabled" : morningStatus}
-            imageSource={
-              angelusMode === "noon_only"
-                ? progressImages["Morning"]
-                : morningStatus === "completed"
-                  ? completeImages["Morning"]
-                  : progressImages["Morning"]
-            }
-          />
-          <View style={styles.rowDivider} />
-          <AngelusRow
-            title="Noon Angelus"
-            subtitle={getSubtitle(noonStatus)}
-            status={noonStatus}
-            imageSource={
-              noonStatus === "completed"
-                ? completeImages["Noon"]
-                : progressImages["Noon"]
-            }
-          />
-          <View style={styles.rowDivider} />
-          <AngelusRow
-            title="Evening Angelus"
-            subtitle={
-              angelusMode === "noon_only"
-                ? "Disabled"
-                : getSubtitle(eveningStatus)
-            }
-            status={angelusMode === "noon_only" ? "disabled" : eveningStatus}
-            imageSource={
-              angelusMode === "noon_only"
-                ? progressImages["Evening"]
-                : eveningStatus === "completed"
-                  ? completeImages["Evening"]
-                  : progressImages["Evening"]
-            }
-          />
+  title="Morning Angelus"
+  subtitle={
+    !slotEnabled.morning // ← CHANGED (was angelusMode === "noon_only")
+      ? "Disabled"
+      : getSubtitle(morningStatus)
+  }
+  status={!slotEnabled.morning ? "disabled" : morningStatus} // ← CHANGED
+  imageSource={
+    !slotEnabled.morning // ← CHANGED
+      ? progressImages["Morning"]
+      : morningStatus === "completed"
+        ? completeImages["Morning"]
+        : progressImages["Morning"]
+  }
+/>
+<View style={styles.rowDivider} />
+<AngelusRow
+  title="Noon Angelus"
+  subtitle={!slotEnabled.noon ? "Disabled" : getSubtitle(noonStatus)} // ← CHANGED (noon can now be disabled too)
+  status={!slotEnabled.noon ? "disabled" : noonStatus} // ← CHANGED
+  imageSource={
+    !slotEnabled.noon
+      ? progressImages["Noon"]
+      : noonStatus === "completed"
+        ? completeImages["Noon"]
+        : progressImages["Noon"]
+  }
+/>
+<View style={styles.rowDivider} />
+<AngelusRow
+  title="Evening Angelus"
+  subtitle={
+    !slotEnabled.evening // ← CHANGED
+      ? "Disabled"
+      : getSubtitle(eveningStatus)
+  }
+  status={!slotEnabled.evening ? "disabled" : eveningStatus} // ← CHANGED
+  imageSource={
+    !slotEnabled.evening // ← CHANGED
+      ? progressImages["Evening"]
+      : eveningStatus === "completed"
+        ? completeImages["Evening"]
+        : progressImages["Evening"]
+  }
+/>
         </View>
 
         {/* ── THIS WEEK IN PRAYER ── */}
@@ -537,26 +549,27 @@ export default function MenuScreen() {
             <View style={styles.weekCountPlaceholder} />
           </View>
 
-          <WeekRow
-            label="Morning"
-            imageSource={weekImages["Morning"]}
-            dots={morningDots}
-            count={morningCount}
-            disabled={angelusMode === "noon_only"}
-          />
-          <WeekRow
-            label="Noon"
-            imageSource={weekImages["Noon"]}
-            dots={noonDots}
-            count={noonCount}
-          />
-          <WeekRow
-            label="Evening"
-            imageSource={weekImages["Evening"]}
-            dots={eveningDots}
-            count={eveningCount}
-            disabled={angelusMode === "noon_only"}
-          />
+         <WeekRow
+  label="Morning"
+  imageSource={weekImages["Morning"]}
+  dots={morningDots}
+  count={morningCount}
+  disabled={!slotEnabled.morning} // ← CHANGED (was angelusMode === "noon_only")
+/>
+<WeekRow
+  label="Noon"
+  imageSource={weekImages["Noon"]}
+  dots={noonDots}
+  count={noonCount}
+  disabled={!slotEnabled.noon} // ← ADDED (noon row wasn't disable-able before)
+/>
+<WeekRow
+  label="Evening"
+  imageSource={weekImages["Evening"]}
+  dots={eveningDots}
+  count={eveningCount}
+  disabled={!slotEnabled.evening} // ← CHANGED
+/>
         </View>
 
         {/* ── TOTAL PRAYERS OFFERED ── */}

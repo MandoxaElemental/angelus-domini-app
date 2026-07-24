@@ -25,6 +25,8 @@ import {
   getAngelusMode,
   AngelusMode,
   requestNotificationPermission,
+   getAllSlotStates,   // ← ADDED
+  SlotToggles,        // ← ADDED
 } from "../services/notificationService";
 import {
   getLocalSlotSyncStatusForUser,
@@ -111,6 +113,38 @@ function getPrayerDay() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+// ← ADDED: like getNextPrayerForMode, but skips any slot the user has
+// individually turned off (not just noon_only mode) so "Next Prayer" /
+// countdown and the auto-trigger stay consistent with what Daily Prayer
+// Progress is showing as Disabled.
+function getNextPrayerForSlots(slots: SlotToggles) {
+  const now = new Date();
+  const candidates: { title: string; icon: string; hour: number }[] = [];
+  if (slots.morning) candidates.push({ title: "Morning Angelus", icon: "Morning", hour: 6 });
+  if (slots.noon) candidates.push({ title: "Noon Angelus", icon: "Noon", hour: 12 });
+  if (slots.evening) candidates.push({ title: "Evening Angelus", icon: "Evening", hour: 18 });
+
+  if (candidates.length === 0) {
+    // Nothing enabled — fall back to noon so the UI still has something
+    // sensible to render rather than breaking.
+    const next = new Date(now);
+    next.setHours(12, 0, 0, 0);
+    if (now >= next) next.setDate(next.getDate() + 1);
+    return { title: "Noon Angelus", icon: "Noon", time: next };
+  }
+
+  let best: { title: string; icon: string; time: Date } | null = null;
+  for (const c of candidates) {
+    const t = new Date(now);
+    t.setHours(c.hour, 0, 0, 0);
+    if (now >= t) t.setDate(t.getDate() + 1);
+    if (!best || t.getTime() < best.time.getTime()) {
+      best = { title: c.title, icon: c.icon, time: t };
+    }
+  }
+  return best!;
+}
+
 function getNextPrayerForMode(mode: AngelusMode) {
   if (mode !== "noon_only") {
     return getNextPrayer();
@@ -189,12 +223,25 @@ const NOTIF_ASKED_KEY = "notification_permission_asked";
 export default function MainApp() {
   const [angelusMode, setAngelusMode] = useState<AngelusMode>("all_three");
 
+  // ← ADDED: combined mode + per-slot toggle state. This is what actually
+  // drives "Disabled" in Daily Prayer Progress now, instead of angelusMode
+  // alone.
+  const [slotEnabled, setSlotEnabled] = useState<SlotToggles>({
+    morning: true,
+    noon: true,
+    evening: true,
+  });
+
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
       (async () => {
         const mode = await getAngelusMode();
-        if (mounted) setAngelusMode(mode);
+        const states = await getAllSlotStates(); // ← ADDED
+        if (mounted) {
+          setAngelusMode(mode);
+          setSlotEnabled(states); // ← ADDED
+        }
       })();
       return () => { mounted = false; };
     }, []),
@@ -221,9 +268,9 @@ export default function MainApp() {
     noon: false,
     evening: false,
   });
-  const [currentPrayer, setCurrentPrayer] = useState(() =>
-    getNextPrayerForMode(angelusMode),
-  );
+const [currentPrayer, setCurrentPrayer] = useState(() =>
+  getNextPrayerForSlots({ morning: true, noon: true, evening: true }), // ← CHANGED, refined by the effect above once slotEnabled loads
+);
 
   // ── Offline sync status (fully automatic — no manual tap needed) ─────────
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
@@ -252,9 +299,9 @@ export default function MainApp() {
     };
   }, []);
 
-  useEffect(() => {
-    setCurrentPrayer(getNextPrayerForMode(angelusMode));
-  }, [angelusMode]);
+useEffect(() => {
+  setCurrentPrayer(getNextPrayerForSlots(slotEnabled)); // ← CHANGED
+}, [slotEnabled]); // ← CHANGED (was [angelusMode])
 
   const triggeredToday = useRef<Map<number, string>>(new Map());
   const dailyVerse = useMemo(() => getDailyVerse(), [todayKey]);
@@ -792,27 +839,29 @@ export default function MainApp() {
   }, [userId]);
 
   // ── Countdown timer ───────────────────────────────────────────────────────
-  useEffect(() => {
-    const tick = () => {
-      const next = getNextPrayerForMode(angelusMode);
-      setCurrentPrayer((prev) => {
-        if (prev.time.getTime() !== next.time.getTime()) {
-          return { title: next.title, icon: next.icon, time: next.time };
-        }
-        return prev;
-      });
-      const diff = next.time.getTime() - Date.now();
-      const hrs = Math.floor(diff / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      setTimeLeft(
-        `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`,
-      );
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [angelusMode]);
+
+
+ useEffect(() => {
+  const tick = () => {
+    const next = getNextPrayerForSlots(slotEnabled); // ← CHANGED
+    setCurrentPrayer((prev) => {
+      if (prev.time.getTime() !== next.time.getTime()) {
+        return { title: next.title, icon: next.icon, time: next.time };
+      }
+      return prev;
+    });
+    const diff = next.time.getTime() - Date.now();
+    const hrs = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    setTimeLeft(
+      `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`,
+    );
+  };
+  tick();
+  const id = setInterval(tick, 1000);
+  return () => clearInterval(id);
+}, [slotEnabled]); // ← CHANGED (was [angelusMode])
 
   const currentDayImage = useMemo(() => {
     const hour = new Date().getHours();
@@ -822,60 +871,62 @@ export default function MainApp() {
   }, [currentHour]);
 
   // ── Auto-trigger prayer at prayer hours ───────────────────────────────────
-  useEffect(() => {
-    const check = () => {
-      const now = new Date();
-      const h = now.getHours();
-      const m = now.getMinutes();
-      const date = now.toDateString();
-      const allowedHours = angelusMode === "noon_only" ? [12] : [6, 12, 18];
-      const isPrayerHour = allowedHours.includes(h);
-      if (!isPrayerHour || m !== 0) return;
-      const alreadyFired = triggeredToday.current.get(h);
-      if (alreadyFired === date) return;
-      triggeredToday.current.set(h, date);
-      const slotKey = hourToSlotKey(h);
-      setTimeout(async () => {
-        let freshSession = session;
-        if (userId) {
+ useEffect(() => {
+  const check = () => {
+    const now = new Date();
+    const h = now.getHours();
+    const m = now.getMinutes();
+    const date = now.toDateString();
+
+    // ← CHANGED: was derived only from angelusMode's noon_only check.
+    // Now also skips any individually-toggled-off slot, so a prayer that
+    // shows "Disabled" on screen doesn't still silently auto-trigger.
+    const allowedHours = [
+      ...(slotEnabled.morning ? [6] : []),
+      ...(slotEnabled.noon ? [12] : []),
+      ...(slotEnabled.evening ? [18] : []),
+    ];
+
+    const isPrayerHour = allowedHours.includes(h);
+    if (!isPrayerHour || m !== 0) return;
+    const alreadyFired = triggeredToday.current.get(h);
+    if (alreadyFired === date) return;
+    triggeredToday.current.set(h, date);
+    const slotKey = hourToSlotKey(h);
+    setTimeout(async () => {
+      let freshSession = session;
+      if (userId) {
+        try {
+          freshSession = await startPrayer(userId);
+          setSession(freshSession);
+        } catch {}
+      }
+      navigation.navigate("Prayer", {
+        autoPlay: true,
+        onComplete: async () => {
+          if (!freshSession || !userId) return;
+
           try {
-            freshSession = await startPrayer(userId);
-            setSession(freshSession);
-          } catch {}
-        }
-        navigation.navigate("Prayer", {
-          autoPlay: true,
-          onComplete: async () => {
-            if (!freshSession || !userId) return;
+            await completePrayer(userId, freshSession.sessionId);
+          } catch (err) {
+            console.error("Auto-trigger completePrayer error:", err);
+          }
 
-            try {
-              await completePrayer(userId, freshSession.sessionId);
-            } catch (err) {
-              console.error("Auto-trigger completePrayer error:", err);
-            }
+          await fetchTodayPrayers(userId);
 
-            // Re-derive from local storage instead of forcing "Completed"
-            // here — shows "Loading" if this landed offline/unsynced, or
-            // "Completed" immediately if it synced right away.
-            await fetchTodayPrayers(userId);
-
-            try {
-              // ← ADDED: withTimeout so an offline/slow getGlobalCount()
-              // can't hang this onComplete() and delay PrayerScreen's
-              // "Return Home" modal. Online, resolves well within 4s so
-              // behavior is unchanged.
-              const c = await withTimeout(getGlobalCount(freshSession.slot), 4000);
-              if (c !== null) setCount(c);
-            } catch (err) {
-              console.warn("getGlobalCount failed (offline?):", err);
-            }
-          },
-        });
-      }, 7000);
-    };
-    const id = setInterval(check, 1000);
-    return () => clearInterval(id);
-  }, [session, userId, navigation, angelusMode, fetchTodayPrayers]);
+          try {
+            const c = await withTimeout(getGlobalCount(freshSession.slot), 4000);
+            if (c !== null) setCount(c);
+          } catch (err) {
+            console.warn("getGlobalCount failed (offline?):", err);
+          }
+        },
+      });
+    }, 7000);
+  };
+  const id = setInterval(check, 1000);
+  return () => clearInterval(id);
+}, [session, userId, navigation, slotEnabled, fetchTodayPrayers]); // ← CHANGED (was angelusMode)
 
   // ── Complete prayer ───────────────────────────────────────────────────────
   const handleComplete = async () => {
@@ -940,33 +991,36 @@ export default function MainApp() {
   }, [userId, fetchTodayPrayers, refreshGlobalStats]);
 
   // ── Prayer status ─────────────────────────────────────────────────────────
-  const morningStatus = prayersLoading
-    ? "loading"
-    : angelusMode === "noon_only"
-      ? "disabled"
-      : isOffline
+ // ── Prayer status ─────────────────────────────────────────────────────────
+const morningStatus = prayersLoading
+  ? "loading"
+  : !slotEnabled.morning // ← CHANGED (was angelusMode === "noon_only")
+    ? "disabled"
+    : isOffline
+      ? "loading"
+      : pendingCompletionSlots.morning
         ? "loading"
-        : pendingCompletionSlots.morning
-          ? "loading"
-          : getPrayerStatus("morning", completedPrayers.morning);
+        : getPrayerStatus("morning", completedPrayers.morning);
 
-  const noonStatus = prayersLoading
-    ? "loading"
+const noonStatus = prayersLoading
+  ? "loading"
+  : !slotEnabled.noon // ← ADDED (noon can now also be individually disabled)
+    ? "disabled"
     : isOffline
       ? "loading"
       : pendingCompletionSlots.noon
         ? "loading"
         : getPrayerStatus("noon", completedPrayers.noon);
 
-  const eveningStatus = prayersLoading
-    ? "loading"
-    : angelusMode === "noon_only"
-      ? "disabled"
-      : isOffline
+const eveningStatus = prayersLoading
+  ? "loading"
+  : !slotEnabled.evening // ← CHANGED (was angelusMode === "noon_only")
+    ? "disabled"
+    : isOffline
+      ? "loading"
+      : pendingCompletionSlots.evening
         ? "loading"
-        : pendingCompletionSlots.evening
-          ? "loading"
-          : getPrayerStatus("evening", completedPrayers.evening);
+        : getPrayerStatus("evening", completedPrayers.evening);
 
   const [fontsLoaded] = useFonts({
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),

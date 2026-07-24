@@ -12,7 +12,7 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
     type: "welcome",
     title: "Set your Daily Rhythm",
     description:
-      "Pause with the Church at the traditional hours of prayer.",
+      "Pause with the Church \n at the traditional hours of prayer.",
     prayerTimes: ["6 AM", "12 PM", "6 PM"],
   },
   {
@@ -43,7 +43,7 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
     id: 5,
     type: "community",
     title: "United in \n Prayer Around \nthe World",
-    description: "See how many prayed the Angelus with you across the world.",
+    description: "See how many prayed \n the Angelus with you across the \n world.",
     buttonText: "Continue",
   },
   {

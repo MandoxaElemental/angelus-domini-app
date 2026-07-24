@@ -1,6 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Video, ResizeMode } from "expo-av";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles } from "../styles/sharedStyles";
 import { BLUE, GOLD, IVORY, TEXT_SECONDARY } from "../../../lib/constants/colors";
@@ -33,15 +32,11 @@ export function RhythmSlide({
       <View style={sharedStyles.centerContent}>
         {/* Illustration */}
         <FadeIn delay={100} isVisible={isActive}>
-          <Video
-            // ← REPLACE this path with your own onboarding video asset if needed
-            source={require("../../../../assets/onboarding_vid1_transparent.webm")}
+          <Image
+            // ← REPLACE this path with your own phone + bell-tower image asset
+            source={require("../../../../assets/notificationsbg.png")}
             style={styles.image}
-            resizeMode={ResizeMode.CONTAIN}
-            isLooping
-            shouldPlay={isActive}
-            isMuted
-            useNativeControls={false}
+            resizeMode="contain"
           />
         </FadeIn>
 
@@ -131,7 +126,7 @@ const styles = StyleSheet.create({
   subheading: {
     fontFamily: FONT_BODY,
     fontSize: 15,
-    color: TEXT_SECONDARY,
+    color: "#6F8FAF",
     textAlign: "center",
     lineHeight: 22,
   },

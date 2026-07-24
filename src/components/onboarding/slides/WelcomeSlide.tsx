@@ -1,5 +1,12 @@
-import React from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  Image,
+  Animated,
+  TouchableOpacity,
+  StyleSheet,
+} from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles } from "../styles/sharedStyles";
 import {
@@ -28,21 +35,38 @@ type Props = {
   activeDotIndex?: number;
 };
 
-// ← ADDED: timeline data — replace the `require(...)` paths with your own icon image files
+// ← Each slot now takes an ARRAY of icons. Add as many images as you like per
+//    slot — all three slots will crossfade to their next image together every
+//    3 seconds. Replace the placeholder require(...) paths with your own files.
 const TIMELINE = [
   {
     roman: "VI",
-    icon: require("../../../../assets/Morning_Solid.png"), // ← replace with your sunrise icon
+    icons: [
+       require("../../../../assets/Morning_Clear.png"), // ← TODO: replace with alt image
+      require("../../../../assets/Morning_Solid.png"), // ← your current sunrise icon
+     
+    ],
   },
   {
     roman: "XII",
-    icon: require("../../../../assets/Noon_Solid.png"), // ← replace with your sun icon
+    icons: [
+       require("../../../../assets/Noon_Clear.png"), // ← TODO: replace with alt image
+      require("../../../../assets/Noon_Solid.png"), // ← your current sun icon
+     
+    ],
   },
   {
     roman: "VI",
-    icon: require("../../../../assets/Evening_Solid.png"), // ← replace with your moon icon
+    icons: [
+      require("../../../../assets/Evening_Clear.png"), // ← TODO: replace with alt image
+      require("../../../../assets/Evening_Solid.png"), // ← your current moon icon
+      
+    ],
   },
 ];
+
+const CYCLE_INTERVAL_MS = 1700;
+const FADE_DURATION_MS = 400;
 
 export function WelcomeSlide({
   title,
@@ -59,6 +83,44 @@ export function WelcomeSlide({
       ? prayerTimes
       : ["Morning\nAngelus", "Noon\nAngelus", "Evening\nAngelus"];
 
+  const [iconIndices, setIconIndices] = useState([0, 0, 0]);
+  const fadeAnims = useRef([
+    new Animated.Value(1),
+    new Animated.Value(1),
+    new Animated.Value(1),
+  ]).current;
+  const activeSlot = useRef(0);
+
+  useEffect(() => {
+    if (!isActive) return;
+
+    const intervalId = setInterval(() => {
+      const slot = activeSlot.current;
+      const anim = fadeAnims[slot];
+
+      Animated.timing(anim, {
+        toValue: 0,
+        duration: FADE_DURATION_MS,
+        useNativeDriver: true,
+      }).start(() => {
+        setIconIndices((prev) => {
+          const next = [...prev];
+          next[slot] = (next[slot] + 1) % TIMELINE[slot].icons.length;
+          return next;
+        });
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: FADE_DURATION_MS,
+          useNativeDriver: true,
+        }).start();
+      });
+
+      activeSlot.current = (activeSlot.current + 1) % TIMELINE.length;
+    }, CYCLE_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [isActive, fadeAnims]);
+
   return (
     <View style={sharedStyles.slide}>
       <View style={sharedStyles.centerContent}>
@@ -71,9 +133,9 @@ export function WelcomeSlide({
                   <Text style={styles.roman}>{item.roman}</Text>
 
                   <View style={styles.iconCircle}>
-                    <Image
-                      source={item.icon}
-                      style={styles.iconImage}
+                    <Animated.Image
+                      source={item.icons[iconIndices[i] % item.icons.length]}
+                      style={[styles.iconImage, { opacity: fadeAnims[i] }]}
                       resizeMode="contain"
                     />
                   </View>
@@ -166,9 +228,9 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 42,
-    backgroundColor: NAVY,
-    borderWidth: 3,
-    borderColor: GOLD,
+
+  
+   
     justifyContent: "center",
     alignItems: "center",
   },
@@ -182,7 +244,7 @@ const styles = StyleSheet.create({
     color: NAVY,
     marginLeft: 18,
     flex: 1,
-    lineHeight: 23,
+    lineHeight: 100,
   },
   connectorWrap: {
     alignItems: "center",
@@ -232,7 +294,7 @@ const styles = StyleSheet.create({
   },
   desc: {
     fontFamily: FONT_BODY,
-    color: TEXT_SECONDARY,
+    color: "#6F8FAF",
     textAlign: "center",
     lineHeight: 24,
     fontSize: 15,

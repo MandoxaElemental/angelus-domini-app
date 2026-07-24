@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   TouchableOpacity,
   Text,
   View,
   ImageBackground,
   StyleSheet,
+  Animated,
 } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width, height } from "../styles/sharedStyles";
@@ -18,6 +19,56 @@ import {
 const NAVY = "#1F3A6E";
 const NAVY_DARK = "#16264A";
 const CARD_BG = "rgba(246, 243, 232, 0.88)"; // #F6F3E8 transparent
+
+// ← ADDED: local fade-up animation (opacity + translateY), used only for the
+// scripture title/subtitle block below. Doesn't touch the shared FadeIn component.
+function FadeInUp({
+  delay = 0,
+  isVisible,
+  distance = 20,
+  duration = 650,
+  style,
+  children,
+}: {
+  delay?: number;
+  isVisible: boolean;
+  distance?: number;
+  duration?: number;
+  style?: any;
+  children: React.ReactNode;
+}) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(distance)).current;
+
+  useEffect(() => {
+    if (isVisible) {
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration,
+          delay,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration,
+          delay,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      opacity.setValue(0);
+      translateY.setValue(distance);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVisible]);
+
+  return (
+    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
 
 type Props = {
   title: string;
@@ -52,12 +103,13 @@ export function ScriptureSlide({
         resizeMode="cover"
       >
         <View style={sharedStyles.centerContent}>
-          <FadeIn delay={180} isVisible={isActive}>
+          {/* ← CHANGED: FadeIn -> FadeInUp for upward fade-in */}
+          <FadeInUp delay={180} isVisible={isActive} distance={24}>
             <Text style={styles.scriptureMain}>{title}</Text>
-          </FadeIn>
-          <FadeIn delay={180} isVisible={isActive}>
+          </FadeInUp>
+          <FadeInUp delay={280} isVisible={isActive} distance={24}>
             <Text style={styles.scriptureItalic}>{subtitle}</Text>
-          </FadeIn>
+          </FadeInUp>
         </View>
 
         <FadeIn delay={1000} isVisible={isActive} style={styles.cardWrap}>
@@ -132,24 +184,23 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: CARD_BG,
     borderRadius: 28,
-    paddingTop: 20, // ← CHANGED from 32 — shifts text block up
+    paddingTop: 20,
     paddingBottom: 32,
     paddingHorizontal: 28,
     alignItems: "center",
-    // ← REMOVED: shadowColor, shadowOffset, shadowOpacity, shadowRadius, elevation
   },
   cardTitle: {
     fontFamily: FONT_TITLE_BOLD,
-    fontSize: 32, // ← CHANGED from 28 — bigger
+    fontSize: 32,
     color: NAVY,
     textAlign: "center",
-    lineHeight: 38, // ← CHANGED from 34 to match new font size
+    lineHeight: 38,
   },
   ornamentRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10, // ← CHANGED from 14 — tighter spacing, moves subtitle up
-    marginBottom: 10, // ← CHANGED from 14
+    marginTop: 10,
+    marginBottom: 10,
     width: 120,
   },
   ornamentLine: {
@@ -164,10 +215,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   cardSubtitle: {
-    fontSize: 17, // ← CHANGED from 15 — bigger
-    color: "#6B7280",
+    fontSize: 17,
+    color: "#6F8FAF",
     textAlign: "center",
-    lineHeight: 24, // ← CHANGED from 22 to match new font size
+    lineHeight: 24,
   },
   dotsRow: {
     flexDirection: "row",

@@ -11,6 +11,14 @@ const BATTERY_ASKED_KEY = "battery_optimization_asked";
 const MODE_KEY = "angelus_mode";
 const SCHEDULED_THIS_LAUNCH_KEY = "angelus_scheduled_this_launch";
 
+// ← ADDED: persisted per-slot toggle preference. This is the single source
+// of truth for "did the user turn this slot off in Settings" — independent
+// of whether the OS notification actually got scheduled (permission may not
+// be granted yet, etc). MainApp / MenuScreen read this (via getAllSlotStates)
+// to decide whether to show "Disabled" in Daily Prayer Progress / Light
+// Through the Day, the same way they already do for angelusMode.
+const SLOT_TOGGLES_KEY = "angelus_slot_toggles";
+
 // ── FIX: module-level in-memory locks ────────────────────────────────────────
 // AsyncStorage is async — two concurrent callers can both read "not scheduled"
 // before either writes "scheduled", stacking duplicate notification sets.
@@ -20,6 +28,10 @@ let _scheduledThisProcess = false;
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type AngelusMode = "all_three" | "noon_only";
+
+// ← ADDED
+export type SlotToggles = { morning: boolean; noon: boolean; evening: boolean };
+const DEFAULT_TOGGLES: SlotToggles = { morning: true, noon: true, evening: true };
 
 const PRAYER_TIMES = [
   {
@@ -58,6 +70,45 @@ export async function getAngelusMode(): Promise<AngelusMode> {
 
 export async function setAngelusMode(mode: AngelusMode): Promise<void> {
   await AsyncStorage.setItem(MODE_KEY, mode);
+}
+
+// ───────────────────────────────────────────────────────────────
+// ← ADDED: Per-slot toggle preference (persisted, independent of mode)
+// ───────────────────────────────────────────────────────────────
+
+export async function getSlotToggles(): Promise<SlotToggles> {
+  try {
+    const raw = await AsyncStorage.getItem(SLOT_TOGGLES_KEY);
+    if (!raw) return { ...DEFAULT_TOGGLES };
+    const parsed = JSON.parse(raw);
+    return {
+      morning: parsed.morning ?? true,
+      noon: parsed.noon ?? true,
+      evening: parsed.evening ?? true,
+    };
+  } catch {
+    return { ...DEFAULT_TOGGLES };
+  }
+}
+
+export async function setSlotToggles(toggles: SlotToggles): Promise<void> {
+  try {
+    await AsyncStorage.setItem(SLOT_TOGGLES_KEY, JSON.stringify(toggles));
+  } catch {}
+}
+
+// ← ADDED: The single call MainApp / MenuScreen use to decide "disabled".
+// Combines angelusMode (noon_only forces morning/evening off) with the
+// user's individual per-slot toggle preference, so both mechanisms that can
+// disable a slot are reflected consistently everywhere in the app.
+export async function getAllSlotStates(): Promise<SlotToggles> {
+  const mode = await getAngelusMode();
+  const toggles = await getSlotToggles();
+  return {
+    morning: mode === "noon_only" ? false : toggles.morning,
+    noon: toggles.noon,
+    evening: mode === "noon_only" ? false : toggles.evening,
+  };
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -214,10 +265,18 @@ export async function scheduleAngelusNotifications(
 
     console.log("[Angelus] Cleared all scheduled notifications.");
 
-    const prayers =
-      currentMode === "noon_only"
-        ? PRAYER_TIMES.filter((p) => p.hour === 12)
-        : PRAYER_TIMES;
+    // ← CHANGED: also respect individual slot toggles when (re)scheduling
+    // the full set, not just the mode. Previously calling this with
+    // force=true (e.g. "Enable All") would re-schedule every hour allowed
+    // by mode regardless of any slot the user had individually turned off.
+    const toggles = await getSlotToggles();
+
+    const prayers = PRAYER_TIMES.filter((p) => {
+      if (currentMode === "noon_only" && p.hour !== 12) return false;
+      if (p.hour === 6) return toggles.morning;
+      if (p.hour === 12) return toggles.noon;
+      return toggles.evening;
+    });
 
     for (const { hour, minute, label, body } of prayers) {
       const request: Notifications.NotificationRequestInput = {
