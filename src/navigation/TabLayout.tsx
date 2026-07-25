@@ -98,13 +98,12 @@ export default function TabLayout({
   onLogout,
   initialNotificationRoute,
 }: Props) {
-  // const initialRouteName =
-  //   initialNotificationRoute?.screen === "Prayer" ? "Prayer" : "Tabs";
-
+  const initialRouteName =
+    initialNotificationRoute?.screen === "Prayer" ? "Prayer" : "Tabs";
   return (
     <Stack.Navigator
       screenOptions={{ headerShown: false }}
-      initialRouteName="Tabs"
+      initialRouteName={initialRouteName}
     >
       <Stack.Screen name="Tabs">
         {() => <TabNavigator onLogout={onLogout} />}

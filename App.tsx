@@ -316,14 +316,20 @@ export default function App() {
             onReady={() => {
               navigationReady.current = true;
 
-              if (launchNotificationRoute && navigationRef.current) {
-                navigationRef.current.navigate(
-                  launchNotificationRoute.screen,
-                  launchNotificationRoute.params,
-                );
+              // if (
+              //   launchNotificationRoute &&
+              //   navigationRef.current &&
+              //   !didNavigateFromNotification.current
+              // ) {
+              //   didNavigateFromNotification.current = true;
 
-                setLaunchNotificationRoute(null);
-              }
+              //   navigationRef.current.navigate(
+              //     launchNotificationRoute.screen,
+              //     launchNotificationRoute.params,
+              //   );
+
+              //   setLaunchNotificationRoute(null);
+              // }
             }}
             onStateChange={() => {
               navigationReady.current =

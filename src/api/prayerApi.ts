@@ -12,6 +12,7 @@ import {
   saveCurrentSession,
   upsertOfflineSession,
   OfflinePrayerSession,
+  getOfflineSessionBySessionId,
 } from "../storage/offlineStorage";
 
 import { syncOfflinePrayers } from "../../services/syncOfflinePrayers";
@@ -167,6 +168,9 @@ export const completePrayer = async (
   let session = await loadCurrentSession();
 
   if (!session || session.sessionId !== sessionId) {
+    session = await getOfflineSessionBySessionId(sessionId);
+  }
+  if (!session || session.sessionId !== sessionId) {
     console.warn("Session mismatch during completion", {
       passedSessionId: sessionId,
       storedSessionId: session?.sessionId,
@@ -177,6 +181,8 @@ export const completePrayer = async (
   if (session) {
     session.completed = true;
     session.completedAt = completedAt;
+    session.synced = false;
+
     await saveCurrentSession(session);
     await upsertOfflineSession(session);
   }

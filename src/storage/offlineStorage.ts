@@ -59,6 +59,13 @@ export async function upsertOfflineSession(session: OfflinePrayerSession) {
   }
 
   await saveOfflineSessions(sessions);
+
+  // Keep current session synchronized
+  const current = await loadCurrentSession();
+
+  if (!current || current.sessionId === session.sessionId) {
+    await saveCurrentSession(session);
+  }
 }
 
 export async function pruneOfflineSessions(currentSlot: string) {
@@ -67,8 +74,7 @@ export async function pruneOfflineSessions(currentSlot: string) {
   const currentDate = currentSlot.split("_")[0];
 
   const todaysSessions = sessions.filter((session) => {
-    const sessionDate = session.slot.split("_")[0];
-    return sessionDate === currentDate;
+    return session.synced || session.slot.split("_")[0] === currentDate;
   });
 
   await saveOfflineSessions(todaysSessions);
@@ -85,4 +91,10 @@ export async function initializeOfflineStorage() {
   }
 
   await pruneOfflineSessions(slot);
+}
+
+export async function getOfflineSessionBySessionId(sessionId: string) {
+  const sessions = await loadOfflineSessions();
+
+  return sessions.find((s) => s.sessionId === sessionId) ?? null;
 }
