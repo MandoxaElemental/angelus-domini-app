@@ -19,6 +19,12 @@ import { syncOfflinePrayers } from "../../services/syncOfflinePrayers";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { getUserTimezone } from "../utils/timezone";
 
+export async function isOnline(): Promise<boolean> {
+  const net = await NetInfo.fetch();
+
+  return net.isConnected === true && net.isInternetReachable !== false;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type PrayerSession = {
@@ -65,6 +71,26 @@ export const startPrayer = async (
 
   if (localSession && !localSession.completed) {
     return localSession;
+  }
+
+  const online = await isOnline();
+
+  if (!online) {
+    const session: OfflinePrayerSession = {
+      userId,
+      sessionId: uuidv4(),
+      prayerTypeId: 1,
+      scheduledTime,
+      slot,
+      completed: false,
+      synced: false,
+      createdAt: now,
+    };
+
+    await saveCurrentSession(session);
+    await upsertOfflineSession(session);
+
+    return session;
   }
 
   try {
@@ -178,13 +204,18 @@ export const completePrayer = async (
 
     return;
   }
-  if (session) {
-    session.completed = true;
-    session.completedAt = completedAt;
-    session.synced = false;
+  session.completed = true;
+  session.completedAt = completedAt;
+  session.synced = false;
 
-    await saveCurrentSession(session);
-    await upsertOfflineSession(session);
+  await saveCurrentSession(session);
+  await upsertOfflineSession(session);
+
+  const online = await isOnline();
+
+  if (!online) {
+    await Notifications.dismissAllNotificationsAsync();
+    return;
   }
 
   try {
@@ -222,14 +253,10 @@ export const completePrayer = async (
     }
   }
 
-  const net = await NetInfo.fetch();
-
-  if (net.isConnected && net.isInternetReachable !== false) {
+  if (await isOnline()) {
     try {
       await syncOfflinePrayers(userId);
-    } catch {
-      // keep offline copy
-    }
+    } catch {}
   }
   await Notifications.dismissAllNotificationsAsync();
 };
