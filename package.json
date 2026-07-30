@@ -10,6 +10,7 @@
     "build:web": "expo export --platform web"
   },
   "dependencies": {
+    "@date-fns/tz": "^1.5.0",
     "@expo-google-fonts/cormorant-garamond": "^0.4.1",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/playfair-display": "^0.4.2",
