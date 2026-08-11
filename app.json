@@ -2,7 +2,7 @@
   "expo": {
     "name": "Angelus Domini",
     "slug": "angelus-domini",
-    "version": "1.2.4",
+    "version": "1.2.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -57,9 +57,7 @@
         "projectId": "e8c613d8-e954-40b4-b1fc-579a2774b5fb"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/e8c613d8-e954-40b4-b1fc-579a2774b5fb"
     }
