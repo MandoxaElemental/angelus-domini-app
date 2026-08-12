@@ -20,6 +20,7 @@ import {
   FONT_BODY_SEMIBOLD,
   FONT_TITLE_BOLD,
 } from "../../../lib/constants/fonts";
+import { SectionHeader } from "../../sectionHeader";
 
 const NAVY = "#1F3A6E";
 const NAVY_DARK = "#16264A";
@@ -159,11 +160,7 @@ export function WelcomeSlide({
 
         {/* Ornament divider */}
         <FadeIn delay={650} isVisible={isActive}>
-          <View style={styles.ornamentRow}>
-            <View style={styles.ornamentLine} />
-            <Text style={styles.ornamentMark}>✦</Text>
-            <View style={styles.ornamentLine} />
-          </View>
+          <SectionHeader />
         </FadeIn>
 
         {/* Description */}
