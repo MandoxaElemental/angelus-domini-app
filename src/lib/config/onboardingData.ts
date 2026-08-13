@@ -38,16 +38,16 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
       },
     ],
   },
-  {
-    id: 4,
-    type: "bells",
-    title: "Hear the Bells",
-    description:
-      "Your phone rings like Church\nBells when it's time to pray the\nAngelus.",
-    illustration: require("../../../assets/notificationsbg.png"),
-    buttonText: "Continue",
-    isNotificationSlide: false,
-  },
+  // {
+  //   id: 4,
+  //   type: "bells",
+  //   title: "Hear the Bells",
+  //   description:
+  //     "Your phone rings like Church\nBells when it's time to pray the\nAngelus.",
+  //   illustration: require("../../../assets/notificationsbg.png"),
+  //   buttonText: "Continue",
+  //   isNotificationSlide: false,
+  // },
   {
     id: 5,
     type: "community",
