@@ -21,6 +21,13 @@ export const sharedStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  church: {
+    width,
+    height,
+    backgroundColor: "#6E87AF",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   centerContent: {
     flex: 1,
     alignItems: "center",

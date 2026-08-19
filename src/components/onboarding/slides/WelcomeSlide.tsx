@@ -8,57 +8,40 @@ import {
   StyleSheet,
 } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
-import { sharedStyles } from "../styles/sharedStyles";
-import {
-  BLUE,
-  GOLD,
-  IVORY,
-  TEXT_SECONDARY,
-} from "../../../lib/constants/colors";
+import { sharedStyles, height } from "../styles/sharedStyles";
+import { BLUE, GOLD, IVORY } from "../../../lib/constants/colors";
 import {
   FONT_BODY,
   FONT_BODY_SEMIBOLD,
   FONT_TITLE_BOLD,
 } from "../../../lib/constants/fonts";
 import { SectionHeader } from "../../sectionHeader";
+import { OnboardingCard } from "./SectionCard";
 
 const NAVY = "#1F3A6E";
 const NAVY_DARK = "#16264A";
+const CARD_BG = "rgba(246, 243, 232, 0.92)";
 
-type Props = {
-  title: string;
-  description: string;
-  prayerTimes: string[]; // e.g. ["Morning Angelus", "Noon Angelus", "Evening Angelus"]
-  isActive: boolean;
-  onNext: () => void;
-  onSkip: () => void;
-  dotCount?: number;
-  activeDotIndex?: number;
-};
-
-// ← Each slot now takes an ARRAY of icons. Add as many images as you like per
-//    slot — all three slots will crossfade to their next image together every
-//    3 seconds. Replace the placeholder require(...) paths with your own files.
 const TIMELINE = [
   {
     roman: "VI",
     icons: [
-      require("../../../../assets/Morning_Clear.png"), // ← TODO: replace with alt image
-      require("../../../../assets/Morning_Solid.png"), // ← your current sunrise icon
+      require("../../../../assets/Morning_Clear.png"),
+      require("../../../../assets/Morning_Solid.png"),
     ],
   },
   {
     roman: "XII",
     icons: [
-      require("../../../../assets/Noon_Clear.png"), // ← TODO: replace with alt image
-      require("../../../../assets/Noon_Solid.png"), // ← your current sun icon
+      require("../../../../assets/Noon_Clear.png"),
+      require("../../../../assets/Noon_Solid.png"),
     ],
   },
   {
     roman: "VI",
     icons: [
-      require("../../../../assets/Evening_Clear.png"), // ← TODO: replace with alt image
-      require("../../../../assets/Evening_Solid.png"), // ← your current moon icon
+      require("../../../../assets/Evening_Clear.png"),
+      require("../../../../assets/Evening_Solid.png"),
     ],
   },
 ];
@@ -66,14 +49,24 @@ const TIMELINE = [
 const CYCLE_INTERVAL_MS = 1700;
 const FADE_DURATION_MS = 400;
 
+type Props = {
+  title: string;
+  description: string;
+  prayerTimes: string[];
+  isActive: boolean;
+  onNext: () => void;
+  onSkip: () => void;
+  dotCount?: number;
+  activeDotIndex?: number;
+};
+
 export function WelcomeSlide({
   title,
   description,
   prayerTimes,
   isActive,
   onNext,
-  onSkip,
-  dotCount = 6,
+  dotCount = 5,
   activeDotIndex = 1,
 }: Props) {
   const labels =
@@ -82,12 +75,30 @@ export function WelcomeSlide({
       : ["Morning\nAngelus", "Noon\nAngelus", "Evening\nAngelus"];
 
   const [iconIndices, setIconIndices] = useState([0, 0, 0]);
+
   const fadeAnims = useRef([
     new Animated.Value(1),
     new Animated.Value(1),
     new Animated.Value(1),
   ]).current;
+
   const activeSlot = useRef(0);
+
+  // Card slide-up animation
+  const cardTranslateY = useRef(new Animated.Value(80)).current;
+
+  useEffect(() => {
+    if (isActive) {
+      Animated.spring(cardTranslateY, {
+        toValue: 0,
+        tension: 65,
+        friction: 9,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      cardTranslateY.setValue(80);
+    }
+  }, [isActive, cardTranslateY]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -106,6 +117,7 @@ export function WelcomeSlide({
           next[slot] = (next[slot] + 1) % TIMELINE[slot].icons.length;
           return next;
         });
+
         Animated.timing(anim, {
           toValue: 1,
           duration: FADE_DURATION_MS,
@@ -121,8 +133,8 @@ export function WelcomeSlide({
 
   return (
     <View style={sharedStyles.slide}>
-      <View style={sharedStyles.centerContent}>
-        {/* Timeline */}
+      {/* Timeline artwork */}
+      <View style={styles.artwork}>
         <FadeIn delay={100} isVisible={isActive}>
           <View style={styles.timeline}>
             {TIMELINE.map((item, i) => (
@@ -152,64 +164,40 @@ export function WelcomeSlide({
             ))}
           </View>
         </FadeIn>
-
-        {/* Title */}
-        <FadeIn delay={500} isVisible={isActive}>
-          <Text style={styles.title}>{title}</Text>
-        </FadeIn>
-
-        {/* Ornament divider */}
-        <FadeIn delay={650} isVisible={isActive}>
-          <SectionHeader />
-        </FadeIn>
-
-        {/* Description */}
-        <FadeIn delay={750} isVisible={isActive}>
-          <Text style={styles.desc}>{description}</Text>
-        </FadeIn>
       </View>
 
-      <View style={sharedStyles.navArea}>
-        {/* Dots */}
-        <View style={styles.dotsRow}>
-          {Array.from({ length: dotCount }).map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                i === activeDotIndex ? styles.dotActive : styles.dotInactive,
-              ]}
-            />
-          ))}
-        </View>
-
-        {/* Continue button */}
-        <FadeIn delay={950} isVisible={isActive} style={sharedStyles.ctaWrap}>
-          <TouchableOpacity
-            onPress={onNext}
-            style={[sharedStyles.primaryBtn, { backgroundColor: NAVY_DARK }]}
-          >
-            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
-              Continue
-            </Text>
-          </TouchableOpacity>
-        </FadeIn>
-      </View>
+      <OnboardingCard
+        title={title}
+        description={description}
+        isActive={isActive}
+        onNext={onNext}
+        dotCount={dotCount}
+        activeDotIndex={activeDotIndex}
+        delay={500}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  artwork: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: height * 0.28,
+  },
+
   timeline: {
     alignItems: "center",
-    marginBottom: 36,
   },
+
   timelineRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     width: 250,
   },
+
   roman: {
     fontFamily: FONT_TITLE_BOLD,
     fontSize: 32,
@@ -218,18 +206,19 @@ const styles = StyleSheet.create({
     textAlign: "right",
     marginRight: 18,
   },
+
   iconCircle: {
     width: 84,
     height: 84,
-    borderRadius: 42,
-
     justifyContent: "center",
     alignItems: "center",
   },
+
   iconImage: {
     width: 120,
     height: 120,
   },
+
   timelineLabel: {
     fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 18,
@@ -238,18 +227,20 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 100,
   },
+
   connectorWrap: {
     alignItems: "center",
-    marginLeft: 0,
     height: 44,
     justifyContent: "center",
   },
+
   connectorLine: {
     width: 2,
     flex: 1,
     backgroundColor: GOLD,
     opacity: 0.5,
   },
+
   connectorDot: {
     width: 7,
     height: 7,
@@ -257,6 +248,25 @@ const styles = StyleSheet.create({
     backgroundColor: GOLD,
     marginVertical: 2,
   },
+
+  cardWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+  },
+
+  card: {
+    backgroundColor: CARD_BG,
+    borderRadius: 28,
+    paddingTop: 20,
+    paddingBottom: 28,
+    paddingHorizontal: 28,
+    alignItems: "center",
+  },
+
   title: {
     fontFamily: FONT_BODY_SEMIBOLD,
     fontSize: 40,
@@ -267,24 +277,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     marginBottom: 10,
   },
-  ornamentRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 14,
-    marginBottom: 14,
-    width: 130,
-  },
-  ornamentLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: GOLD,
-    opacity: 0.6,
-  },
-  ornamentMark: {
-    color: GOLD,
-    fontSize: 14,
-    marginHorizontal: 8,
-  },
+
   desc: {
     fontFamily: FONT_BODY,
     color: "#6F8FAF",
@@ -292,24 +285,44 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontSize: 20,
   },
+
   dotsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
+    marginTop: 22,
+    marginBottom: 24,
   },
+
   dot: {
     borderRadius: 5,
     marginHorizontal: 4,
   },
+
   dotActive: {
     width: 9,
     height: 9,
     backgroundColor: NAVY,
   },
+
   dotInactive: {
     width: 7,
     height: 7,
     backgroundColor: "#D9DCE3",
+  },
+
+  continueBtn: {
+    width: "100%",
+    backgroundColor: NAVY_DARK,
+    borderRadius: 100,
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+
+  continueText: {
+    color: IVORY,
+    fontSize: 17,
+    fontWeight: "600",
+    letterSpacing: 0.3,
   },
 });

@@ -17,6 +17,7 @@ import {
   FONT_TITLE_ITALIC,
 } from "../../../lib/constants/fonts";
 import { SectionHeader } from "../../sectionHeader";
+import { OnboardingCard } from "./SectionCard";
 
 const NAVY = "#1F3A6E";
 const NAVY_DARK = "#16264A";
@@ -88,11 +89,39 @@ export function ScriptureSlide({
   subtitle,
   welcomeTitle = "Welcome to\nAngelus Domini",
   welcomeSubtitle = "Join Catholics around the world\npraying the Angelus each day.",
-  dotCount = 6,
+  dotCount = 5,
   activeDotIndex = 0,
   isActive,
   onPress,
 }: Props) {
+  const cardTranslateY = useRef(new Animated.Value(300)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isActive) {
+      cardTranslateY.setValue(300);
+      cardOpacity.setValue(0);
+
+      Animated.parallel([
+        Animated.timing(cardTranslateY, {
+          toValue: 0,
+          duration: 1200,
+          delay: 2700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardOpacity, {
+          toValue: 1,
+          duration: 700,
+          delay: 2700,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      cardTranslateY.setValue(300);
+      cardOpacity.setValue(0);
+    }
+  }, [isActive, cardTranslateY, cardOpacity]);
+
   return (
     <TouchableOpacity
       activeOpacity={1}
@@ -106,45 +135,32 @@ export function ScriptureSlide({
       >
         <View style={sharedStyles.centerContent}>
           {/* ← CHANGED: FadeIn -> FadeInUp for upward fade-in */}
-          <FadeInUp delay={180} isVisible={isActive} distance={24}>
+          <FadeInUp delay={1000} isVisible={isActive} distance={24}>
             <Text style={styles.scriptureMain}>{title}</Text>
           </FadeInUp>
-          <FadeInUp delay={280} isVisible={isActive} distance={24}>
+          <FadeInUp delay={1900} isVisible={isActive} distance={24}>
             <Text style={styles.scriptureItalic}>{subtitle}</Text>
           </FadeInUp>
         </View>
-
-        <FadeIn delay={1000} isVisible={isActive} style={styles.cardWrap}>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{welcomeTitle}</Text>
-
-            <SectionHeader />
-
-            <Text style={styles.cardSubtitle}>{welcomeSubtitle}</Text>
-
-            <View style={styles.dotsRow}>
-              {Array.from({ length: dotCount }).map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.dot,
-                    i === activeDotIndex
-                      ? styles.dotActive
-                      : styles.dotInactive,
-                  ]}
-                />
-              ))}
-            </View>
-
-            <TouchableOpacity
-              onPress={onPress}
-              activeOpacity={0.85}
-              style={styles.continueBtn}
-            >
-              <Text style={styles.continueText}>Continue</Text>
-            </TouchableOpacity>
-          </View>
-        </FadeIn>
+        <Animated.View
+          style={[
+            styles.cardAnimation,
+            {
+              opacity: cardOpacity,
+              transform: [{ translateY: cardTranslateY }],
+            },
+          ]}
+        >
+          <OnboardingCard
+            title={"Welcome to\nAngelus Domini"}
+            description={
+              "Join Catholics around the world\npraying the Angelus each day."
+            }
+            isActive={isActive}
+            onNext={onPress}
+            activeDotIndex={0}
+          />
+        </Animated.View>
       </ImageBackground>
     </TouchableOpacity>
   );
@@ -166,13 +182,10 @@ const styles = StyleSheet.create({
     fontFamily: FONT_TITLE_ITALIC,
     fontSize: 34,
     fontStyle: "italic",
-    color: "#FFE6A7",
+    color: GOLD,
     textAlign: "center",
     marginTop: -175,
     letterSpacing: 0.2,
-    textShadowColor: "rgba(0,0,0,0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
   },
   cardWrap: {
     position: "absolute",
@@ -247,7 +260,7 @@ const styles = StyleSheet.create({
   continueBtn: {
     width: "100%",
     backgroundColor: NAVY_DARK,
-    borderRadius: 14,
+    borderRadius: 100,
     paddingVertical: 16,
     alignItems: "center",
   },
@@ -256,5 +269,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "600",
     letterSpacing: 0.3,
+  },
+  cardAnimation: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 });

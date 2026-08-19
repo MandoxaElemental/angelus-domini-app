@@ -10,16 +10,15 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
   {
     id: 2,
     type: "welcome",
-    title: "Welcome to\nAngelus Domini",
-    description:
-      "Join Catholics around the world praying the Angelus each day.",
+    title: "Set your\nDaily Rhythm",
+    description: "Pause with the Church at the\ntraditional hours of prayer.",
     prayerTimes: ["6 AM", "12 PM", "6 PM"],
   },
   {
     id: 3,
     type: "rhythm",
-    title: "Set your\nDaily Rhythm",
-    description: "Pause with the Church at the\ntraditional hours of prayer.",
+    title: "Let the Bells Remind You",
+    description: `Receive a gentle reminder when\n it’s time to pray the Angelus.`,
     slots: [
       {
         label: "Morning",
@@ -38,33 +37,23 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
       },
     ],
   },
-  // {
-  //   id: 4,
-  //   type: "bells",
-  //   title: "Hear the Bells",
-  //   description:
-  //     "Your phone rings like Church\nBells when it's time to pray the\nAngelus.",
-  //   illustration: require("../../../assets/notificationsbg.png"),
-  //   buttonText: "Continue",
-  //   isNotificationSlide: false,
-  // },
   {
-    id: 5,
+    id: 4,
     type: "community",
     title: "United in \n Prayer Around \nthe World",
     description: "See how many prayed the Angelus with you across the world.",
     buttonText: "Continue",
   },
   {
-    id: 6,
+    id: 5,
     type: "meditation",
     title: "A Meditation\non the \n Incarnation",
     description: "Build the spiritual discipline of\nprayer at 6, 12 and 6.",
   },
   {
-    id: 7,
+    id: 6,
     type: "begin",
     title: "Begin with the\nAngelus",
-    tagline: "Pause. Listen and Pray.",
+    tagline: "Pause. Listen. Pray.",
   },
 ];

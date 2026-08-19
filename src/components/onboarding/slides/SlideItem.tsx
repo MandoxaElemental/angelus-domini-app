@@ -3,7 +3,6 @@ import { SlideItemProps } from "../../../lib/types/onboarding";
 import { ScriptureSlide } from "./ScriptureSlide";
 import { WelcomeSlide } from "./WelcomeSlide";
 import { RhythmSlide } from "./RhythmSlide";
-import { BellsSlide } from "./BellsSlide";
 import { CommunitySlide } from "./CommunitySlide";
 import { MeditationSlide } from "./MeditationSlide";
 import { BeginSlide } from "./BeginSlide";
@@ -47,18 +46,6 @@ export function SlideItem({
         <RhythmSlide
           title={s.title}
           description={s.description}
-          isActive={isActive}
-          onNext={onNext}
-        />
-      );
-
-    case "bells":
-      return (
-        <BellsSlide
-          title={s.title}
-          description={s.description}
-          illustration={s.illustration}
-          buttonText={s.buttonText}
           isActive={isActive}
           onNext={onNext}
         />

@@ -5,6 +5,7 @@ import { sharedStyles, width } from "../styles/sharedStyles";
 import { BLUE, GOLD, IVORY } from "../../../lib/constants/colors";
 import { FONT_BODY, FONT_BODY_SEMIBOLD } from "../../../lib/constants/fonts";
 import { SectionHeader } from "../../sectionHeader";
+import { OnboardingCard } from "./SectionCard";
 
 const NAVY_DARK = "#16264A";
 
@@ -22,8 +23,8 @@ export function MeditationSlide({
   description,
   isActive,
   onNext,
-  dotCount = 6,
-  activeDotIndex = 5,
+  dotCount = 5,
+  activeDotIndex = 4,
 }: Props) {
   // OLD title sizing
   const titleFontSize = width < 375 ? 30 : 34;
@@ -49,49 +50,13 @@ export function MeditationSlide({
           />
         </FadeIn>
 
-        {/* Title */}
-        <FadeIn delay={480} isVisible={isActive} style={{ marginTop: -8 }}>
-          <Text style={[styles.title, { fontSize: titleFontSize }]}>
-            {title}
-          </Text>
-        </FadeIn>
-
-        {/* Ornament divider */}
-        <FadeIn delay={620} isVisible={isActive}>
-          <SectionHeader />
-        </FadeIn>
-
-        {/* Description */}
-        <FadeIn delay={740} isVisible={isActive}>
-          <Text style={styles.desc}>{description}</Text>
-        </FadeIn>
-      </View>
-
-      <View style={sharedStyles.navArea}>
-        {/* Dots */}
-        <View style={styles.dotsRow}>
-          {Array.from({ length: dotCount }).map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                i === activeDotIndex ? styles.dotActive : styles.dotInactive,
-              ]}
-            />
-          ))}
-        </View>
-
-        {/* Continue button */}
-        <FadeIn delay={900} isVisible={isActive} style={sharedStyles.ctaWrap}>
-          <TouchableOpacity
-            onPress={onNext}
-            style={[sharedStyles.primaryBtn, { backgroundColor: NAVY_DARK }]}
-          >
-            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
-              Continue
-            </Text>
-          </TouchableOpacity>
-        </FadeIn>
+        <OnboardingCard
+          title={title}
+          description={description}
+          isActive={isActive}
+          onNext={onNext}
+          activeDotIndex={activeDotIndex}
+        />
       </View>
     </View>
   );
@@ -101,7 +66,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
     marginBottom: 30,
   },
 

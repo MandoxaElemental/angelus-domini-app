@@ -16,6 +16,7 @@ import {
 } from "../../../lib/constants/fonts";
 import { supabase } from "../../../lib/supabaseClient";
 import { SectionHeader } from "../../sectionHeader";
+import { OnboardingCard } from "./SectionCard";
 
 const NAVY_DARK = "#16264A";
 
@@ -33,7 +34,7 @@ export function CommunitySlide({
   description,
   isActive,
   onNext,
-  dotCount = 6,
+  dotCount = 5,
   activeDotIndex = 3,
 }: Props) {
   function getPrayerDay() {
@@ -120,48 +121,13 @@ export function CommunitySlide({
           </View>
         </FadeIn>
 
-        {/* Title */}
-        <FadeIn delay={480} isVisible={isActive}>
-          <Text style={styles.title}>{title}</Text>
-        </FadeIn>
-
-        {/* Ornament */}
-        <FadeIn delay={620} isVisible={isActive}>
-          <SectionHeader />
-        </FadeIn>
-
-        {/* Description */}
-        <FadeIn delay={740} isVisible={isActive}>
-          <Text style={styles.desc}>{description}</Text>
-        </FadeIn>
-      </View>
-
-      {/* Navigation */}
-      <View style={sharedStyles.navArea}>
-        {/* Dots */}
-        <View style={styles.dotsRow}>
-          {Array.from({ length: dotCount }).map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                i === activeDotIndex ? styles.dotActive : styles.dotInactive,
-              ]}
-            />
-          ))}
-        </View>
-
-        {/* Continue */}
-        <FadeIn delay={940} isVisible={isActive} style={sharedStyles.ctaWrap}>
-          <TouchableOpacity
-            onPress={onNext}
-            style={[sharedStyles.primaryBtn, { backgroundColor: NAVY_DARK }]}
-          >
-            <Text style={[sharedStyles.primaryText, { color: IVORY }]}>
-              Continue
-            </Text>
-          </TouchableOpacity>
-        </FadeIn>
+        <OnboardingCard
+          title={title}
+          description={description}
+          isActive={isActive}
+          onNext={onNext}
+          activeDotIndex={activeDotIndex}
+        />
       </View>
     </View>
   );
@@ -171,9 +137,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
     paddingHorizontal: 28,
-    paddingTop: 20,
+    paddingTop: 30,
     gap: 12,
   },
 
@@ -196,6 +161,7 @@ const styles = StyleSheet.create({
 
   counterCard: {
     marginTop: -24,
+    width: "100%",
     backgroundColor: "#F5F2E7",
     borderRadius: 18,
     paddingTop: 14,
