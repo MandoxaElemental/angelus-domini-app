@@ -17,11 +17,15 @@ import NetInfo from "@react-native-community/netinfo";
 
 import { getPrayerStatus, PrayerStatus } from "../utils/prayer";
 
-import { completePrayer, getGlobalCount, startPrayer } from "../api/prayerApi";
+import { getGlobalCount, startPrayer } from "../api/prayerApi";
 
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
-import { getAngelusMode, AngelusMode } from "../services/notificationService";
+import {
+  getAngelusMode,
+  AngelusMode,
+  getCustomNotificationTimes,
+} from "../services/notificationService";
 import {
   loadOfflineSessions,
   saveOfflineSessions,
@@ -90,6 +94,17 @@ export default function MainApp() {
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
   const [angelusMode, setAngelusMode] = useState<AngelusMode>("all_three");
+  type CustomTimes = {
+    morning: boolean;
+    noon: boolean;
+    evening: boolean;
+  };
+
+  const [customTimes, setCustomTimes] = useState<CustomTimes>({
+    morning: true,
+    noon: true,
+    evening: true,
+  });
   const [fontsLoaded] = useFonts({
     CormorantGaramond: require("../../assets/fonts/CormorantGaramond.ttf"),
     EBGaramond: require("../../assets/fonts/EBGaramond.ttf"),
@@ -571,8 +586,27 @@ export default function MainApp() {
       const m = now.getMinutes();
       const date = now.toDateString();
 
-      const allowedHours = angelusMode === "noon_only" ? [12] : [6, 12, 18];
+      let allowedHours: number[];
 
+      if (angelusMode === "noon_only") {
+        allowedHours = [12];
+      } else if (angelusMode === "custom") {
+        allowedHours = [];
+
+        if (customTimes.morning) {
+          allowedHours.push(6);
+        }
+
+        if (customTimes.noon) {
+          allowedHours.push(12);
+        }
+
+        if (customTimes.evening) {
+          allowedHours.push(18);
+        }
+      } else {
+        allowedHours = [6, 12, 18];
+      }
       const isPrayerHour = allowedHours.includes(h);
       if (!isPrayerHour || m !== 0) return;
 
@@ -629,6 +663,7 @@ export default function MainApp() {
     userId,
     navigation,
     angelusMode,
+    customTimes,
     timezone,
     refreshPendingSyncCount,
     queueRefresh,
@@ -671,19 +706,34 @@ export default function MainApp() {
   // LOGOUT
   // ─────────────────────────────────────────────────────────────
 
+  const morningEnabled =
+    angelusMode === "all_three" ||
+    (angelusMode === "custom" && customTimes.morning);
+
+  const noonEnabled =
+    angelusMode === "all_three" ||
+    angelusMode === "noon_only" ||
+    (angelusMode === "custom" && customTimes.noon);
+
+  const eveningEnabled =
+    angelusMode === "all_three" ||
+    (angelusMode === "custom" && customTimes.evening);
+
   const morningStatus = prayersLoading
     ? "loading"
-    : angelusMode === "noon_only"
+    : !morningEnabled
       ? "disabled"
       : getPrayerStatus("morning", completedPrayers.morning);
 
   const noonStatus = prayersLoading
     ? "loading"
-    : getPrayerStatus("noon", completedPrayers.noon);
+    : !noonEnabled
+      ? "disabled"
+      : getPrayerStatus("noon", completedPrayers.noon);
 
   const eveningStatus = prayersLoading
     ? "loading"
-    : angelusMode === "noon_only"
+    : !eveningEnabled
       ? "disabled"
       : getPrayerStatus("evening", completedPrayers.evening);
 
@@ -710,6 +760,23 @@ export default function MainApp() {
 
         if (mounted) {
           setAngelusMode(mode);
+
+          if (mode === "custom") {
+            const savedCustomTimes = await getCustomNotificationTimes();
+            setCustomTimes(savedCustomTimes);
+          } else if (mode === "noon_only") {
+            setCustomTimes({
+              morning: false,
+              noon: true,
+              evening: false,
+            });
+          } else {
+            setCustomTimes({
+              morning: true,
+              noon: true,
+              evening: true,
+            });
+          }
         }
 
         if (userId) {
@@ -1114,14 +1181,12 @@ const ProgressCard = React.memo(function ProgressCard({
             },
           ]}
         >
-          {!isSmallScreen && (
-            <Ionicons
-              name={statusConfig.icon as any}
-              size={18}
-              color={statusConfig.iconColor}
-              style={{ marginRight: 5 }}
-            />
-          )}
+          <Ionicons
+            name={statusConfig.icon as any}
+            size={18}
+            color={statusConfig.iconColor}
+            style={{ marginRight: 5 }}
+          />
 
           <Text
             style={[

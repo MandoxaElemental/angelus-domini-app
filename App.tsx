@@ -106,6 +106,18 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    if (!navigationReady.current || !navigationRef.current) return;
+    if (!launchNotificationRoute) return;
+
+    navigationRef.current.navigate(
+      launchNotificationRoute.screen,
+      launchNotificationRoute.params,
+    );
+
+    setLaunchNotificationRoute(null);
+  }, [launchNotificationRoute]);
+
   // useEffect(() => {
   //   const unsubscribe = NetInfo.addEventListener(async (state) => {
   //     if (state.isConnected && state.isInternetReachable !== false) {
@@ -315,13 +327,6 @@ export default function App() {
             ref={navigationRef}
             onReady={() => {
               navigationReady.current = true;
-              // if (launchNotificationRoute && navigationRef.current) {
-              //   navigationRef.current.navigate(
-              //     launchNotificationRoute.screen,
-              //     launchNotificationRoute.params,
-              //   );
-              //   setLaunchNotificationRoute(null);
-              // }
             }}
             onStateChange={() => {
               navigationReady.current =

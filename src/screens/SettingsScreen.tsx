@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,6 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { logout } from "../store/auth";
 import { supabase } from "../lib/supabaseClient";
@@ -24,6 +23,11 @@ import {
   AngelusMode,
   getAngelusMode,
   setAngelusMode,
+  requestNotificationPermission,
+  scheduleAngelusNotifications,
+  cancelAngelusNotifications,
+  getCustomNotificationTimes,
+  setCustomNotificationTimes,
 } from "../services/notificationService";
 import { useFonts } from "expo-font";
 
@@ -37,18 +41,23 @@ const COLORS = {
   border: "#E7DCCB",
 };
 
-const NOTIF_IDS_KEY = "angelus_notif_ids";
 const LANGUAGE_KEY = "angelus_language";
 
 type AngelusTime = "morning" | "noon" | "evening";
 
-const ANGELUS_CONFIG: Record<
-  AngelusTime,
-  { label: string; time: string; hour: number; minute: number }
-> = {
-  morning: { label: "Morning Angelus", time: "6:00 AM", hour: 6, minute: 0 },
-  noon: { label: "Noon Angelus", time: "12:00 PM", hour: 12, minute: 0 },
-  evening: { label: "Evening Angelus", time: "6:00 PM", hour: 18, minute: 0 },
+const ANGELUS_CONFIG: Record<AngelusTime, { label: string; time: string }> = {
+  morning: {
+    label: "Morning Angelus",
+    time: "6:00 AM",
+  },
+  noon: {
+    label: "Noon Angelus",
+    time: "12:00 PM",
+  },
+  evening: {
+    label: "Evening Angelus",
+    time: "6:00 PM",
+  },
 };
 
 const LANGUAGES = [
@@ -163,71 +172,7 @@ const LANGUAGES = [
   { code: "zu", name: "Zulu", native: "isiZulu" },
 ];
 
-// Configure how notifications appear when the app is in the foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
-// ─── Permission helper ─────────────────────────────────────────────────────────
-async function requestPermissions(): Promise<boolean> {
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("angelus-bells", {
-      name: "Angelus Prayers",
-      importance: Notifications.AndroidImportance.HIGH,
-      sound: "default",
-      vibrationPattern: [0, 250, 250, 250],
-    });
-  }
-
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  if (existing === "granted") return true;
-
-  const { status } = await Notifications.requestPermissionsAsync();
-  return status === "granted";
-}
-
-async function scheduleAngelus(key: AngelusTime): Promise<string> {
-  const cfg = ANGELUS_CONFIG[key];
-  const id = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: `🔔 ${cfg.label}`,
-      body: "The bells are calling you to prayer. Tap to pray the Angelus.",
-      sound: "default",
-      data: { screen: "Prayer", autoPlay: true },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: cfg.hour,
-      minute: cfg.minute,
-      channelId: Platform.OS === "android" ? "angelus-bells" : undefined,
-    } as any,
-  });
-  return id;
-}
-
-async function cancelNotif(id: string | null) {
-  if (id) await Notifications.cancelScheduledNotificationAsync(id);
-}
-
 type StoredIds = Partial<Record<AngelusTime, string>>;
-
-async function loadStoredIds(): Promise<StoredIds> {
-  try {
-    const raw = await AsyncStorage.getItem(NOTIF_IDS_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-async function saveStoredIds(ids: StoredIds) {
-  await AsyncStorage.setItem(NOTIF_IDS_KEY, JSON.stringify(ids));
-}
 
 type Props = { onLogout: () => void };
 type TogglesState = Record<AngelusTime, boolean>;
@@ -246,123 +191,124 @@ export default function SettingsScreen({ onLogout }: Props) {
     noon: true,
     evening: true,
   });
-  const [notifIds, setNotifIds] = useState<StoredIds>({});
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showLangModal, setShowLangModal] = useState(false);
   const [selectedLang, setSelectedLang] = useState("en");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const busyRef = useRef(false);
-  if (busyRef.current) return;
-
-  busyRef.current = true;
-
-  try {
-  } finally {
-    busyRef.current = false;
-  }
 
   const [angelusMode, setAngelusModeState] = useState<AngelusMode>("all_three");
-  useEffect(() => {
-    (async () => {
-      const mode = await getAngelusMode();
-      setAngelusModeState(mode);
-    })();
-  }, []);
+  const [customTimes, setCustomTimes] = useState<Record<AngelusTime, boolean>>({
+    morning: true,
+    noon: true,
+    evening: true,
+  });
 
   const handleAngelusModeChange = async (mode: AngelusMode) => {
-    await setAngelusMode(mode);
-    setAngelusModeState(mode);
+    const granted = await requestNotificationPermission();
 
-    if (mode === "noon_only") {
-      // Cancel morning + evening
+    if (!granted) {
+      return;
+    }
 
-      await cancelNotif(notifIds.morning ?? null);
-      await cancelNotif(notifIds.evening ?? null);
-
-      let noonId = notifIds.noon;
-
-      if (!noonId) {
-        noonId = await scheduleAngelus("noon");
-      }
-
-      const updatedIds = {
-        noon: noonId,
-      };
-
-      setNotifIds(updatedIds);
-
-      setToggles({
-        morning: false,
-        noon: true,
-        evening: false,
-      });
-
-      await saveStoredIds(updatedIds);
-    } else {
-      // Re-enable all three
-
-      const freshIds: StoredIds = {};
-
-      freshIds.morning = await scheduleAngelus("morning");
-      freshIds.noon = await scheduleAngelus("noon");
-      freshIds.evening = await scheduleAngelus("evening");
-
-      setNotifIds(freshIds);
-
-      setToggles({
+    if (mode === "all_three") {
+      const allThree = {
         morning: true,
         noon: true,
         evening: true,
-      });
+      };
 
-      await saveStoredIds(freshIds);
+      await setAngelusMode("all_three");
+      await setCustomNotificationTimes(allThree);
+
+      setAngelusModeState("all_three");
+      setCustomTimes(allThree);
+      setToggles(allThree);
+
+      await scheduleAngelusNotifications("all_three");
+      return;
     }
+
+    if (mode === "noon_only") {
+      const noonOnly = {
+        morning: false,
+        noon: true,
+        evening: false,
+      };
+
+      await setAngelusMode("noon_only");
+
+      setAngelusModeState("noon_only");
+      setCustomTimes(noonOnly);
+      setToggles(noonOnly);
+
+      await scheduleAngelusNotifications("noon_only");
+      return;
+    }
+
+    // Custom
+    const savedCustomTimes = await getCustomNotificationTimes();
+
+    await setAngelusMode("custom");
+
+    setAngelusModeState("custom");
+    setCustomTimes(savedCustomTimes);
+    setToggles(savedCustomTimes);
+
+    await scheduleAngelusNotifications("custom");
   };
 
   // On mount: request permissions + auto-enable all on first launch,
   // or restore saved toggle state for returning users
   useEffect(() => {
     (async () => {
-      const granted = await requestPermissions();
+      const granted = await requestNotificationPermission();
 
       if (!granted) {
-        Alert.alert(
-          "Notifications Disabled",
-          "Please enable notifications in your device settings to receive Angelus reminders.",
-          [{ text: "OK" }],
-        );
+        return;
       }
 
-      const ids = await loadStoredIds();
-      const isFirstLaunch = !ids.morning && !ids.noon && !ids.evening;
+      const mode = await getAngelusMode();
 
-      if (isFirstLaunch && granted) {
-        // ✅ First time: auto-schedule all three and save
-        const freshIds: StoredIds = {};
-        for (const key of ["morning", "noon", "evening"] as AngelusTime[]) {
-          freshIds[key] = await scheduleAngelus(key);
-        }
-        setNotifIds(freshIds);
-        setToggles({ morning: true, noon: true, evening: true });
-        await saveStoredIds(freshIds);
+      setAngelusModeState(mode);
+
+      if (mode === "custom") {
+        const savedCustomTimes = await getCustomNotificationTimes();
+
+        setCustomTimes(savedCustomTimes);
+        setToggles(savedCustomTimes);
+      } else if (mode === "noon_only") {
+        const noonOnly = {
+          morning: false,
+          noon: true,
+          evening: false,
+        };
+
+        setCustomTimes(noonOnly);
+        setToggles(noonOnly);
       } else {
-        // ✅ Returning user: restore exactly what they had saved
-        setNotifIds(ids);
-        setToggles({
-          morning: !!ids.morning,
-          noon: !!ids.noon,
-          evening: !!ids.evening,
-        });
+        const allThree = {
+          morning: true,
+          noon: true,
+          evening: true,
+        };
+
+        setCustomTimes(allThree);
+        setToggles(allThree);
       }
+
+      // Make sure the actual device schedule matches the saved mode.
+      await scheduleAngelusNotifications(mode);
 
       try {
         const savedLang = await AsyncStorage.getItem(LANGUAGE_KEY);
-        if (savedLang) setSelectedLang(savedLang);
+
+        if (savedLang) {
+          setSelectedLang(savedLang);
+        }
       } catch {}
     })();
   }, []);
-
   // Fetch user info
   useEffect(() => {
     (async () => {
@@ -410,71 +356,66 @@ export default function SettingsScreen({ onLogout }: Props) {
     })();
   }, []);
 
-  // Toggle a single notification on/off
   const handleToggle = async (key: AngelusTime, enabled: boolean) => {
-    const granted = await requestPermissions();
-    if (!granted && enabled) {
-      Alert.alert(
-        "Permission Required",
-        "Enable notifications in Settings to receive Angelus reminders.",
-      );
+    const granted = await requestNotificationPermission();
+
+    if (!granted) {
       return;
     }
 
-    // Update UI immediately for snappy feel
-    setToggles((prev) => ({ ...prev, [key]: enabled }));
+    const updated = {
+      ...customTimes,
+      [key]: enabled,
+    };
 
-    const updatedIds = { ...notifIds };
+    setCustomTimes(updated);
+    setToggles(updated);
 
-    if (enabled) {
-      // Cancel any existing one first to avoid duplicates
-      await cancelNotif(updatedIds[key] ?? null);
-      const newId = await scheduleAngelus(key);
-      updatedIds[key] = newId;
-    } else {
-      await cancelNotif(updatedIds[key] ?? null);
-      delete updatedIds[key];
-    }
+    await setAngelusMode("custom");
+    await setCustomNotificationTimes(updated);
+    await scheduleAngelusNotifications("custom");
 
-    setNotifIds(updatedIds);
-    await saveStoredIds(updatedIds);
+    setAngelusModeState("custom");
   };
 
   // Enable all three
   const handleEnableAll = async () => {
-    const granted = await requestPermissions();
+    const granted = await requestNotificationPermission();
+
     if (!granted) {
-      Alert.alert(
-        "Permission Required",
-        "Enable notifications in Settings to receive Angelus reminders.",
-      );
       return;
     }
 
-    const updatedIds: StoredIds = { ...notifIds };
+    const allEnabled = {
+      morning: true,
+      noon: true,
+      evening: true,
+    };
 
-    for (const key of ["morning", "noon", "evening"] as AngelusTime[]) {
-      await cancelNotif(updatedIds[key] ?? null);
-      updatedIds[key] = await scheduleAngelus(key);
-    }
+    await setAngelusMode("all_three");
+    await setCustomNotificationTimes(allEnabled);
+    await scheduleAngelusNotifications("all_three");
 
-    setNotifIds(updatedIds);
-    setToggles({ morning: true, noon: true, evening: true });
-    await saveStoredIds(updatedIds);
+    setAngelusModeState("all_three");
+    setCustomTimes(allEnabled);
+    setToggles(allEnabled);
   };
 
-  // Disable all three
   const handleDisableAll = async () => {
-    for (const key of ["morning", "noon", "evening"] as AngelusTime[]) {
-      await cancelNotif(notifIds[key] ?? null);
-    }
+    const allDisabled = {
+      morning: false,
+      noon: false,
+      evening: false,
+    };
 
-    const empty: StoredIds = {};
-    setNotifIds(empty);
-    setToggles({ morning: false, noon: false, evening: false });
-    await saveStoredIds(empty);
+    await setAngelusMode("custom");
+    await setCustomNotificationTimes(allDisabled);
+    await scheduleAngelusNotifications("custom");
+
+    setAngelusModeState("custom");
+    setCustomTimes(allDisabled);
+    setToggles(allDisabled);
   };
-
   const handleSelectLanguage = async (code: string) => {
     setSelectedLang(code);
     setShowLangModal(false);
@@ -490,8 +431,7 @@ export default function SettingsScreen({ onLogout }: Props) {
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-      await Notifications.cancelAllScheduledNotificationsAsync();
-      await AsyncStorage.removeItem(NOTIF_IDS_KEY);
+      await cancelAngelusNotifications();
       await logout();
       onLogout();
     } catch (err) {
@@ -705,6 +645,19 @@ export default function SettingsScreen({ onLogout }: Props) {
                 Receive only the noon Angelus reminder
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modeOption,
+                angelusMode === "custom" && styles.modeOptionSelected,
+              ]}
+              onPress={() => handleAngelusModeChange("custom")}
+            >
+              <Text style={styles.modeTitle}>Custom</Text>
+
+              <Text style={styles.modeDescription}>
+                Choose which Angelus reminders you receive
+              </Text>
+            </TouchableOpacity>
           </View>
           {/* NOTIFICATIONS */}
           <View style={styles.card}>
@@ -725,7 +678,7 @@ export default function SettingsScreen({ onLogout }: Props) {
                     time={ANGELUS_CONFIG[key].time}
                     enabled={toggles[key]}
                     onToggle={(val) => handleToggle(key, val)}
-                    disabled={angelusMode === "noon_only" && key !== "noon"}
+                    disabled={angelusMode !== "custom"}
                   />
                   {i < arr.length - 1 && <View style={styles.rowDivider} />}
                 </View>
@@ -739,7 +692,7 @@ export default function SettingsScreen({ onLogout }: Props) {
               <Ionicons name="notifications" size={16} color="#fff" />
               <Text style={styles.bulkBtnText}>Enable All</Text>
             </TouchableOpacity>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[styles.bulkBtn, styles.bulkBtnOutline]}
               onPress={handleDisableAll}
             >
@@ -751,7 +704,7 @@ export default function SettingsScreen({ onLogout }: Props) {
               <Text style={[styles.bulkBtnText, { color: COLORS.gold }]}>
                 Disable All
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {/* LANGUAGE */}
@@ -855,10 +808,9 @@ function NotificationRow({
         <Text style={styles.notifTime}>{time}</Text>
       </View>
       <Switch
-        value={disabled ? false : enabled}
-        onValueChange={(val) => {
-          if (!disabled) onToggle(val);
-        }}
+        value={enabled}
+        disabled={disabled}
+        onValueChange={onToggle}
         trackColor={{
           false: COLORS.border,
           true: COLORS.gold,
