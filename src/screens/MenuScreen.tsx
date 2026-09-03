@@ -4,7 +4,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { getPrayerStatus, PrayerStatus } from "../utils/prayer";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../../components/Header";
-import { AngelusMode, getAngelusMode } from "../services/notificationService";
+import {
+  AngelusMode,
+  getAngelusMode,
+  getCustomNotificationTimes,
+} from "../services/notificationService";
 import { useFonts } from "expo-font";
 import { useFocusEffect } from "@react-navigation/native";
 import { slotToKey } from "../utils/prayerHelpers";
@@ -272,6 +276,11 @@ export default function MenuScreen() {
     }
   }, []);
   const [angelusMode, setAngelusModeState] = useState<AngelusMode>("all_three");
+  const [customTimes, setCustomTimes] = useState({
+    morning: true,
+    noon: true,
+    evening: true,
+  });
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
@@ -279,12 +288,29 @@ export default function MenuScreen() {
       (async () => {
         const mode = await getAngelusMode();
 
+        let times = {
+          morning: true,
+          noon: true,
+          evening: true,
+        };
+
+        if (mode === "custom") {
+          times = await getCustomNotificationTimes();
+        } else if (mode === "noon_only") {
+          times = {
+            morning: false,
+            noon: true,
+            evening: false,
+          };
+        }
+
         if (mounted) {
           setAngelusModeState(mode);
+          setCustomTimes(times);
+        }
 
-          if (userId) {
-            await fetchData(userId);
-          }
+        if (userId) {
+          await fetchData(userId);
         }
       })();
 
@@ -372,6 +398,19 @@ export default function MenuScreen() {
     };
   }, [fetchData]);
 
+  const morningEnabled =
+    angelusMode === "all_three" ||
+    (angelusMode === "custom" && customTimes.morning);
+
+  const noonEnabled =
+    angelusMode === "all_three" ||
+    angelusMode === "noon_only" ||
+    (angelusMode === "custom" && customTimes.noon);
+
+  const eveningEnabled =
+    angelusMode === "all_three" ||
+    (angelusMode === "custom" && customTimes.evening);
+
   const morningStatus = loading
     ? "loading"
     : getPrayerStatus("morning", completedPrayers.morning);
@@ -384,6 +423,23 @@ export default function MenuScreen() {
     ? "loading"
     : getPrayerStatus("evening", completedPrayers.evening);
 
+  const morningDisplayStatus = loading
+    ? "loading"
+    : !morningEnabled
+      ? "disabled"
+      : morningStatus;
+
+  const noonDisplayStatus = loading
+    ? "loading"
+    : !noonEnabled
+      ? "disabled"
+      : noonStatus;
+
+  const eveningDisplayStatus = loading
+    ? "loading"
+    : !eveningEnabled
+      ? "disabled"
+      : eveningStatus;
   const getSubtitle = (status: PrayerStatus) =>
     status === "loading"
       ? "Loading..."
@@ -471,12 +527,8 @@ export default function MenuScreen() {
           </View>
           <AngelusRow
             title="Morning Angelus"
-            subtitle={
-              angelusMode === "noon_only"
-                ? "Disabled"
-                : getSubtitle(morningStatus)
-            }
-            status={angelusMode === "noon_only" ? "disabled" : morningStatus}
+            subtitle={!morningEnabled ? "Disabled" : getSubtitle(morningStatus)}
+            status={morningDisplayStatus}
             imageSource={
               angelusMode === "noon_only"
                 ? progressImages["Morning"]
@@ -488,7 +540,7 @@ export default function MenuScreen() {
           <View style={styles.rowDivider} />
           <AngelusRow
             title="Noon Angelus"
-            subtitle={getSubtitle(noonStatus)}
+            subtitle={!noonEnabled ? "Disabled" : getSubtitle(noonStatus)}
             status={noonStatus}
             imageSource={
               noonStatus === "completed"
@@ -499,12 +551,8 @@ export default function MenuScreen() {
           <View style={styles.rowDivider} />
           <AngelusRow
             title="Evening Angelus"
-            subtitle={
-              angelusMode === "noon_only"
-                ? "Disabled"
-                : getSubtitle(eveningStatus)
-            }
-            status={angelusMode === "noon_only" ? "disabled" : eveningStatus}
+            subtitle={!eveningEnabled ? "Disabled" : getSubtitle(eveningStatus)}
+            status={eveningDisplayStatus}
             imageSource={
               angelusMode === "noon_only"
                 ? progressImages["Evening"]
@@ -557,7 +605,7 @@ export default function MenuScreen() {
             imageSource={weekImages["Morning"]}
             dots={morningDots}
             count={morningCount}
-            disabled={angelusMode === "noon_only"}
+            disabled={!morningEnabled}
           />
           <WeekRow
             label="Noon"
@@ -570,7 +618,7 @@ export default function MenuScreen() {
             imageSource={weekImages["Evening"]}
             dots={eveningDots}
             count={eveningCount}
-            disabled={angelusMode === "noon_only"}
+            disabled={!eveningEnabled}
           />
         </View>
 
