@@ -57,7 +57,7 @@ type Screen = "onboarding" | "register" | "login" | "main";
 
 export default function App() {
   const navigationRef = useRef<any>(null);
-  const navigationReady = useRef(false);
+  const [navigationIsReady, setNavigationIsReady] = useState(false);
 
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
@@ -68,12 +68,13 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [screen, setScreen] = useState<Screen>("onboarding");
 
-  const [launchNotificationRoute, setLaunchNotificationRoute] = useState<{
-    screen: "Prayer";
-    params?: any;
+  const [pendingPrayerParams, setPendingPrayerParams] = useState<{
+    autoPlay: boolean;
+    sessionId: string;
+    userId: string;
   } | null>(null);
 
-  const navigateToPrayer = async () => {
+  const queuePrayerFromNotification = async () => {
     try {
       const {
         data: { user },
@@ -82,45 +83,17 @@ export default function App() {
       if (!user) return;
 
       const timezone = await getUserTimezone();
-
       const session = await startPrayer(user.id, timezone);
 
-      if (navigationReady.current && navigationRef.current) {
-        navigationRef.current.navigate("Prayer", {
-          autoPlay: true,
-          sessionId: session.sessionId,
-          userId: user.id,
-        });
-      } else {
-        setLaunchNotificationRoute({
-          screen: "Prayer",
-          params: {
-            autoPlay: true,
-            sessionId: session.sessionId,
-            userId: user.id,
-          },
-        });
-      }
+      setPendingPrayerParams({
+        autoPlay: true,
+        sessionId: session.sessionId,
+        userId: user.id,
+      });
     } catch (error) {
       console.warn("Unable to open prayer from notification:", error);
     }
   };
-
-  // useEffect(() => {
-  //   const unsubscribe = NetInfo.addEventListener(async (state) => {
-  //     if (state.isConnected && state.isInternetReachable !== false) {
-  //       const {
-  //         data: { user },
-  //       } = await supabase.auth.getUser();
-
-  //       if (user) {
-  //         await syncOfflinePrayers(user.id);
-  //       }
-  //     }
-  //   });
-
-  //   return unsubscribe;
-  // }, []);
 
   useEffect(() => {
     const {
@@ -152,30 +125,19 @@ export default function App() {
           await Notifications.getLastNotificationResponseAsync();
 
         if (lastResponse) {
-          notificationResponseId.current =
-            lastResponse.notification.request.identifier;
+          const id = lastResponse.notification.request.identifier;
+          notificationResponseId.current = id;
+
+          // Only queue if the user is already signed in
           const {
             data: { user },
           } = await supabase.auth.getUser();
 
-          if (!user) {
-            await Notifications.clearLastNotificationResponseAsync();
-            return;
+          if (user) {
+            await queuePrayerFromNotification();
           }
 
-          const timezone = await getUserTimezone();
-
-          const session = await startPrayer(user.id, timezone);
-
-          setLaunchNotificationRoute({
-            screen: "Prayer",
-            params: {
-              autoPlay: true,
-              sessionId: session.sessionId,
-              userId: user.id,
-            },
-          });
-
+          // Prevent the same response from being processed again
           await Notifications.clearLastNotificationResponseAsync();
         }
 
@@ -253,16 +215,15 @@ export default function App() {
 
   // ── Notification tap → navigate to Prayer ────────────────────────────────
   useEffect(() => {
-    const tapSub = Notifications.addNotificationResponseReceivedListener(
+    const sub = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const id = response.notification.request.identifier;
-        if (notificationResponseId.current === id) return;
+        if (notificationResponseId.current === id) return; // already handled
         notificationResponseId.current = id;
-        navigateToPrayer();
+        queuePrayerFromNotification();
       },
     );
-
-    return () => tapSub.remove();
+    return () => sub.remove();
   }, []);
 
   const [queryClient] = useState(
@@ -287,6 +248,15 @@ export default function App() {
       },
     };
   }, [initialInsets, initialFrame]);
+
+  useEffect(() => {
+    if (!navigationIsReady || !pendingPrayerParams || !navigationRef.current) {
+      return;
+    }
+
+    navigationRef.current.navigate("Prayer", pendingPrayerParams);
+    setPendingPrayerParams(null); // clear so it doesn’t re-fire
+  }, [navigationIsReady, pendingPrayerParams]);
 
   if (!isReady) {
     return (
@@ -314,24 +284,10 @@ export default function App() {
           <NavigationContainer
             ref={navigationRef}
             onReady={() => {
-              navigationReady.current = true;
-              // if (launchNotificationRoute && navigationRef.current) {
-              //   navigationRef.current.navigate(
-              //     launchNotificationRoute.screen,
-              //     launchNotificationRoute.params,
-              //   );
-              //   setLaunchNotificationRoute(null);
-              // }
-            }}
-            onStateChange={() => {
-              navigationReady.current =
-                navigationRef.current?.isReady?.() ?? false;
+              setNavigationIsReady(true);
             }}
           >
-            <TabLayout
-              onLogout={() => setScreen("login")}
-              initialNotificationRoute={launchNotificationRoute}
-            />
+            <TabLayout onLogout={() => setScreen("login")} />
           </NavigationContainer>
         ) : screen === "onboarding" ? (
           <OnboardingScreen onDone={handleOnboardingDone} />

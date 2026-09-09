@@ -15,7 +15,6 @@ const Stack = createNativeStackNavigator();
 
 type Props = {
   onLogout: () => void;
-  initialNotificationRoute?: { screen: "Prayer"; params?: any } | null;
 };
 
 function TabNavigator({ onLogout }: { onLogout: () => void }) {
@@ -94,13 +93,8 @@ function TabNavigator({ onLogout }: { onLogout: () => void }) {
   );
 }
 
-export default function TabLayout({
-  onLogout,
-  initialNotificationRoute,
-}: Props) {
+export default function TabLayout({ onLogout }: Props) {
   const initialRouteName = "Tabs";
-  // const initialRouteName =
-  //   initialNotificationRoute?.screen === "Prayer" ? "Prayer" : "Tabs";
   return (
     <Stack.Navigator
       screenOptions={{ headerShown: false }}
@@ -112,7 +106,6 @@ export default function TabLayout({
       <Stack.Screen
         name="Prayer"
         component={PrayerScreen}
-        initialParams={initialNotificationRoute?.params}
         options={{ animation: "fade", animationDuration: 1000 }}
       />
     </Stack.Navigator>
