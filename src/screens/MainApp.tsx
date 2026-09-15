@@ -122,7 +122,7 @@ export default function MainApp() {
   const [session, setSession] = useState<any>(null);
 
   const [userId, setUserId] = useState("");
-  const [accountCreatedAt, setAccountCreatedAt] = useState<string | null>(null);
+
   const [username, setUsername] = useState("");
   const [prayersLoading, setPrayersLoading] = useState(true);
   const hasLoadedPrayers = useRef(false);
@@ -419,11 +419,8 @@ export default function MainApp() {
         }
 
         if (!auth?.user?.id) return;
-
         const uid = auth.user.id;
-
         setUserId(uid);
-        setAccountCreatedAt(auth.user.created_at);
 
         // Show offline data immediately.
         await fetchTodayPrayers(uid);
@@ -709,54 +706,6 @@ export default function MainApp() {
   // LOGOUT
   // ─────────────────────────────────────────────────────────────
 
-  const isFirstDayMissed = useCallback(
-    (prayerHour: number) => {
-      if (!accountCreatedAt) return false;
-
-      const created = new Date(accountCreatedAt);
-      const now = new Date();
-
-      // Convert the account creation date into the user's local date.
-      const localDateFormatter = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-
-      const createdDate = localDateFormatter.format(created);
-      const todayDate = localDateFormatter.format(now);
-
-      // Only applies on the actual day the account was created.
-      if (createdDate !== todayDate) {
-        return false;
-      }
-
-      // Get the signup time in the user's timezone.
-      const timeFormatter = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        hour: "numeric",
-        minute: "numeric",
-        hour12: false,
-      });
-
-      const createdParts = timeFormatter.formatToParts(created);
-
-      const hourPart = createdParts.find((p) => p.type === "hour");
-      const minutePart = createdParts.find((p) => p.type === "minute");
-
-      const createdHour = Number(hourPart?.value ?? 0);
-      const createdMinute = Number(minutePart?.value ?? 0);
-
-      const signupMinutes = createdHour * 60 + createdMinute;
-      const prayerMinutes = prayerHour * 60;
-
-      // Prayer happened before the account existed.
-      return signupMinutes > prayerMinutes;
-    },
-    [accountCreatedAt, timezone],
-  );
-
   const morningEnabled =
     angelusMode === "all_three" ||
     (angelusMode === "custom" && customTimes.morning);
@@ -769,12 +718,6 @@ export default function MainApp() {
   const eveningEnabled =
     angelusMode === "all_three" ||
     (angelusMode === "custom" && customTimes.evening);
-
-  const morningFirstDayUnavailable = morningEnabled && isFirstDayMissed(6);
-
-  const noonFirstDayUnavailable = noonEnabled && isFirstDayMissed(12);
-
-  const eveningFirstDayUnavailable = eveningEnabled && isFirstDayMissed(18);
 
   const morningStatus = prayersLoading
     ? "loading"
@@ -793,7 +736,6 @@ export default function MainApp() {
     : !eveningEnabled
       ? "disabled"
       : getPrayerStatus("evening", completedPrayers.evening);
-
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
@@ -975,21 +917,18 @@ export default function MainApp() {
             <ProgressCard
               title="Morning"
               status={morningStatus}
-              firstDayUnavailable={morningFirstDayUnavailable}
               onPress={handleComplete}
             />
 
             <ProgressCard
               title="Noon"
               status={noonStatus}
-              firstDayUnavailable={noonFirstDayUnavailable}
               onPress={handleComplete}
             />
 
             <ProgressCard
               title="Evening"
               status={eveningStatus}
-              firstDayUnavailable={eveningFirstDayUnavailable}
               onPress={handleComplete}
             />
           </View>
@@ -1079,12 +1018,10 @@ export default function MainApp() {
 const ProgressCard = React.memo(function ProgressCard({
   title,
   status,
-  firstDayUnavailable = false,
   onPress,
 }: {
   title: string;
   status: PrayerStatus;
-  firstDayUnavailable?: boolean;
   onPress?: () => void;
 }) {
   const isCompleted = status === "completed";
@@ -1092,13 +1029,6 @@ const ProgressCard = React.memo(function ProgressCard({
   const isMissed = status === "missed";
   const isDisabled = status === "disabled";
   const isLoading = status === "loading";
-
-  const isFirstDayUnavailable =
-    firstDayUnavailable &&
-    !isCompleted &&
-    !isActive &&
-    !isDisabled &&
-    !isLoading;
 
   const prayerImage = useMemo(() => {
     if (isLoading) {
@@ -1108,68 +1038,59 @@ const ProgressCard = React.memo(function ProgressCard({
     return isCompleted ? completeImages[title] : progressImages[title];
   }, [isLoading, isCompleted, title]);
 
-  const statusConfig = isFirstDayUnavailable
+  const statusConfig = isCompleted
     ? {
-        text: "Unavailable",
-        icon: "remove-circle-outline",
-        iconColor: "#A9A9A9",
-        bg: "#F0F0F0",
-        border: "#D6D6D6",
-        textColor: "#999999",
+        text: "Completed",
+        icon: "checkmark-circle",
+        iconColor: "#5E9B63",
+        bg: "#EEF8EE",
+        border: "#B7D9BB",
+        textColor: "#4D7C52",
       }
-    : isCompleted
+    : isActive
       ? {
-          text: "Completed",
-          icon: "checkmark-circle",
-          iconColor: "#5E9B63",
-          bg: "#EEF8EE",
-          border: "#B7D9BB",
-          textColor: "#4D7C52",
+          text: "Pray Now",
+          icon: "ellipse",
+          iconColor: COLORS.gold,
+          bg: "#FFF7E7",
+          border: "#E7C979",
+          textColor: "#8A6412",
         }
-      : isActive
+      : isMissed
         ? {
-            text: "Pray Now",
-            icon: "ellipse",
-            iconColor: COLORS.gold,
-            bg: "#FFF7E7",
-            border: "#E7C979",
-            textColor: "#8A6412",
+            text: "Missed",
+            icon: "close-circle",
+            iconColor: "#C86B6B",
+            bg: "#FFF1F1",
+            border: "#E4B4B4",
+            textColor: "#A44E4E",
           }
-        : isMissed
+        : isDisabled
           ? {
-              text: "Missed",
-              icon: "close-circle",
-              iconColor: "#C86B6B",
-              bg: "#FFF1F1",
-              border: "#E4B4B4",
-              textColor: "#A44E4E",
+              text: "Disabled",
+              icon: "remove-circle-outline",
+              iconColor: "#AAA",
+              bg: "#F5F5F5",
+              border: "#DDD",
+              textColor: "#AAA",
             }
-          : isDisabled
+          : isLoading
             ? {
-                text: "Disabled",
-                icon: "remove-circle-outline",
-                iconColor: "#AAA",
-                bg: "#F5F5F5",
-                border: "#DDD",
-                textColor: "#AAA",
+                text: "Loading...",
+                icon: "ellipsis-horizontal-circle",
+                iconColor: COLORS.muted,
+                bg: "#F8F6F2",
+                border: "#E7DCCB",
+                textColor: COLORS.muted,
               }
-            : isLoading
-              ? {
-                  text: "Loading...",
-                  icon: "ellipsis-horizontal-circle",
-                  iconColor: COLORS.muted,
-                  bg: "#F8F6F2",
-                  border: "#E7DCCB",
-                  textColor: COLORS.muted,
-                }
-              : {
-                  text: "Upcoming",
-                  icon: "time",
-                  iconColor: COLORS.navy,
-                  bg: "#F3F5FA",
-                  border: "#D4DBEA",
-                  textColor: COLORS.navy,
-                };
+            : {
+                text: "Upcoming",
+                icon: "time",
+                iconColor: COLORS.navy,
+                bg: "#F3F5FA",
+                border: "#D4DBEA",
+                textColor: COLORS.navy,
+              };
 
   // Pulse animation
   const pulse = useRef(new Animated.Value(1)).current;
@@ -1207,7 +1128,7 @@ const ProgressCard = React.memo(function ProgressCard({
   return (
     <TouchableOpacity
       activeOpacity={0.9}
-      disabled={!isActive || isDisabled || isFirstDayUnavailable}
+      disabled={!isActive || isDisabled}
       onPress={onPress}
       style={{ flex: 1, marginHorizontal: 4 }}
     >
@@ -1224,11 +1145,6 @@ const ProgressCard = React.memo(function ProgressCard({
             borderColor: "#E0E0E0",
             opacity: 0.6,
           },
-          isFirstDayUnavailable && {
-            backgroundColor: "#F2F2F2",
-            borderColor: "#D8D8D8",
-            opacity: 0.65,
-          },
         ]}
       >
         <View
@@ -1242,9 +1158,6 @@ const ProgressCard = React.memo(function ProgressCard({
             },
             isMissed && {
               backgroundColor: "#F5D6D6",
-            },
-            isFirstDayUnavailable && {
-              backgroundColor: "#E3E3E3",
             },
           ]}
         >

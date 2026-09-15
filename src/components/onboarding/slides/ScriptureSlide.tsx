@@ -6,6 +6,7 @@ import {
   ImageBackground,
   StyleSheet,
   Animated,
+  InteractionManager,
 } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width, height } from "../styles/sharedStyles";
@@ -44,30 +45,61 @@ function FadeInUp({
   const translateY = useRef(new Animated.Value(distance)).current;
 
   useEffect(() => {
+    let animation: Animated.CompositeAnimation | null = null;
+    let cancelled = false;
+
     if (isVisible) {
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration,
-          delay,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration,
-          delay,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
+      // Always reset before starting.
       opacity.setValue(0);
       translateY.setValue(distance);
+
+      const task = InteractionManager.runAfterInteractions(() => {
+        if (cancelled) return;
+
+        animation = Animated.parallel([
+          Animated.timing(opacity, {
+            toValue: 1,
+            duration,
+            delay,
+            useNativeDriver: true,
+          }),
+
+          Animated.timing(translateY, {
+            toValue: 0,
+            duration,
+            delay,
+            useNativeDriver: true,
+          }),
+        ]);
+
+        animation.start();
+      });
+
+      return () => {
+        cancelled = true;
+        task.cancel();
+        animation?.stop();
+      };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isVisible]);
+
+    opacity.setValue(0);
+    translateY.setValue(distance);
+
+    return () => {
+      animation?.stop();
+    };
+  }, [isVisible, delay, distance, duration, opacity, translateY]);
 
   return (
-    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
+    <Animated.View
+      style={[
+        style,
+        {
+          opacity,
+          transform: [{ translateY }],
+        },
+      ]}
+    >
       {children}
     </Animated.View>
   );
@@ -98,30 +130,49 @@ export function ScriptureSlide({
   const cardOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    let animation: Animated.CompositeAnimation | null = null;
+    let cancelled = false;
+
     if (isActive) {
       cardTranslateY.setValue(300);
       cardOpacity.setValue(0);
 
-      Animated.parallel([
-        Animated.timing(cardTranslateY, {
-          toValue: 0,
-          duration: 1200,
-          delay: 2700,
-          useNativeDriver: true,
-        }),
-        Animated.timing(cardOpacity, {
-          toValue: 1,
-          duration: 700,
-          delay: 2700,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      cardTranslateY.setValue(300);
-      cardOpacity.setValue(0);
-    }
-  }, [isActive, cardTranslateY, cardOpacity]);
+      const task = InteractionManager.runAfterInteractions(() => {
+        if (cancelled) return;
 
+        animation = Animated.parallel([
+          Animated.timing(cardTranslateY, {
+            toValue: 0,
+            duration: 1200,
+            delay: 1500,
+            useNativeDriver: true,
+          }),
+
+          Animated.timing(cardOpacity, {
+            toValue: 1,
+            duration: 700,
+            delay: 1500,
+            useNativeDriver: true,
+          }),
+        ]);
+
+        animation.start();
+      });
+
+      return () => {
+        cancelled = true;
+        task.cancel();
+        animation?.stop();
+      };
+    }
+
+    cardTranslateY.setValue(300);
+    cardOpacity.setValue(0);
+
+    return () => {
+      animation?.stop();
+    };
+  }, [isActive, cardTranslateY, cardOpacity]);
   return (
     <TouchableOpacity
       activeOpacity={1}
@@ -135,10 +186,11 @@ export function ScriptureSlide({
       >
         <View style={sharedStyles.centerContent}>
           {/* ← CHANGED: FadeIn -> FadeInUp for upward fade-in */}
-          <FadeInUp delay={1000} isVisible={isActive} distance={24}>
+          <FadeInUp delay={350} isVisible={isActive} distance={24}>
             <Text style={styles.scriptureMain}>{title}</Text>
           </FadeInUp>
-          <FadeInUp delay={1900} isVisible={isActive} distance={24}>
+
+          <FadeInUp delay={900} isVisible={isActive} distance={24}>
             <Text style={styles.scriptureItalic}>{subtitle}</Text>
           </FadeInUp>
         </View>
