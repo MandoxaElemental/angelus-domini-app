@@ -29,6 +29,7 @@ import { supabase } from "./src/lib/supabaseClient";
 import {
   getAngelusMode,
   scheduleAngelusNotifications,
+  requestNotificationPermission,
 } from "./src/services/notificationService";
 import TabLayout from "./src/navigation/TabLayout";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
@@ -92,6 +93,34 @@ export default function App() {
       });
     } catch (error) {
       console.warn("Unable to open prayer from notification:", error);
+    }
+  };
+
+  const setupNotificationsAfterAuth = async () => {
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+
+      if (status === "granted") {
+        const mode = await getAngelusMode();
+        await scheduleAngelusNotifications(mode);
+        return;
+      }
+
+      if (status === "undetermined") {
+        const granted = await requestNotificationPermission();
+
+        if (granted) {
+          const mode = await getAngelusMode();
+          await scheduleAngelusNotifications(mode);
+        }
+
+        return;
+      }
+
+      // Permission was previously denied.
+      // Don't interrupt the login/signup flow with another prompt.
+    } catch (error) {
+      console.warn("Unable to set up notifications:", error);
     }
   };
 
@@ -294,11 +323,17 @@ export default function App() {
         ) : screen === "register" ? (
           <RegisterScreen
             goToLogin={() => setScreen("login")}
-            goToHome={() => setScreen("main")}
+            goToHome={async () => {
+              setScreen("main");
+              await setupNotificationsAfterAuth();
+            }}
           />
         ) : (
           <LoginScreen
-            onLogin={() => setScreen("main")}
+            onLogin={async () => {
+              setScreen("main");
+              await setupNotificationsAfterAuth();
+            }}
             goToRegister={() => setScreen("register")}
           />
         )}
