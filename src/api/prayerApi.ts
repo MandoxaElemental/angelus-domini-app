@@ -196,6 +196,7 @@ export const completePrayer = async (
   if (!session || session.sessionId !== sessionId) {
     session = await getOfflineSessionBySessionId(sessionId);
   }
+
   if (!session || session.sessionId !== sessionId) {
     console.warn("Session mismatch during completion", {
       passedSessionId: sessionId,
@@ -204,6 +205,11 @@ export const completePrayer = async (
 
     return;
   }
+
+  // ─────────────────────────────────────────
+  // 1. COMPLETE LOCALLY FIRST
+  // ─────────────────────────────────────────
+
   session.completed = true;
   session.completedAt = completedAt;
   session.synced = false;
@@ -211,54 +217,20 @@ export const completePrayer = async (
   await saveCurrentSession(session);
   await upsertOfflineSession(session);
 
-  const online = await isOnline();
-
-  if (!online) {
-    await Notifications.dismissAllNotificationsAsync();
-    return;
-  }
-
+  // Notifications should not wait for Supabase.
   try {
-    const { error } = await supabase.from("PrayerSessions").upsert(
-      {
-        SessionId: sessionId,
-        UserId: userId,
-        Slot: session.slot,
-        PrayerTypeId: session?.prayerTypeId ?? 1,
-        ScheduledTime: session?.scheduledTime,
-        CreatedAt: session?.createdAt,
-        Completed: true,
-        CompletedAt: completedAt,
-      },
-      {
-        onConflict: "SessionId",
-      },
-    );
-
-    if (error) throw error;
-
-    if (session) {
-      session.synced = true;
-      await saveCurrentSession(session);
-      await upsertOfflineSession(session);
-    }
+    await Notifications.dismissAllNotificationsAsync();
   } catch (err) {
-    console.warn("Unable to upload completed prayer:", err);
-
-    // Keep offline copy, but don't treat it as synced
-    if (session) {
-      session.synced = false;
-      await saveCurrentSession(session);
-      await upsertOfflineSession(session);
-    }
+    console.warn("Unable to dismiss notifications:", err);
   }
 
-  if (await isOnline()) {
-    try {
-      await syncOfflinePrayers(userId);
-    } catch {}
-  }
-  await Notifications.dismissAllNotificationsAsync();
+  // ─────────────────────────────────────────
+  // 2. SYNC IN BACKGROUND
+  // ─────────────────────────────────────────
+
+  syncOfflinePrayers(userId).catch((err) => {
+    console.warn("Background prayer sync failed:", err);
+  });
 };
 
 // ─── Get Global Count ─────────────────────────────────────────────────────────

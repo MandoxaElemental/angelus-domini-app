@@ -23,6 +23,13 @@ export async function syncOfflinePrayers(userId: string) {
 
     for (const session of sessions) {
       if (session.synced && session.completed) continue;
+      const startedAt = Date.now();
+
+      console.log(`[SYNC] Uploading prayer ${session.sessionId}`, {
+        completed: session.completed,
+        slot: session.slot,
+      });
+
       const { error } = await supabase.from("PrayerSessions").upsert(
         {
           SessionId: session.sessionId,
@@ -37,6 +44,12 @@ export async function syncOfflinePrayers(userId: string) {
         {
           onConflict: "SessionId",
         },
+      );
+
+      console.log(
+        `[SYNC] Prayer ${session.sessionId} finished in ${
+          Date.now() - startedAt
+        }ms`,
       );
 
       if (error) {
