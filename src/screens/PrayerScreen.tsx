@@ -314,7 +314,7 @@ export default function PrayerScreen() {
         console.warn("Audio cleanup failed:", e);
       }
     };
-  }, [currentStep, autoPlay]);
+  }, [currentStep, autoPlay, audioEnabled]);
 
   useEffect(() => {
     if (!audioRef.current) return;
@@ -492,7 +492,7 @@ export default function PrayerScreen() {
     }, item.duration);
 
     return () => clearTimeout(timeout);
-  }, [currentStep, autoPlay, item]);
+  }, [currentStep, autoPlay, item.duration]);
 
   // Auto-scroll for closing prayer
   useEffect(() => {
