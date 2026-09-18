@@ -155,18 +155,19 @@ export default function App() {
 
         if (lastResponse) {
           const id = lastResponse.notification.request.identifier;
-          notificationResponseId.current = id;
 
-          // Only queue if the user is already signed in
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
+          if (notificationResponseId.current !== id) {
+            notificationResponseId.current = id;
 
-          if (user) {
-            await queuePrayerFromNotification();
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+
+            if (user) {
+              await queuePrayerFromNotification();
+            }
           }
 
-          // Prevent the same response from being processed again
           await Notifications.clearLastNotificationResponseAsync();
         }
 
@@ -316,7 +317,10 @@ export default function App() {
               setNavigationIsReady(true);
             }}
           >
-            <TabLayout onLogout={() => setScreen("login")} />
+            <TabLayout
+              onLogout={() => setScreen("login")}
+              initialPrayerParams={pendingPrayerParams}
+            />{" "}
           </NavigationContainer>
         ) : screen === "onboarding" ? (
           <OnboardingScreen onDone={handleOnboardingDone} />
