@@ -22,141 +22,169 @@ import { useKeepAwake } from "expo-keep-awake";
 import NetInfo from "@react-native-community/netinfo";
 import { completePrayer } from "../api/prayerApi";
 import { emitPrayerCompleted } from "../services/prayerEvents";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  DEFAULT_LANGUAGE,
+  getPrayerLanguage,
+  type LanguageCode,
+} from "../utils/language";
 type PrayerItem =
   | {
       type: "versicle" | "response" | "prayer";
       text: string;
       duration: number;
       audio?: any;
+      hailMary?: boolean;
     }
   | { type: "bell"; text: string; count: number; duration: number };
 
-const SIGN_OF_THE_CROSS = `In the name of the Father, and of the Son, and of the Holy Spirit. Amen.`;
-const HAIL_MARY_PART_1 = `Hail Mary, full of grace, the Lord is with thee. Blessed art thou amongst women, and blessed is the fruit of thy womb, Jesus.`;
-const HAIL_MARY_PART_2 = `Holy Mary, Mother of God, pray for us sinners now and at the hour of our death. Amen.`;
-const VERBUM = `And the Word was
-made flesh,`;
-const CLOSING_CALL = {
-  versicle: "Pray for us, O Holy Mother of God.",
-  response: "That we may be made worthy of the promises of Christ.",
-};
+function createPrayerSequence(language: LanguageCode): PrayerItem[] {
+  const prayer = getPrayerLanguage(language);
 
-const CLOSING_PRAYER = `Let us pray:
+  return [
+    {
+      type: "versicle",
+      text: prayer.signOfCross,
+      duration: 4000,
+      audio: require("../../assets/audio/SignOfTheCross1.mp3"),
+    },
+    {
+      type: "bell",
+      text: "",
+      count: 3,
+      duration: 9900,
+    },
+    {
+      type: "versicle",
+      text: prayer.leader1,
+      duration: 3500,
+      audio: require("../../assets/audio/Versicle1.mp3"),
+    },
+    {
+      type: "response",
+      text: prayer.response1,
+      duration: 3500,
+      audio: require("../../assets/audio/Response1.mp3"),
+    },
+    {
+      type: "versicle",
+      text: prayer.ave,
+      duration: 7500,
+      audio: require("../../assets/audio/HailMaryV1.mp3"),
+      hailMary: true,
+    },
+    {
+      type: "response",
+      text: `${prayer.sancta} ${prayer.amen}`,
+      duration: 6900,
+      audio: require("../../assets/audio/HolyMaryV1.mp3"),
+      hailMary: true,
+    },
+    {
+      type: "bell",
+      text: "",
+      count: 3,
+      duration: 9900,
+    },
+    {
+      type: "versicle",
+      text: prayer.leader2,
+      duration: 3500,
+      audio: require("../../assets/audio/Versicle2.mp3"),
+    },
+    {
+      type: "response",
+      text: prayer.response2,
+      duration: 3500,
+      audio: require("../../assets/audio/Response2.mp3"),
+    },
+    {
+      type: "versicle",
+      text: prayer.ave,
+      duration: 7500,
+      audio: require("../../assets/audio/HailMaryV2.mp3"),
+      hailMary: true,
+    },
+    {
+      type: "response",
+      text: `${prayer.sancta} ${prayer.amen}`,
+      duration: 6900,
+      audio: require("../../assets/audio/HolyMaryV2.mp3"),
+      hailMary: true,
+    },
+    {
+      type: "bell",
+      text: "",
+      count: 3,
+      duration: 9900,
+    },
+    {
+      type: "versicle",
+      text: prayer.leader3,
+      duration: 3500,
+      audio: require("../../assets/audio/Versicle3.mp3"),
+    },
+    {
+      type: "response",
+      text: prayer.response3,
+      duration: 3500,
+      audio: require("../../assets/audio/Response3.mp3"),
+    },
+    {
+      type: "versicle",
+      text: prayer.ave,
+      duration: 7500,
+      audio: require("../../assets/audio/HailMaryV3.mp3"),
+      hailMary: true,
+    },
+    {
+      type: "response",
+      text: `${prayer.sancta} ${prayer.amen}`,
+      duration: 7400,
+      audio: require("../../assets/audio/HolyMaryV3.mp3"),
+      hailMary: true,
+    },
+    {
+      type: "versicle",
+      text: prayer.leader4,
+      duration: 3500,
+      audio: require("../../assets/audio/Versicle4.mp3"),
+    },
+    {
+      type: "response",
+      text: prayer.response4,
+      duration: 3500,
+      audio: require("../../assets/audio/Response4.mp3"),
+    },
+    {
+      type: "prayer",
+      text: `${prayer.oremus}
 
-Pour forth, we beseech Thee, O Lord, Thy grace into our hearts; that we, to whom the incarnation of Christ, Thy Son, was made known by the message of an angel, may by His Passion and Cross be brought to the glory of His Resurrection, through the same Christ Our Lord.
-Amen.
-`;
+${prayer.conclusion}
 
-const PRAYER_SEQUENCE: PrayerItem[] = [
-  {
-    type: "versicle",
-    text: SIGN_OF_THE_CROSS,
-    duration: 4000,
-    audio: require("../../assets/audio/SignOfTheCross1.mp3"),
-  },
-  { type: "bell", text: "", count: 3, duration: 9900 },
-  {
-    type: "versicle",
-    text: "The Angel of the Lord declared unto Mary,",
-    duration: 3500,
-    audio: require("../../assets/audio/Versicle1.mp3"),
-  },
-  {
-    type: "response",
-    text: "And she conceived of the Holy Spirit.",
-    duration: 3500,
-    audio: require("../../assets/audio/Response1.mp3"),
-  },
-  {
-    type: "versicle",
-    text: HAIL_MARY_PART_1,
-    duration: 7500,
-    audio: require("../../assets/audio/HailMaryV1.mp3"),
-  },
-  {
-    type: "response",
-    text: HAIL_MARY_PART_2,
-    duration: 6900,
-    audio: require("../../assets/audio/HolyMaryV1.mp3"),
-  },
-  { type: "bell", text: "", count: 3, duration: 9900 },
-  {
-    type: "versicle",
-    text: "Behold the handmaid of the Lord,",
-    duration: 3500,
-    audio: require("../../assets/audio/Versicle2.mp3"),
-  },
-  {
-    type: "response",
-    text: "Be it done unto me according to thy word.",
-    duration: 3500,
-    audio: require("../../assets/audio/Response2.mp3"),
-  },
-  {
-    type: "versicle",
-    text: HAIL_MARY_PART_1,
-    duration: 7500,
-    audio: require("../../assets/audio/HailMaryV2.mp3"),
-  },
-  {
-    type: "response",
-    text: HAIL_MARY_PART_2,
-    duration: 6900,
-    audio: require("../../assets/audio/HolyMaryV2.mp3"),
-  },
-  { type: "bell", text: "", count: 3, duration: 9900 },
-  {
-    type: "versicle",
-    text: VERBUM,
-    duration: 3500,
-    audio: require("../../assets/audio/Versicle3.mp3"),
-  },
-  {
-    type: "response",
-    text: "And dwelt amongst us.",
-    duration: 3500,
-    audio: require("../../assets/audio/Response3.mp3"),
-  },
-  {
-    type: "versicle",
-    text: HAIL_MARY_PART_1,
-    duration: 7500,
-    audio: require("../../assets/audio/HailMaryV3.mp3"),
-  },
-  {
-    type: "response",
-    text: HAIL_MARY_PART_2,
-    duration: 7400,
-    audio: require("../../assets/audio/HolyMaryV3.mp3"),
-  },
-  {
-    type: "versicle",
-    text: CLOSING_CALL.versicle,
-    duration: 3500,
-    audio: require("../../assets/audio/Versicle4.mp3"),
-  },
-  {
-    type: "response",
-    text: CLOSING_CALL.response,
-    duration: 3500,
-    audio: require("../../assets/audio/Response4.mp3"),
-  },
-  {
-    type: "prayer",
-    text: CLOSING_PRAYER,
-    duration: 20000,
-    audio: require("../../assets/audio/Prayer.mp3"),
-  },
-  { type: "bell", text: "", count: 3, duration: 9900 },
-  {
-    type: "versicle",
-    text: SIGN_OF_THE_CROSS,
-    duration: 4000,
-    audio: require("../../assets/audio/SignOfTheCross2.mp3"),
-  },
-];
+${prayer.amen}`,
+      duration: 20000,
+      audio: require("../../assets/audio/Prayer.mp3"),
+    },
+    {
+      type: "bell",
+      text: "",
+      count: 3,
+      duration: 9900,
+    },
+    {
+      type: "versicle",
+      text: prayer.signOfCross,
+      duration: 4000,
+      audio: require("../../assets/audio/SignOfTheCross2.mp3"),
+    },
+  ];
+}
 
 export default function PrayerScreen() {
+  const [language, setLanguage] = useState<LanguageCode>(DEFAULT_LANGUAGE);
+  const LANGUAGE_KEY = "angelus_language";
+  const PRAYER_SEQUENCE = createPrayerSequence(language);
   const [isOffline, setIsOffline] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const wasOffline = useRef(false);
@@ -203,9 +231,7 @@ export default function PrayerScreen() {
     return "6pm";
   };
   const item = PRAYER_SEQUENCE[currentStep] ?? PRAYER_SEQUENCE[0];
-  const isHailMary =
-    item.text === HAIL_MARY_PART_1 || item.text === HAIL_MARY_PART_2;
-
+  const isHailMary = item.type !== "bell" && item.hailMary === true;
   const nextItem = PRAYER_SEQUENCE[currentStep + 1];
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -229,6 +255,22 @@ export default function PrayerScreen() {
   const [showCompletionModal, setShowCompletionModal] = useState(false);
 
   const onComplete = route.params?.onComplete;
+
+  useEffect(() => {
+    const loadLanguage = async () => {
+      try {
+        const savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
+
+        if (savedLanguage) {
+          setLanguage(savedLanguage as LanguageCode);
+        }
+      } catch (error) {
+        console.error("Failed to load prayer language:", error);
+      }
+    };
+
+    loadLanguage();
+  }, []);
 
   useEffect(() => {
     const fromNotification = route.params?.autoPlay === true;

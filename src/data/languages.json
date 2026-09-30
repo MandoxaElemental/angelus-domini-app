@@ -1,0 +1,67 @@
+{
+  "en": {
+    "language": "English",
+    "country": "United States",
+    "emoji": "🇺🇸",
+    "prayer": {
+      "signOfCross": "In the name of the Father, and of the Son, and of the Holy Spirit. Amen.",
+      "leader1": "The Angel of the Lord declared unto Mary,",
+      "response1": "And she conceived of the Holy Spirit.",
+      "leader2": "Behold the handmaid of the Lord,",
+      "response2": "Be it done unto me according to thy word.",
+      "leader3": "And the Word was\nmade flesh,",
+      "response3": "And dwelt amongst us.",
+      "leader4": "Pray for us, O Holy Mother of God.",
+      "response4": "That we may be made worthy of the promises of Christ.",
+      "ave": "Hail Mary, full of grace, the Lord is with thee. Blessed art thou amongst women, and blessed is the fruit of thy womb, Jesus.",
+      "sancta": "Holy Mary, Mother of God, pray for us sinners now and at the hour of our death.",
+      "oremus": "Let us pray:",
+      "conclusion": "Pour forth, we beseech Thee, O Lord, Thy grace into our hearts; that we, to whom the incarnation of Christ, Thy Son, was made known by the message of an angel, may by His Passion and Cross be brought to the glory of His Resurrection, through the same Christ Our Lord.",
+      "amen": "Amen."
+    }
+  },
+
+  "es": {
+    "language": "Español",
+    "country": "España",
+    "emoji": "🇪🇸",
+    "prayer": {
+      "signOfCross": "En el nombre del Padre, y del Hijo, y del Espíritu Santo. Amén.",
+      "leader1": "El Ángel del Señor lo anunció a María.",
+      "response1": "Y concibió por obra del Espíritu Santo.",
+      "leader2": "He aquí la esclava del Señor.",
+      "response2": "Hágase en mí según tu palabra.",
+      "leader3": "El Verbo se hizo carne.",
+      "response3": "Y vivió entre nosotros.",
+      "leader4": "Rogad por nosotros, Santa Madre de Dios.",
+      "response4": "Para que seamos dignos de alcanzar las promesas de Nuestro Señor Jesucristo.",
+      "ave": "Dios te salve, María, llena eres de gracia, el Señor es contigo. Bendita tú eres entre todas las mujeres, y bendito es el fruto de tu vientre, Jesús.",
+      "sancta": "Santa María, Madre de Dios, ruega por nosotros pecadores, ahora y en la hora de nuestra muerte.",
+      "oremus": "Oremos.",
+      "conclusion": "Te suplicamos, Señor, que derrames tu gracia en nuestras almas para que los que, por el anuncio del Ángel hemos conocido la Encarnación de tu Hijo Jesucristo, por su Pasión y Cruz seamos llevados a la gloria de su Resurrección. Por el mismo Jesucristo Nuestro Señor.",
+      "amen": "Amén."
+    }
+  },
+
+  "la": {
+    "language": "Latin",
+    "country": "Civitas Vaticanae",
+    "emoji": "🇻🇦",
+    "prayer": {
+      "signOfCross": "In nomine Patris, et Filii, et Spiritus Sancti. Amen.",
+      "leader1": "Angelus Domini nuntiavit Mariae.",
+      "response1": "Et concepit de Spiritu Sancto.",
+      "leader2": "Ecce ancilla Domini.",
+      "response2": "Fiat mihi secundum verbum tuum.",
+      "leader3": "Et Verbum caro factum est.",
+      "response3": "Et habitavit in nobis.",
+      "leader4": "Ora pro nobis, sancta Dei Genitrix.",
+      "response4": "Ut digni efficiamur promissionibus Christi.",
+      "ave": "Ave Maria, gratia plena, Dominus tecum. Benedicta tu in mulieribus, et benedictus fructus ventris tui, Jesus.",
+      "sancta": "Sancta Maria, Mater Dei, ora pro nobis peccatoribus nunc et in hora mortis nostrae.",
+      "oremus": "Oremus.",
+      "conclusion": "Exaudi nos, Deus, salutis nostrae; ut sicut per angelica nuntiatione Filii tui Incarnationem cognovimus, ita per passionem et crucem eius ad resurrectionis gloriam perducamur; per eundem Christum Dominum nostrum.",
+      "amen": "Amen."
+    }
+  }
+}

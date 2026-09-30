@@ -13,6 +13,7 @@ import {
   Alert,
   FlatList,
 } from "react-native";
+import { DEFAULT_LANGUAGE, type LanguageCode } from "../utils/language";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -60,116 +61,125 @@ const ANGELUS_CONFIG: Record<AngelusTime, { label: string; time: string }> = {
   },
 };
 
-const LANGUAGES = [
-  { code: "af", name: "Afrikaans", native: "Afrikaans" },
-  { code: "sq", name: "Albanian", native: "Shqip" },
-  { code: "am", name: "Amharic", native: "አማርኛ" },
-  { code: "ar", name: "Arabic", native: "العربية" },
-  { code: "hy", name: "Armenian", native: "Հայերեն" },
-  { code: "az", name: "Azerbaijani", native: "Azərbaycan" },
-  { code: "eu", name: "Basque", native: "Euskara" },
-  { code: "be", name: "Belarusian", native: "Беларуская" },
-  { code: "bn", name: "Bengali", native: "বাংলা" },
-  { code: "bs", name: "Bosnian", native: "Bosanski" },
-  { code: "bg", name: "Bulgarian", native: "Български" },
-  { code: "my", name: "Burmese", native: "မြန်မာဘာသာ" },
-  { code: "ca", name: "Catalan", native: "Català" },
-  { code: "ceb", name: "Cebuano", native: "Cebuano" },
-  { code: "ny", name: "Chichewa", native: "Chichewa" },
-  { code: "zh-CN", name: "Chinese (Simplified)", native: "中文 (简体)" },
-  { code: "zh-TW", name: "Chinese (Traditional)", native: "中文 (繁體)" },
-  { code: "co", name: "Corsican", native: "Corsu" },
-  { code: "hr", name: "Croatian", native: "Hrvatski" },
-  { code: "cs", name: "Czech", native: "Čeština" },
-  { code: "da", name: "Danish", native: "Dansk" },
-  { code: "nl", name: "Dutch", native: "Nederlands" },
+// const LANGUAGES = [
+//   { code: "af", name: "Afrikaans", native: "Afrikaans" },
+//   { code: "sq", name: "Albanian", native: "Shqip" },
+//   { code: "am", name: "Amharic", native: "አማርኛ" },
+//   { code: "ar", name: "Arabic", native: "العربية" },
+//   { code: "hy", name: "Armenian", native: "Հայերեն" },
+//   { code: "az", name: "Azerbaijani", native: "Azərbaycan" },
+//   { code: "eu", name: "Basque", native: "Euskara" },
+//   { code: "be", name: "Belarusian", native: "Беларуская" },
+//   { code: "bn", name: "Bengali", native: "বাংলা" },
+//   { code: "bs", name: "Bosnian", native: "Bosanski" },
+//   { code: "bg", name: "Bulgarian", native: "Български" },
+//   { code: "my", name: "Burmese", native: "မြန်မာဘာသာ" },
+//   { code: "ca", name: "Catalan", native: "Català" },
+//   { code: "ceb", name: "Cebuano", native: "Cebuano" },
+//   { code: "ny", name: "Chichewa", native: "Chichewa" },
+//   { code: "zh-CN", name: "Chinese (Simplified)", native: "中文 (简体)" },
+//   { code: "zh-TW", name: "Chinese (Traditional)", native: "中文 (繁體)" },
+//   { code: "co", name: "Corsican", native: "Corsu" },
+//   { code: "hr", name: "Croatian", native: "Hrvatski" },
+//   { code: "cs", name: "Czech", native: "Čeština" },
+//   { code: "da", name: "Danish", native: "Dansk" },
+//   { code: "nl", name: "Dutch", native: "Nederlands" },
+//   { code: "en", name: "English", native: "English" },
+//   { code: "eo", name: "Esperanto", native: "Esperanto" },
+//   { code: "et", name: "Estonian", native: "Eesti" },
+//   { code: "tl", name: "Filipino", native: "Filipino" },
+//   { code: "fi", name: "Finnish", native: "Suomi" },
+//   { code: "fr", name: "French", native: "Français" },
+//   { code: "fy", name: "Frisian", native: "Frysk" },
+//   { code: "gl", name: "Galician", native: "Galego" },
+//   { code: "ka", name: "Georgian", native: "ქართული" },
+//   { code: "de", name: "German", native: "Deutsch" },
+//   { code: "el", name: "Greek", native: "Ελληνικά" },
+//   { code: "gu", name: "Gujarati", native: "ગુજરાતી" },
+//   { code: "ht", name: "Haitian Creole", native: "Kreyòl ayisyen" },
+//   { code: "ha", name: "Hausa", native: "Hausa" },
+//   { code: "haw", name: "Hawaiian", native: "ʻŌlelo Hawaiʻi" },
+//   { code: "iw", name: "Hebrew", native: "עברית" },
+//   { code: "hi", name: "Hindi", native: "हिन्दी" },
+//   { code: "hmn", name: "Hmong", native: "Hmong" },
+//   { code: "hu", name: "Hungarian", native: "Magyar" },
+//   { code: "is", name: "Icelandic", native: "Íslenska" },
+//   { code: "ig", name: "Igbo", native: "Igbo" },
+//   { code: "id", name: "Indonesian", native: "Bahasa Indonesia" },
+//   { code: "ga", name: "Irish", native: "Gaeilge" },
+//   { code: "it", name: "Italian", native: "Italiano" },
+//   { code: "ja", name: "Japanese", native: "日本語" },
+//   { code: "jw", name: "Javanese", native: "Basa Jawa" },
+//   { code: "kn", name: "Kannada", native: "ಕನ್ನಡ" },
+//   { code: "kk", name: "Kazakh", native: "Қазақ" },
+//   { code: "km", name: "Khmer", native: "ខ្មែរ" },
+//   { code: "rw", name: "Kinyarwanda", native: "Kinyarwanda" },
+//   { code: "ko", name: "Korean", native: "한국어" },
+//   { code: "ku", name: "Kurdish (Kurmanji)", native: "Kurdî" },
+//   { code: "ky", name: "Kyrgyz", native: "Кыргызча" },
+//   { code: "lo", name: "Lao", native: "ລາວ" },
+//   { code: "la", name: "Latin", native: "Latina" },
+//   { code: "lv", name: "Latvian", native: "Latviešu" },
+//   { code: "lt", name: "Lithuanian", native: "Lietuvių" },
+//   { code: "lb", name: "Luxembourgish", native: "Lëtzebuergesch" },
+//   { code: "mk", name: "Macedonian", native: "Македонски" },
+//   { code: "mg", name: "Malagasy", native: "Malagasy" },
+//   { code: "ms", name: "Malay", native: "Bahasa Melayu" },
+//   { code: "ml", name: "Malayalam", native: "മലയാളം" },
+//   { code: "mt", name: "Maltese", native: "Malti" },
+//   { code: "mi", name: "Maori", native: "Māori" },
+//   { code: "mr", name: "Marathi", native: "मराठी" },
+//   { code: "mn", name: "Mongolian", native: "Монгол" },
+//   { code: "ne", name: "Nepali", native: "नेपाली" },
+//   { code: "no", name: "Norwegian", native: "Norsk" },
+//   { code: "or", name: "Odia (Oriya)", native: "ଓଡ଼ିଆ" },
+//   { code: "ps", name: "Pashto", native: "پښتو" },
+//   { code: "fa", name: "Persian", native: "فارسی" },
+//   { code: "pl", name: "Polish", native: "Polski" },
+//   { code: "pt", name: "Portuguese", native: "Português" },
+//   { code: "pa", name: "Punjabi", native: "ਪੰਜਾਬੀ" },
+//   { code: "ro", name: "Romanian", native: "Română" },
+//   { code: "ru", name: "Russian", native: "Русский" },
+//   { code: "sm", name: "Samoan", native: "Samoan" },
+//   { code: "gd", name: "Scots Gaelic", native: "Gàidhlig" },
+//   { code: "sr", name: "Serbian", native: "Српски" },
+//   { code: "st", name: "Sesotho", native: "Sesotho" },
+//   { code: "sn", name: "Shona", native: "Shona" },
+//   { code: "sd", name: "Sindhi", native: "سنڌي" },
+//   { code: "si", name: "Sinhala", native: "සිංහල" },
+//   { code: "sk", name: "Slovak", native: "Slovenčina" },
+//   { code: "sl", name: "Slovenian", native: "Slovenščina" },
+//   { code: "so", name: "Somali", native: "Soomaali" },
+//   { code: "es", name: "Spanish", native: "Español" },
+//   { code: "su", name: "Sundanese", native: "Basa Sunda" },
+//   { code: "sw", name: "Swahili", native: "Kiswahili" },
+//   { code: "sv", name: "Swedish", native: "Svenska" },
+//   { code: "tg", name: "Tajik", native: "Тоҷикӣ" },
+//   { code: "ta", name: "Tamil", native: "தமிழ்" },
+//   { code: "tt", name: "Tatar", native: "Татарча" },
+//   { code: "te", name: "Telugu", native: "తెలుగు" },
+//   { code: "th", name: "Thai", native: "ไทย" },
+//   { code: "tr", name: "Turkish", native: "Türkçe" },
+//   { code: "tk", name: "Turkmen", native: "Türkmen" },
+//   { code: "uk", name: "Ukrainian", native: "Українська" },
+//   { code: "ur", name: "Urdu", native: "اردو" },
+//   { code: "ug", name: "Uyghur", native: "ئۇيغۇرچە" },
+//   { code: "uz", name: "Uzbek", native: "O'zbek" },
+//   { code: "vi", name: "Vietnamese", native: "Tiếng Việt" },
+//   { code: "cy", name: "Welsh", native: "Cymraeg" },
+//   { code: "xh", name: "Xhosa", native: "isiXhosa" },
+//   { code: "yi", name: "Yiddish", native: "יידיש" },
+//   { code: "yo", name: "Yoruba", native: "Yorùbá" },
+//   { code: "zu", name: "Zulu", native: "isiZulu" },
+// ];
+const LANGUAGES: {
+  code: LanguageCode;
+  name: string;
+  native: string;
+}[] = [
   { code: "en", name: "English", native: "English" },
-  { code: "eo", name: "Esperanto", native: "Esperanto" },
-  { code: "et", name: "Estonian", native: "Eesti" },
-  { code: "tl", name: "Filipino", native: "Filipino" },
-  { code: "fi", name: "Finnish", native: "Suomi" },
-  { code: "fr", name: "French", native: "Français" },
-  { code: "fy", name: "Frisian", native: "Frysk" },
-  { code: "gl", name: "Galician", native: "Galego" },
-  { code: "ka", name: "Georgian", native: "ქართული" },
-  { code: "de", name: "German", native: "Deutsch" },
-  { code: "el", name: "Greek", native: "Ελληνικά" },
-  { code: "gu", name: "Gujarati", native: "ગુજરાતી" },
-  { code: "ht", name: "Haitian Creole", native: "Kreyòl ayisyen" },
-  { code: "ha", name: "Hausa", native: "Hausa" },
-  { code: "haw", name: "Hawaiian", native: "ʻŌlelo Hawaiʻi" },
-  { code: "iw", name: "Hebrew", native: "עברית" },
-  { code: "hi", name: "Hindi", native: "हिन्दी" },
-  { code: "hmn", name: "Hmong", native: "Hmong" },
-  { code: "hu", name: "Hungarian", native: "Magyar" },
-  { code: "is", name: "Icelandic", native: "Íslenska" },
-  { code: "ig", name: "Igbo", native: "Igbo" },
-  { code: "id", name: "Indonesian", native: "Bahasa Indonesia" },
-  { code: "ga", name: "Irish", native: "Gaeilge" },
-  { code: "it", name: "Italian", native: "Italiano" },
-  { code: "ja", name: "Japanese", native: "日本語" },
-  { code: "jw", name: "Javanese", native: "Basa Jawa" },
-  { code: "kn", name: "Kannada", native: "ಕನ್ನಡ" },
-  { code: "kk", name: "Kazakh", native: "Қазақ" },
-  { code: "km", name: "Khmer", native: "ខ្មែរ" },
-  { code: "rw", name: "Kinyarwanda", native: "Kinyarwanda" },
-  { code: "ko", name: "Korean", native: "한국어" },
-  { code: "ku", name: "Kurdish (Kurmanji)", native: "Kurdî" },
-  { code: "ky", name: "Kyrgyz", native: "Кыргызча" },
-  { code: "lo", name: "Lao", native: "ລາວ" },
-  { code: "la", name: "Latin", native: "Latina" },
-  { code: "lv", name: "Latvian", native: "Latviešu" },
-  { code: "lt", name: "Lithuanian", native: "Lietuvių" },
-  { code: "lb", name: "Luxembourgish", native: "Lëtzebuergesch" },
-  { code: "mk", name: "Macedonian", native: "Македонски" },
-  { code: "mg", name: "Malagasy", native: "Malagasy" },
-  { code: "ms", name: "Malay", native: "Bahasa Melayu" },
-  { code: "ml", name: "Malayalam", native: "മലയാളം" },
-  { code: "mt", name: "Maltese", native: "Malti" },
-  { code: "mi", name: "Maori", native: "Māori" },
-  { code: "mr", name: "Marathi", native: "मराठी" },
-  { code: "mn", name: "Mongolian", native: "Монгол" },
-  { code: "ne", name: "Nepali", native: "नेपाली" },
-  { code: "no", name: "Norwegian", native: "Norsk" },
-  { code: "or", name: "Odia (Oriya)", native: "ଓଡ଼ିଆ" },
-  { code: "ps", name: "Pashto", native: "پښتو" },
-  { code: "fa", name: "Persian", native: "فارسی" },
-  { code: "pl", name: "Polish", native: "Polski" },
-  { code: "pt", name: "Portuguese", native: "Português" },
-  { code: "pa", name: "Punjabi", native: "ਪੰਜਾਬੀ" },
-  { code: "ro", name: "Romanian", native: "Română" },
-  { code: "ru", name: "Russian", native: "Русский" },
-  { code: "sm", name: "Samoan", native: "Samoan" },
-  { code: "gd", name: "Scots Gaelic", native: "Gàidhlig" },
-  { code: "sr", name: "Serbian", native: "Српски" },
-  { code: "st", name: "Sesotho", native: "Sesotho" },
-  { code: "sn", name: "Shona", native: "Shona" },
-  { code: "sd", name: "Sindhi", native: "سنڌي" },
-  { code: "si", name: "Sinhala", native: "සිංහල" },
-  { code: "sk", name: "Slovak", native: "Slovenčina" },
-  { code: "sl", name: "Slovenian", native: "Slovenščina" },
-  { code: "so", name: "Somali", native: "Soomaali" },
   { code: "es", name: "Spanish", native: "Español" },
-  { code: "su", name: "Sundanese", native: "Basa Sunda" },
-  { code: "sw", name: "Swahili", native: "Kiswahili" },
-  { code: "sv", name: "Swedish", native: "Svenska" },
-  { code: "tg", name: "Tajik", native: "Тоҷикӣ" },
-  { code: "ta", name: "Tamil", native: "தமிழ்" },
-  { code: "tt", name: "Tatar", native: "Татарча" },
-  { code: "te", name: "Telugu", native: "తెలుగు" },
-  { code: "th", name: "Thai", native: "ไทย" },
-  { code: "tr", name: "Turkish", native: "Türkçe" },
-  { code: "tk", name: "Turkmen", native: "Türkmen" },
-  { code: "uk", name: "Ukrainian", native: "Українська" },
-  { code: "ur", name: "Urdu", native: "اردو" },
-  { code: "ug", name: "Uyghur", native: "ئۇيغۇرچە" },
-  { code: "uz", name: "Uzbek", native: "O'zbek" },
-  { code: "vi", name: "Vietnamese", native: "Tiếng Việt" },
-  { code: "cy", name: "Welsh", native: "Cymraeg" },
-  { code: "xh", name: "Xhosa", native: "isiXhosa" },
-  { code: "yi", name: "Yiddish", native: "יידיש" },
-  { code: "yo", name: "Yoruba", native: "Yorùbá" },
-  { code: "zu", name: "Zulu", native: "isiZulu" },
+  { code: "la", name: "Latin", native: "Latin" },
 ];
 
 type StoredIds = Partial<Record<AngelusTime, string>>;
@@ -193,7 +203,8 @@ export default function SettingsScreen({ onLogout }: Props) {
   });
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showLangModal, setShowLangModal] = useState(false);
-  const [selectedLang, setSelectedLang] = useState("en");
+  const [selectedLang, setSelectedLang] =
+    useState<LanguageCode>(DEFAULT_LANGUAGE);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
 
@@ -303,7 +314,7 @@ export default function SettingsScreen({ onLogout }: Props) {
       try {
         const savedLang = await AsyncStorage.getItem(LANGUAGE_KEY);
 
-        if (savedLang) {
+        if (savedLang === "en" || savedLang === "es" || savedLang === "la") {
           setSelectedLang(savedLang);
         }
       } catch {}
@@ -416,7 +427,7 @@ export default function SettingsScreen({ onLogout }: Props) {
     setCustomTimes(allDisabled);
     setToggles(allDisabled);
   };
-  const handleSelectLanguage = async (code: string) => {
+  const handleSelectLanguage = async (code: LanguageCode) => {
     setSelectedLang(code);
     setShowLangModal(false);
     try {
@@ -715,9 +726,9 @@ export default function SettingsScreen({ onLogout }: Props) {
             </View>
             <View style={styles.cardDivider} />
             <TouchableOpacity
-              style={[styles.langRow, styles.disabledRow]}
-              disabled
+              style={[styles.langRow]}
               activeOpacity={1}
+              onPress={() => setShowLangModal(true)}
             >
               <View style={styles.langRowLeft}>
                 <View style={styles.langIconCircle}>
@@ -728,22 +739,22 @@ export default function SettingsScreen({ onLogout }: Props) {
                   />
                 </View>
                 <View style={styles.langRowText}>
-                  <Text style={styles.langRowLabel}>Language</Text>
-                  <Text style={styles.langComingSoon}>Coming Soon</Text>
-                  {/* <Text style={styles.langRowLabel}>Choose Language</Text>
+                  {/* <Text style={styles.langRowLabel}>Language</Text> */}
+                  {/* <Text style={styles.langComingSoon}>Coming Soon</Text> */}
+                  <Text style={styles.langRowLabel}>Choose Language</Text>
                   <Text style={styles.langRowValue}>
                     {currentLang.name}
                     {currentLang.native !== currentLang.name
                       ? `  ·  ${currentLang.native}`
                       : ""}
-                  </Text> */}
+                  </Text>
                 </View>
               </View>
-              {/* <Ionicons
+              <Ionicons
                 name="chevron-forward"
                 size={18}
                 color={COLORS.textSecondary}
-              /> */}
+              />
             </TouchableOpacity>
           </View>
 
