@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width, height } from "../styles/sharedStyles";
@@ -13,6 +13,7 @@ import {
   FONT_BODY_SEMIBOLD,
   FONT_TITLE_BOLD,
 } from "../../../lib/constants/fonts";
+import { supabase } from "../../../lib/supabaseClient"; // ← FIXED path // ← ADDED: adjust path to your actual supabase client
 
 const NAVY_DARK = "#16264A";
 
@@ -35,6 +36,38 @@ export function CommunitySlide({
 }: Props) {
   const mapHeight = height < 700 ? height * 0.3 : height * 0.34; // ← CHANGED (was 0.24 / 0.27)
 
+  // ← ADDED: live count of completed prayers
+  const [totalPrayed, setTotalPrayed] = useState<number | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchTotalPrayed() {
+      const { count, error } = await supabase
+        .from("PrayerSessions")
+        .select("*", { count: "exact", head: true })
+        .eq("Completed", true);
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Failed to fetch total prayed count:", error);
+        return;
+      }
+
+      setTotalPrayed(count ?? 0);
+    }
+
+    fetchTotalPrayed();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const formattedTotalPrayed =
+    totalPrayed !== null ? totalPrayed.toLocaleString() : "—";
+
   return (
     <View style={sharedStyles.slide}>
       <View style={styles.content}>
@@ -42,14 +75,14 @@ export function CommunitySlide({
         <FadeIn delay={80} isVisible={isActive} style={{ width: "100%", alignItems: "center" }}>
           <View style={styles.artworkWrap}>
             <Image
-              source={require("../../../../assets/globe_prayer.png")}
+              source={require("../../../../assets/onboarding_globe.png")}
               style={[styles.worldMap, { height: mapHeight }]}
               resizeMode="contain"
             />
 
             {/* Floating stat card, overlapping bottom of the globe */}
             <View style={styles.counterCard}>
-              <Text style={styles.counterNumber}>12,468</Text>
+              <Text style={styles.counterNumber}>{formattedTotalPrayed}</Text>
               <Text style={styles.counterLabel}>prayed today.</Text>
             </View>
           </View>

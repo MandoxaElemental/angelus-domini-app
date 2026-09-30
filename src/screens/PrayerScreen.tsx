@@ -28,6 +28,9 @@ import { startPrayer, completePrayer } from "../api/prayerApi";
 // resolve a userId without needing a live network session.
 const CACHED_USER_ID_KEY = "angelus_cached_user_id";
 
+// ← ADDED: same key SettingsScreen saves the chosen language under.
+const LANGUAGE_KEY = "angelus_language";
+
 // Races a promise against a timeout so a slow/hanging network call can
 // never block this fallback indefinitely — resolves to null if the
 // timeout wins (mirrors the same pattern used in MainApp.tsx).
@@ -63,6 +66,59 @@ Pour forth, we beseech Thee, O Lord, Thy grace into our hearts; that we, to whom
 Amen.
 
 `;
+
+// ← ADDED: display-only translations. PRAYER_SEQUENCE below stays in
+// English (audio, durations, types, and the isHailMary check all depend
+// on it). At render time each English text is looked up here by its own
+// string; if a language or line is missing it falls back to English.
+const SUBTITLE_EN = "Meditating on the mystery of the Incarnation";
+
+const TRANSLATIONS: Record<string, Record<string, string>> = {
+  // ← CHANGED: Spanish text updated to the new wording.
+  es: {
+    [SIGN_OF_THE_CROSS]: `En el nombre del Padre, y del Hijo, y del Espíritu Santo. Amén.`,
+    "The Angel of the Lord declared unto Mary,": "El Ángel del Señor anunció a María.",
+    "And she conceived of the Holy Spirit.": "Y concibió por obra del Espíritu Santo.",
+    [HAIL_MARY_PART_1]: `Dios te salve, María. Llena eres de gracia: El Señor es contigo. Bendita tú eres entre todas las mujeres. Y bendito es el fruto de tu vientre: Jesús.`,
+    [HAIL_MARY_PART_2]: `Santa María, Madre de Dios, ruega por nosotros pecadores, ahora y en la hora de nuestra muerte. Amén.`,
+    "Behold the handmaid of the Lord": "He aquí la esclava del Señor.",
+    "Be it done unto me according to thy word.": "Hágase en mí según Tu palabra.",
+    [VERBUM]: `Y el Verbo se hizo
+carne.`,
+    "And dwelt amongst us.": "Y habitó entre nosotros.",
+    [CLOSING_CALL.versicle]: "Ruega por nosotros, Santa Madre de Dios.",
+    [CLOSING_CALL.response]:
+      "Para que seamos dignos de alcanzar las promesas de Jesucristo.",
+    [CLOSING_PRAYER]: `Oremos:
+
+Derrama, Señor, Tu gracia en nuestros corazones; que habiendo conocido la Encarnación de Cristo, Tu Hijo, por la voz del Ángel, por los méritos de Su Pasión y cruz seamos llevados a la gloria de la Resurrección. Por el mismo Cristo, Nuestro Señor.
+Amén.
+
+`,
+    [SUBTITLE_EN]: "Meditando en el misterio de la Encarnación",
+  },
+  la: {
+    [SIGN_OF_THE_CROSS]: `In nomine Patris, et Filii, et Spiritus Sancti. Amen.`,
+    "The Angel of the Lord declared unto Mary,": "Angelus Domini nuntiavit Mariae.",
+    "And she conceived of the Holy Spirit.": "Et concepit de Spiritu Sancto.",
+    [HAIL_MARY_PART_1]: `Ave Maria, gratia plena; Dominus tecum: benedicta tu in mulieribus, et benedictus fructus ventris tui Iesus.`,
+    [HAIL_MARY_PART_2]: `Sancta Maria, Mater Dei ora pro nobis peccatoribus, nunc et in hora mortis nostrae. Amen.`,
+    "Behold the handmaid of the Lord": "Ecce ancilla Domini,",
+    "Be it done unto me according to thy word.": "Fiat mihi secundum verbum tuum.",
+    [VERBUM]: `Et Verbum caro
+factum est,`,
+    "And dwelt amongst us.": "Et habitavit in nobis.",
+    [CLOSING_CALL.versicle]: "Ora pro nobis, sancta Dei Genetrix,",
+    [CLOSING_CALL.response]: "Ut digni efficiamur promissionibus Christi.",
+    [CLOSING_PRAYER]: `Oremus:
+
+Gratiam tuam, quaesumus, Domine, mentibus nostris infunde; ut qui, Angelo nuntiante, Christi Filii tui incarnationem cognovimus, per passionem eius et crucem ad resurrectionis gloriam perducamur. Per eumdem Christum Dominum nostrum.
+Amen.
+
+`,
+    [SUBTITLE_EN]: "Meditantes de mysterio Incarnationis",
+  },
+};
 
 const PRAYER_SEQUENCE: PrayerItem[] = [
   {
@@ -240,6 +296,28 @@ export default function PrayerScreen() {
   const route = useRoute<any>();
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const onComplete = route.params?.onComplete;
+
+  // ← ADDED: selected display language ("en" | "es" | "la"), loaded from
+  // the same AsyncStorage key SettingsScreen writes. Re-read on mount and
+  // every time this screen regains focus, so a change made in Settings is
+  // picked up immediately. Display only — no effect on audio or timing.
+  const [lang, setLang] = useState("en");
+
+  useEffect(() => {
+    const loadLang = async () => {
+      try {
+        const saved = await AsyncStorage.getItem(LANGUAGE_KEY);
+        setLang(saved && (saved === "es" || saved === "la") ? saved : "en");
+      } catch {}
+    };
+    loadLang();
+    const unsubscribe = navigation.addListener("focus", loadLang);
+    return unsubscribe;
+  }, []);
+
+  // ← ADDED: returns the translated text for the current language, or the
+  // original English text when no translation exists (or lang is "en").
+  const tr = (text: string) => TRANSLATIONS[lang]?.[text] ?? text;
 
   // ─── FALLBACK SELF-COMPLETION (fixes "Missed" after tapping a push
   // notification) ─────────────────────────────────────────────────────────
@@ -649,6 +727,7 @@ export default function PrayerScreen() {
   };
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ← CHANGED: each {item.text} below is now {tr(item.text)} — display only.
   const renderPrayer = () => {
     if (item.type === "versicle")
       return (
@@ -659,7 +738,7 @@ export default function PrayerScreen() {
             { opacity: fadeAnim },
           ]}
         >
-          {item.text}
+          {tr(item.text)}
         </Animated.Text>
       );
     if (item.type === "response")
@@ -671,13 +750,13 @@ export default function PrayerScreen() {
             { opacity: fadeAnim },
           ]}
         >
-          {item.text}
+          {tr(item.text)}
         </Animated.Text>
       );
     if (item.type === "prayer")
       return (
         <Animated.Text style={[styles.prayer, { opacity: fadeAnim }]}>
-          {item.text}
+          {tr(item.text)}
         </Animated.Text>
       );
   };
@@ -725,9 +804,8 @@ export default function PrayerScreen() {
       </View>
 
       <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
-        <Text style={styles.subtitle}>
-          Meditating on the mystery of the Incarnation
-        </Text>
+        {/* ← CHANGED: subtitle translated via tr() */}
+        <Text style={styles.subtitle}>{tr(SUBTITLE_EN)}</Text>
 
         <View style={styles.timeSelector}>
           {[
@@ -804,7 +882,8 @@ export default function PrayerScreen() {
                     { fontSize: sizes.titleFont, lineHeight: sizes.bodyLineHeight },
                   ]}
                 >
-                  {nextItem?.text || ""}
+                  {/* ← CHANGED: translated via tr() */}
+                  {nextItem?.text ? tr(nextItem.text) : ""}
                 </Text>
               </Animated.View>
               <BlurView intensity={50} tint="light" style={styles.fullCardBlur}>

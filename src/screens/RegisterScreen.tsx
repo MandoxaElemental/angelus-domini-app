@@ -4,17 +4,15 @@ import {
   View,
   TouchableOpacity,
   TextInput,
+  Image,
   Modal,
   FlatList,
-  ImageBackground,
   StyleSheet,
   Platform,
-  StatusBar,
   Keyboard,
-  KeyboardAvoidingView, // ← ADDED
+  KeyboardAvoidingView,
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
-import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import {
   useFonts,
@@ -27,7 +25,7 @@ import { register } from "../api/authApi";
 
 SplashScreen.preventAutoHideAsync();
 
-const churchBg = require("../../assets/bgchurch1.png");
+const angelusIcon = require("../../assets/login_icons.png");
 
 const COUNTRIES = [
   { code: "PH", name: "Philippines", flag: "🇵🇭" },
@@ -54,31 +52,6 @@ type Country = {
 };
 
 type ActiveField = "username" | "email" | "password" | null;
-
-function GlassInput({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: object;
-}) {
-  if (Platform.OS === "ios") {
-    return (
-      <BlurView
-        intensity={95}
-        tint="light"
-        style={[styles.glassContainer, style]}
-      >
-        {children}
-      </BlurView>
-    );
-  }
-  return (
-    <View style={[styles.glassContainer, styles.glassAndroid, style]}>
-      {children}
-    </View>
-  );
-}
 
 export default function RegisterScreen({
   goToLogin,
@@ -190,417 +163,372 @@ export default function RegisterScreen({
   };
 
   return (
-    <View style={styles.root}>
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="light-content"
-      />
-
-      <ImageBackground source={churchBg} style={styles.bg} resizeMode="cover">
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+    <View style={{ flex: 1, backgroundColor: "#FFFDF7" }}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            gap: 16,
+            paddingVertical: 60,
+          }}
         >
-          <View style={styles.heroSection}>
-            <Text style={styles.heroTitle}>Begin with the{"\n"}Angelus</Text>
-            <View style={styles.taglineContainer}>
-              <Text style={[styles.heroTagline, styles.pauseText]}>Pause.</Text>
-              <Text style={[styles.heroTagline, styles.listenText]}>
-                Listen.
-              </Text>
-              <Text style={[styles.heroTagline, styles.prayText]}>Pray.</Text>
+          {/* Logo */}
+          <View style={{ alignItems: "center", marginBottom: 32 }}>
+            <View
+              style={{
+                width: 240,
+                height: 240,
+                borderRadius: 180,
+                backgroundColor: "#1F3A6E",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: 8,
+                marginTop: -20,
+              }}
+            >
+              <Image
+                source={angelusIcon}
+                style={{ width: 300, height: 200, resizeMode: "contain" }}
+              />
             </View>
           </View>
 
-          <View style={styles.formSection}>
-            {/* Username */}
-            <TouchableOpacity
-              onPress={() => openField("username")}
-              activeOpacity={0.8}
-            >
-              <GlassInput>
-                <Text
-                  style={[
-                    styles.textInput,
-                    username ? styles.filledText : styles.placeholderText,
-                  ]}
-                >
-                  {username || "Username"}
-                </Text>
-              </GlassInput>
-            </TouchableOpacity>
+          {/* ← ADDED: Heading */}
+          <Text style={styles.formHeading}>Create your Account</Text>
 
-            {/* Email */}
-            <TouchableOpacity
-              onPress={() => openField("email")}
-              activeOpacity={0.8}
-            >
-              <GlassInput>
-                <Text
-                  style={[
-                    styles.textInput,
-                    email ? styles.filledText : styles.placeholderText,
-                  ]}
-                >
-                  {email || "Email"}
-                </Text>
-              </GlassInput>
-            </TouchableOpacity>
-
-            {/* Password */}
-            <TouchableOpacity
-              onPress={() => openField("password")}
-              activeOpacity={0.8}
-            >
-              <GlassInput
-                style={{ flexDirection: "row", alignItems: "center" }}
-              >
-                <Text
-                  style={[
-                    styles.textInput,
-                    { flex: 1 },
-                    password ? styles.filledText : styles.placeholderText,
-                  ]}
-                >
-                  {password
-                    ? "•".repeat(Math.min(password.length, 20))
-                    : "Password"}
-                </Text>
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={18}
-                  color="rgba(255,230,167,0.5)"
-                />
-              </GlassInput>
-            </TouchableOpacity>
-
-            {/* Country picker */}
-            <TouchableOpacity
-              onPress={() => setCountryModalVisible(true)}
-              activeOpacity={0.8}
-            >
-              <GlassInput
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  minHeight: 50,
-                }}
-              >
-                <Text style={[styles.textInput, { flex: 1, color: "#FFE6A7" }]}>
-                  {selectedCountry
-                    ? `${selectedCountry.flag}  ${selectedCountry.name}`
-                    : " Country"}
-                </Text>
-                <Text style={{ color: "rgba(255,230,167,0.7)", fontSize: 11 }}>
-                  ▼
-                </Text>
-              </GlassInput>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleRegister}
-              disabled={loading}
-              activeOpacity={0.85}
-              style={[
-                styles.nextBtn,
-                loading && { backgroundColor: "#4A6A9E" },
-              ]}
-            >
-              <Text style={styles.nextBtnText}>
-                {loading ? "Creating..." : "Register"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={goToLogin}
-              activeOpacity={0.7}
-              style={{ alignItems: "center", marginTop: 12 }}
+          {/* Username Field */}
+          <TouchableOpacity
+            onPress={() => openField("username")}
+            activeOpacity={0.8}
+          >
+            <View
+              style={{
+                backgroundColor: "#F6F3E8",
+                borderRadius: 12,
+                paddingHorizontal: 16,
+                height: 56,
+                justifyContent: "center",
+              }}
             >
               <Text
                 style={{
-                  color: "#FFE6A7",
-                  fontSize: 14,
-                  fontWeight: "600",
-                  textDecorationLine: "underline",
-                  letterSpacing: 0.3,
+                  fontSize: 16,
+                  color: username ? "#1C1C1C" : "#9B9588",
                 }}
               >
-                Sign in to your account
+                {username || "Username"}
               </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+            </View>
+          </TouchableOpacity>
 
-        {/* ✅ FIXED FLOATING INPUT BOTTOM SHEET */}
-        <Modal
-          visible={activeField !== null}
-          transparent
-          animationType="slide"
-          statusBarTranslucent // ← ADDED
-          onRequestClose={cancelField}
-        >
-          {/* ← ADDED: fixes keyboard pushing sheet correctly in APK */}
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          {/* Email Field */}
+          <TouchableOpacity
+            onPress={() => openField("email")}
+            activeOpacity={0.8}
           >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={cancelField}
-              style={styles.floatBackdrop}
+            <View
+              style={{
+                backgroundColor: "#F6F3E8",
+                borderRadius: 12,
+                paddingHorizontal: 16,
+                height: 56,
+                justifyContent: "center",
+              }}
             >
-              <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-                <View style={styles.floatSheet}>
-                  {/* Drag Handle */}
-                  <View style={styles.modalHandle} />
+              <Text
+                style={{ fontSize: 16, color: email ? "#1C1C1C" : "#9B9588" }}
+              >
+                {email || "Email"}
+              </Text>
+            </View>
+          </TouchableOpacity>
 
-                  {/* Header */}
-                  <View style={styles.floatHeader}>
-                    <TouchableOpacity
-                      onPress={cancelField}
-                      style={styles.floatHeaderBtn}
-                    >
-                      <Text style={styles.floatCancelText}>Cancel</Text>
-                    </TouchableOpacity>
+          {/* Password Field */}
+          <TouchableOpacity
+            onPress={() => openField("password")}
+            activeOpacity={0.8}
+          >
+            <View
+              style={{
+                backgroundColor: "#F6F3E8",
+                borderRadius: 12,
+                paddingHorizontal: 16,
+                height: 56,
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  flex: 1,
+                  fontSize: 16,
+                  color: password ? "#1C1C1C" : "#9B9588",
+                }}
+              >
+                {password
+                  ? "•".repeat(Math.min(password.length, 20))
+                  : "Password"}
+              </Text>
+              <Ionicons name="lock-closed-outline" size={20} color="#9B9588" />
+            </View>
+          </TouchableOpacity>
 
-                    <Text style={styles.floatTitle}>{getFieldLabel()}</Text>
+          {/* Country Picker Field */}
+          <TouchableOpacity
+            onPress={() => setCountryModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <View
+              style={{
+                backgroundColor: "#F6F3E8",
+                borderRadius: 12,
+                paddingHorizontal: 16,
+                height: 56,
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  flex: 1,
+                  fontSize: 16,
+                  color: selectedCountry ? "#1C1C1C" : "#9B9588",
+                }}
+              >
+                {selectedCountry
+                  ? `${selectedCountry.flag}  ${selectedCountry.name}`
+                  : "Country"}
+              </Text>
+              <Text style={{ color: "#9B9588", fontSize: 11 }}>▼</Text>
+            </View>
+          </TouchableOpacity>
 
-                    <TouchableOpacity
-                      onPress={confirmField}
-                      style={[
-                        styles.floatHeaderBtn,
-                        { alignItems: "flex-end" },
-                      ]}
-                    >
-                      <Text style={styles.floatDoneText}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
+          {/* Register Button */}
+          <TouchableOpacity
+            onPress={handleRegister}
+            disabled={loading}
+            activeOpacity={0.85}
+            style={{
+              backgroundColor: loading ? "#4A6A9E" : "#1F3A6E",
+              borderRadius: 50,
+              height: 56,
+              justifyContent: "center",
+              alignItems: "center",
+              marginTop: 8,
+            }}
+          >
+            <Text
+              style={{ color: "#FFFDF7", fontWeight: "bold", fontSize: 16 }}
+            >
+              {loading ? "Creating..." : "Register"}
+            </Text>
+          </TouchableOpacity>
 
-                  <View style={styles.modalDivider} />
+          <View style={{ alignItems: "center", marginTop: 8 }}>
+            <Text style={{ color: "#6F6A5F", fontSize: 14 }}>
+              Already have an account?
+            </Text>
+          </View>
 
-                  {/* Input */}
-                  <View style={styles.floatInputRow}>
-                    <TextInput
-                      ref={floatInputRef}
-                      value={tempValue}
-                      onChangeText={setTempValue}
-                      style={styles.floatTextInput}
-                      placeholder={`Enter ${getFieldLabel()}`}
-                      placeholderTextColor="#C0B8A8"
-                      secureTextEntry={
-                        activeField === "password" && !showTempPassword
-                      }
-                      keyboardType={
-                        activeField === "email" ? "email-address" : "default"
-                      }
-                      autoCapitalize={
-                        activeField === "email" || activeField === "password"
-                          ? "none"
-                          : "words"
-                      }
-                      maxLength={activeField === "username" ? 10 : undefined}
-                      returnKeyType="done"
-                      onSubmitEditing={confirmField}
-                      autoCorrect={false}
-                    />
+          {/* Sign In Button */}
+          <TouchableOpacity
+            onPress={goToLogin}
+            activeOpacity={0.7}
+            style={{
+              backgroundColor: "transparent",
+              borderRadius: 50,
+              height: 56,
+              justifyContent: "center",
+              alignItems: "center",
+              borderWidth: 2,
+              borderColor: "#D4A017",
+            }}
+          >
+            <Text
+              style={{ color: "#D4A017", fontWeight: "bold", fontSize: 16 }}
+            >
+              Sign In
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
 
-                    {activeField === "password" && (
-                      <TouchableOpacity
-                        onPress={() => setShowTempPassword((prev) => !prev)}
-                        style={styles.eyeBtn}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Ionicons
-                          name={
-                            showTempPassword ? "eye-outline" : "eye-off-outline"
-                          }
-                          size={24}
-                          color="#C8922A"
-                        />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {activeField === "password" && (
-                    <Text style={styles.floatHelperText}>
-                      {showTempPassword
-                        ? "Password is visible"
-                        : "Password is hidden"}
-                    </Text>
-                  )}
-
-                  {activeField === "username" && (
-                    <Text style={styles.floatHelperText}>
-                      Username must be 6-10 characters
-                    </Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          </KeyboardAvoidingView>
-        </Modal>
-
-        {/* ✅ FIXED COUNTRY PICKER MODAL */}
-        <Modal
-          visible={countryModalVisible}
-          transparent
-          animationType="slide"
-          statusBarTranslucent // ← ADDED
-          onRequestClose={() => setCountryModalVisible(false)}
+      {/* ✅ FLOATING INPUT BOTTOM SHEET */}
+      <Modal
+        visible={activeField !== null}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={cancelField}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <TouchableOpacity
             activeOpacity={1}
-            onPress={() => setCountryModalVisible(false)}
-            style={styles.modalBackdrop}
+            onPress={cancelField}
+            style={styles.floatBackdrop}
           >
-            <TouchableOpacity activeOpacity={1} onPress={() => undefined}>
-              <View style={styles.modalSheet}>
+            <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+              <View style={styles.floatSheet}>
+                {/* Drag Handle */}
                 <View style={styles.modalHandle} />
-                <Text style={styles.modalTitle}>Select Your Country</Text>
+
+                {/* Header */}
+                <View style={styles.floatHeader}>
+                  <TouchableOpacity
+                    onPress={cancelField}
+                    style={styles.floatHeaderBtn}
+                  >
+                    <Text style={styles.floatCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.floatTitle}>{getFieldLabel()}</Text>
+
+                  <TouchableOpacity
+                    onPress={confirmField}
+                    style={[styles.floatHeaderBtn, { alignItems: "flex-end" }]}
+                  >
+                    <Text style={styles.floatDoneText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+
                 <View style={styles.modalDivider} />
-                <FlatList
-                  data={COUNTRIES}
-                  keyExtractor={(item) => item.code}
-                  showsVerticalScrollIndicator={false}
-                  renderItem={({ item }) => {
-                    const isSelected = selectedCountry?.code === item.code;
-                    return (
-                      <TouchableOpacity
-                        onPress={() => {
-                          setSelectedCountry(item);
-                          setCountryModalVisible(false);
-                        }}
-                        style={[
-                          styles.countryRow,
-                          isSelected && styles.countryRowSelected,
-                        ]}
-                      >
-                        <Text style={styles.countryFlag}>{item.flag}</Text>
-                        <Text
-                          style={[
-                            styles.countryName,
-                            isSelected && { fontWeight: "700" },
-                          ]}
-                        >
-                          {item.name}
-                        </Text>
-                        {isSelected && <Text style={styles.checkmark}>✓</Text>}
-                      </TouchableOpacity>
-                    );
-                  }}
-                />
+
+                {/* Input */}
+                <View style={styles.floatInputRow}>
+                  <TextInput
+                    ref={floatInputRef}
+                    value={tempValue}
+                    onChangeText={setTempValue}
+                    style={styles.floatTextInput}
+                    placeholder={`Enter ${getFieldLabel()}`}
+                    placeholderTextColor="#C0B8A8"
+                    secureTextEntry={
+                      activeField === "password" && !showTempPassword
+                    }
+                    keyboardType={
+                      activeField === "email" ? "email-address" : "default"
+                    }
+                    autoCapitalize={
+                      activeField === "email" || activeField === "password"
+                        ? "none"
+                        : "words"
+                    }
+                    maxLength={activeField === "username" ? 10 : undefined}
+                    returnKeyType="done"
+                    onSubmitEditing={confirmField}
+                    autoCorrect={false}
+                  />
+
+                  {activeField === "password" && (
+                    <TouchableOpacity
+                      onPress={() => setShowTempPassword((prev) => !prev)}
+                      style={styles.eyeBtn}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons
+                        name={
+                          showTempPassword ? "eye-outline" : "eye-off-outline"
+                        }
+                        size={24}
+                        color="#1F3A6E"
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {activeField === "password" && (
+                  <Text style={styles.floatHelperText}>
+                    {showTempPassword
+                      ? "Password is visible"
+                      : "Password is hidden"}
+                  </Text>
+                )}
+
+                {activeField === "username" && (
+                  <Text style={styles.floatHelperText}>
+                    Username must be 6-10 characters
+                  </Text>
+                )}
               </View>
             </TouchableOpacity>
           </TouchableOpacity>
-        </Modal>
-      </ImageBackground>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ✅ COUNTRY PICKER MODAL */}
+      <Modal
+        visible={countryModalVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setCountryModalVisible(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setCountryModalVisible(false)}
+          style={styles.modalBackdrop}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => undefined}>
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHandle} />
+              <Text style={styles.modalTitle}>Select Your Country</Text>
+              <View style={styles.modalDivider} />
+              <FlatList
+                data={COUNTRIES}
+                keyExtractor={(item) => item.code}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const isSelected = selectedCountry?.code === item.code;
+                  return (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectedCountry(item);
+                        setCountryModalVisible(false);
+                      }}
+                      style={[
+                        styles.countryRow,
+                        isSelected && styles.countryRowSelected,
+                      ]}
+                    >
+                      <Text style={styles.countryFlag}>{item.flag}</Text>
+                      <Text
+                        style={[
+                          styles.countryName,
+                          isSelected && { fontWeight: "700" },
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                      {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#000" },
-  bg: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: "space-between",
-    paddingBottom: 48,
-    minHeight: "100%",
-  },
-  heroSection: {
-    paddingTop: 90,
-    paddingHorizontal: 28,
-    paddingBottom: 20,
-  },
-  heroTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 34,
+  // ← ADDED
+  formHeading: {
+    fontSize: 20,
+    fontWeight: "700",
     color: "#1F3A6E",
     textAlign: "center",
-    letterSpacing: 0.4,
-    lineHeight: 42,
-    marginBottom: 12,
-  },
-  taglineContainer: {
-    position: "absolute",
-    top: 180,
-    left: 250,
-  },
-  heroTagline: {
-    fontFamily: "PlayfairDisplay_400Regular_Italic",
-    fontSize: 23,
-    color: "#FFE6A7",
-    position: "absolute",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
-  },
-  pauseText: { top: 0, left: -50 },
-  listenText: { top: 34, left: 5 },
-  prayText: { top: 68, left: 50 },
-  formSection: {
-    paddingHorizontal: 20,
-    gap: 8,
-    paddingTop: 20,
-  },
-  glassContainer: {
-    height: 52,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "rgba(200,170,90,0.7)",
-    paddingHorizontal: 18,
-
-    flexDirection: "row",
-    alignItems: "center",
-
-    backgroundColor: "rgba(150,175,215,0.45)",
-  },
-  glassAndroid: {
-    backgroundColor: "rgba(150,175,215,0.68)",
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "400",
-    letterSpacing: 0.2,
-    color: "#FFE6A7",
-    textAlignVertical: "center",
-    includeFontPadding: false, // Android
-  },
-  filledText: {
-    color: "#FFE6A7",
-  },
-  placeholderText: {
-    color: "rgba(255,230,167,0.7)",
-  },
-  nextBtn: {
-    backgroundColor: "#C8922A",
-    borderRadius: 50,
-    height: 56,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  nextBtnText: {
-    color: "#FFFDF7",
-    fontWeight: "800",
-    fontSize: 16,
-    letterSpacing: 0.6,
+    marginBottom: 8,
+    marginTop: -40,
   },
   floatBackdrop: {
     flex: 1,
@@ -612,7 +540,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 10,
-    paddingBottom: Platform.OS === "ios" ? 50 : 48,
+    paddingBottom: Platform.OS === "ios" ? 40 : 28,
   },
   floatHeader: {
     flexDirection: "row",
@@ -638,7 +566,7 @@ const styles = StyleSheet.create({
   },
   floatDoneText: {
     fontSize: 14,
-    color: "#C8922A",
+    color: "#1F3A6E",
     fontWeight: "700",
     textAlign: "right",
   },
@@ -648,11 +576,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 16,
     borderWidth: 1.5,
-    borderColor: "#D4A017",
+    borderColor: "#1F3A6E",
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 4,
-    backgroundColor: "#FFF8EE",
+    backgroundColor: "#F6F3E8",
   },
   floatTextInput: {
     flex: 1,

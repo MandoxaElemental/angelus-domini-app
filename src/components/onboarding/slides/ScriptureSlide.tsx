@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Animated,
 } from "react-native";
-import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles, width, height } from "../styles/sharedStyles";
 import { BLUE, GOLD, IVORY } from "../../../lib/constants/colors";
 import {
@@ -20,8 +19,9 @@ const NAVY = "#1F3A6E";
 const NAVY_DARK = "#16264A";
 const CARD_BG = "rgba(246, 243, 232, 0.88)"; // #F6F3E8 transparent
 
-// ← ADDED: local fade-up animation (opacity + translateY), used only for the
-// scripture title/subtitle block below. Doesn't touch the shared FadeIn component.
+// ← Local fade-up animation (opacity + translateY). Used for both the
+// scripture title/subtitle block AND the bottom welcome card, so everything
+// rises into view instead of just fading in place.
 function FadeInUp({
   delay = 0,
   isVisible,
@@ -103,16 +103,23 @@ export function ScriptureSlide({
         resizeMode="cover"
       >
         <View style={sharedStyles.centerContent}>
-          {/* ← CHANGED: FadeIn -> FadeInUp for upward fade-in */}
-          <FadeInUp delay={180} isVisible={isActive} distance={24}>
+          {/* Scripture title/subtitle: slow fade-up, shows first */}
+          <FadeInUp delay={180} isVisible={isActive} distance={24} duration={900}>
             <Text style={styles.scriptureMain}>{title}</Text>
           </FadeInUp>
-          <FadeInUp delay={280} isVisible={isActive} distance={24}>
+          <FadeInUp delay={280} isVisible={isActive} distance={24} duration={900}>
             <Text style={styles.scriptureItalic}>{subtitle}</Text>
           </FadeInUp>
         </View>
 
-        <FadeIn delay={1000} isVisible={isActive} style={styles.cardWrap}>
+        {/* Welcome card: fades up 2 seconds after the slide becomes active */}
+        <FadeInUp
+          delay={2000}
+          isVisible={isActive}
+          distance={30}
+          duration={700}
+          style={styles.cardWrap}
+        >
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{welcomeTitle}</Text>
 
@@ -144,7 +151,7 @@ export function ScriptureSlide({
               <Text style={styles.continueText}>Continue</Text>
             </TouchableOpacity>
           </View>
-        </FadeIn>
+        </FadeInUp>
       </ImageBackground>
     </TouchableOpacity>
   );
@@ -162,7 +169,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   scriptureItalic: {
-    fontFamily: FONT_TITLE_ITALIC,
+    fontFamily: FONT_TITLE_BOLD,
     fontSize: 34,
     fontStyle: "italic",
     color: "#FFE6A7",

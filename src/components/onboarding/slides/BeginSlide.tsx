@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,8 +6,8 @@ import {
   Image,
   ImageBackground,
   StyleSheet,
+  Animated,
 } from "react-native";
-import { FadeIn } from "../../shared/FadeIn";
 import { sharedStyles } from "../styles/sharedStyles";
 import { GOLD, IVORY } from "../../../lib/constants/colors";
 import {
@@ -35,13 +35,44 @@ export function BeginSlide({
   dotCount = 6,
   activeDotIndex = 5,
 }: Props) {
+  // Fade-up animation values: opacity + translateY, same role FadeIn used to play
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    if (isActive) {
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 500,
+          delay: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 500,
+          delay: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      opacity.setValue(0);
+      translateY.setValue(20);
+    }
+  }, [isActive]);
+
   return (
     <ImageBackground
       source={require("../../../../assets/bgchurch.png")}
       style={sharedStyles.slide}
       resizeMode="cover"
     >
-      <FadeIn delay={200} isVisible={isActive} style={styles.cardWrap}>
+      <Animated.View
+        style={[
+          styles.cardWrap,
+          { opacity, transform: [{ translateY }] },
+        ]}
+      >
         {/* Shadow layer — elevation/shadow live here, NOT combined with
             borderRadius+backgroundColor, so Android doesn't render a
             square shadow box behind the rounded card */}
@@ -92,7 +123,7 @@ export function BeginSlide({
             </TouchableOpacity>
           </View>
         </View>
-      </FadeIn>
+      </Animated.View>
     </ImageBackground>
   );
 }

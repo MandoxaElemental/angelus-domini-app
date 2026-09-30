@@ -32,12 +32,20 @@ export function RhythmSlide({
       <View style={sharedStyles.centerContent}>
         {/* Illustration */}
         <FadeIn delay={100} isVisible={isActive}>
-          <Image
-            // ← REPLACE this path with your own phone + bell-tower image asset
-            source={require("../../../../assets/notificationsbg.png")}
-            style={styles.image}
-            resizeMode="contain"
-          />
+          <View style={styles.imagesRow}>
+            <Image
+              // ← REPLACE this path with your own second image asset (back layer)
+              source={require("../../../../assets/tower.png")}
+              style={styles.imageBack}
+              resizeMode="contain"
+            />
+            <Image
+              // ← REPLACE this path with your own first image asset (front layer)
+              source={require("../../../../assets/cellphone_onboarding.png")}
+              style={styles.imageFront}
+              resizeMode="contain"
+            />
+          </View>
         </FadeIn>
 
         {/* Title */}
@@ -91,10 +99,29 @@ export function RhythmSlide({
 }
 
 const styles = StyleSheet.create({
-  image: {
+  imagesRow: {
     width: 300,
-    height: 300,
+    height: 320,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 18,
+    position: "relative",
+  },
+  imageBack: {
+    position: "absolute",
+    width: 350,
+    height: 360,
+    left: 45,
+    top: -35,
+    zIndex: 1,
+  },
+  imageFront: {
+    position: "absolute",
+    width: 250,
+    height: 350,
+    left: -45,
+    top: 30,
+    zIndex: 2,
   },
   heading: {
     fontFamily: FONT_TITLE_BOLD,

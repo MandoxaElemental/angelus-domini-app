@@ -27,8 +27,8 @@ import {
   setAngelusMode,
   scheduleAngelusNotifications,
   cancelAngelusNotifications,
-   getSlotToggles,   // ← ADDED
-  setSlotToggles,   // ← ADDED
+  getSlotToggles,
+  setSlotToggles,
 } from "../services/notificationService";
 import { useFonts } from "expo-font";
 
@@ -55,132 +55,13 @@ const ANGELUS_CONFIG: Record<
   evening: { label: "Evening Angelus", time: "6:00 PM", hour: 18, minute: 0 },
 };
 
+// ← CHANGED: trimmed to the three supported languages.
+// Codes must match the keys used in PrayerScreen's TRANSLATIONS.
 const LANGUAGES = [
-  { code: "af", name: "Afrikaans", native: "Afrikaans" },
-  { code: "sq", name: "Albanian", native: "Shqip" },
-  { code: "am", name: "Amharic", native: "አማርኛ" },
-  { code: "ar", name: "Arabic", native: "العربية" },
-  { code: "hy", name: "Armenian", native: "Հայերեն" },
-  { code: "az", name: "Azerbaijani", native: "Azərbaycan" },
-  { code: "eu", name: "Basque", native: "Euskara" },
-  { code: "be", name: "Belarusian", native: "Беларуская" },
-  { code: "bn", name: "Bengali", native: "বাংলা" },
-  { code: "bs", name: "Bosnian", native: "Bosanski" },
-  { code: "bg", name: "Bulgarian", native: "Български" },
-  { code: "my", name: "Burmese", native: "မြန်မာဘာသာ" },
-  { code: "ca", name: "Catalan", native: "Català" },
-  { code: "ceb", name: "Cebuano", native: "Cebuano" },
-  { code: "ny", name: "Chichewa", native: "Chichewa" },
-  { code: "zh-CN", name: "Chinese (Simplified)", native: "中文 (简体)" },
-  { code: "zh-TW", name: "Chinese (Traditional)", native: "中文 (繁體)" },
-  { code: "co", name: "Corsican", native: "Corsu" },
-  { code: "hr", name: "Croatian", native: "Hrvatski" },
-  { code: "cs", name: "Czech", native: "Čeština" },
-  { code: "da", name: "Danish", native: "Dansk" },
-  { code: "nl", name: "Dutch", native: "Nederlands" },
   { code: "en", name: "English", native: "English" },
-  { code: "eo", name: "Esperanto", native: "Esperanto" },
-  { code: "et", name: "Estonian", native: "Eesti" },
-  { code: "tl", name: "Filipino", native: "Filipino" },
-  { code: "fi", name: "Finnish", native: "Suomi" },
-  { code: "fr", name: "French", native: "Français" },
-  { code: "fy", name: "Frisian", native: "Frysk" },
-  { code: "gl", name: "Galician", native: "Galego" },
-  { code: "ka", name: "Georgian", native: "ქართული" },
-  { code: "de", name: "German", native: "Deutsch" },
-  { code: "el", name: "Greek", native: "Ελληνικά" },
-  { code: "gu", name: "Gujarati", native: "ગુજરાતી" },
-  { code: "ht", name: "Haitian Creole", native: "Kreyòl ayisyen" },
-  { code: "ha", name: "Hausa", native: "Hausa" },
-  { code: "haw", name: "Hawaiian", native: "ʻŌlelo Hawaiʻi" },
-  { code: "iw", name: "Hebrew", native: "עברית" },
-  { code: "hi", name: "Hindi", native: "हिन्दी" },
-  { code: "hmn", name: "Hmong", native: "Hmong" },
-  { code: "hu", name: "Hungarian", native: "Magyar" },
-  { code: "is", name: "Icelandic", native: "Íslenska" },
-  { code: "ig", name: "Igbo", native: "Igbo" },
-  { code: "id", name: "Indonesian", native: "Bahasa Indonesia" },
-  { code: "ga", name: "Irish", native: "Gaeilge" },
-  { code: "it", name: "Italian", native: "Italiano" },
-  { code: "ja", name: "Japanese", native: "日本語" },
-  { code: "jw", name: "Javanese", native: "Basa Jawa" },
-  { code: "kn", name: "Kannada", native: "ಕನ್ನಡ" },
-  { code: "kk", name: "Kazakh", native: "Қазақ" },
-  { code: "km", name: "Khmer", native: "ខ្មែរ" },
-  { code: "rw", name: "Kinyarwanda", native: "Kinyarwanda" },
-  { code: "ko", name: "Korean", native: "한국어" },
-  { code: "ku", name: "Kurdish (Kurmanji)", native: "Kurdî" },
-  { code: "ky", name: "Kyrgyz", native: "Кыргызча" },
-  { code: "lo", name: "Lao", native: "ລາວ" },
-  { code: "la", name: "Latin", native: "Latina" },
-  { code: "lv", name: "Latvian", native: "Latviešu" },
-  { code: "lt", name: "Lithuanian", native: "Lietuvių" },
-  { code: "lb", name: "Luxembourgish", native: "Lëtzebuergesch" },
-  { code: "mk", name: "Macedonian", native: "Македонски" },
-  { code: "mg", name: "Malagasy", native: "Malagasy" },
-  { code: "ms", name: "Malay", native: "Bahasa Melayu" },
-  { code: "ml", name: "Malayalam", native: "മലയാളം" },
-  { code: "mt", name: "Maltese", native: "Malti" },
-  { code: "mi", name: "Maori", native: "Māori" },
-  { code: "mr", name: "Marathi", native: "मराठी" },
-  { code: "mn", name: "Mongolian", native: "Монгол" },
-  { code: "ne", name: "Nepali", native: "नेपाली" },
-  { code: "no", name: "Norwegian", native: "Norsk" },
-  { code: "or", name: "Odia (Oriya)", native: "ଓଡ଼ିଆ" },
-  { code: "ps", name: "Pashto", native: "پښتو" },
-  { code: "fa", name: "Persian", native: "فارسی" },
-  { code: "pl", name: "Polish", native: "Polski" },
-  { code: "pt", name: "Portuguese", native: "Português" },
-  { code: "pa", name: "Punjabi", native: "ਪੰਜਾਬੀ" },
-  { code: "ro", name: "Romanian", native: "Română" },
-  { code: "ru", name: "Russian", native: "Русский" },
-  { code: "sm", name: "Samoan", native: "Samoan" },
-  { code: "gd", name: "Scots Gaelic", native: "Gàidhlig" },
-  { code: "sr", name: "Serbian", native: "Српски" },
-  { code: "st", name: "Sesotho", native: "Sesotho" },
-  { code: "sn", name: "Shona", native: "Shona" },
-  { code: "sd", name: "Sindhi", native: "سنڌي" },
-  { code: "si", name: "Sinhala", native: "සිංහල" },
-  { code: "sk", name: "Slovak", native: "Slovenčina" },
-  { code: "sl", name: "Slovenian", native: "Slovenščina" },
-  { code: "so", name: "Somali", native: "Soomaali" },
   { code: "es", name: "Spanish", native: "Español" },
-  { code: "su", name: "Sundanese", native: "Basa Sunda" },
-  { code: "sw", name: "Swahili", native: "Kiswahili" },
-  { code: "sv", name: "Swedish", native: "Svenska" },
-  { code: "tg", name: "Tajik", native: "Тоҷикӣ" },
-  { code: "ta", name: "Tamil", native: "தமிழ்" },
-  { code: "tt", name: "Tatar", native: "Татарча" },
-  { code: "te", name: "Telugu", native: "తెలుగు" },
-  { code: "th", name: "Thai", native: "ไทย" },
-  { code: "tr", name: "Turkish", native: "Türkçe" },
-  { code: "tk", name: "Turkmen", native: "Türkmen" },
-  { code: "uk", name: "Ukrainian", native: "Українська" },
-  { code: "ur", name: "Urdu", native: "اردو" },
-  { code: "ug", name: "Uyghur", native: "ئۇيغۇرچە" },
-  { code: "uz", name: "Uzbek", native: "O'zbek" },
-  { code: "vi", name: "Vietnamese", native: "Tiếng Việt" },
-  { code: "cy", name: "Welsh", native: "Cymraeg" },
-  { code: "xh", name: "Xhosa", native: "isiXhosa" },
-  { code: "yi", name: "Yiddish", native: "יידיש" },
-  { code: "yo", name: "Yoruba", native: "Yorùbá" },
-  { code: "zu", name: "Zulu", native: "isiZulu" },
+  { code: "la", name: "Latin", native: "Latina" },
 ];
-
-// ─── Derive UI toggle state from scheduled notifications ─────────────────────
-// Instead of storing separate IDs, we derive which times are "on" by checking
-// what's actually scheduled — the single source of truth is notificationService.
-async function getActiveToggles(): Promise<Record<AngelusTime, boolean>> {
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  const hours = scheduled
-    .filter((n) => n.content.data?.angelusTag === "angelus_prayer")
-    .map((n) => n.content.data?.prayerHour as number);
-  return {
-    morning: hours.includes(6),
-    noon: hours.includes(12),
-    evening: hours.includes(18),
-  };
-}
 
 type Props = { onLogout: () => void };
 type TogglesState = Record<AngelusTime, boolean>;
@@ -196,23 +77,57 @@ export default function SettingsScreen({ onLogout }: Props) {
   const ringOpacity = useRef(new Animated.Value(0.4)).current;
   const bellRotate = useRef(new Animated.Value(0)).current;
 
-  const [toggles, setToggles] = useState<TogglesState>({
-    morning: true,
-    noon: true,
-    evening: true,
-  });
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showLangModal, setShowLangModal] = useState(false);
   const [selectedLang, setSelectedLang] = useState("en");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
 
+  // ← ADDED: needed so the deletion request can be linked to this user
+  const [userId, setUserId] = useState("");
+
+  // ← ADDED: state for the new Delete Account confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const [angelusMode, setAngelusModeState] = useState<AngelusMode>("all_three");
 
+  // ← CHANGED: this now holds ONLY the user's saved custom preference —
+  // it's what gets persisted/edited, independent of what's currently shown
+  // (Traditional/Noon Only override the display, see displayToggles below).
+  const [customToggles, setCustomToggles] = useState<TogglesState>({
+    morning: true,
+    noon: true,
+    evening: true,
+  });
+
+  // ← ADDED: true only when the "Custom" schedule is selected — this is
+  // what actually unlocks the Prayer Notifications toggles below.
+  const togglesEditable = angelusMode === "custom";
+
+  // ← ADDED: what the three switches actually show. Traditional forces all
+  // on; Noon Only forces only noon on; Custom shows (and allows editing)
+  // the saved per-slot preference.
+  const displayToggles: TogglesState =
+    angelusMode === "all_three"
+      ? { morning: true, noon: true, evening: true }
+      : angelusMode === "noon_only"
+        ? { morning: false, noon: true, evening: false }
+        : customToggles;
+
+  // ── Load persisted mode + custom toggle preference on mount ──────────────
   useEffect(() => {
     (async () => {
       const mode = await getAngelusMode();
       setAngelusModeState(mode);
+
+      const stored = await getSlotToggles();
+      setCustomToggles(stored);
+
+      try {
+        const savedLang = await AsyncStorage.getItem(LANGUAGE_KEY);
+        if (savedLang) setSelectedLang(savedLang);
+      } catch {}
     })();
   }, []);
 
@@ -222,22 +137,15 @@ export default function SettingsScreen({ onLogout }: Props) {
     setAngelusModeState(mode);
     // force=true so the per-launch gate is bypassed for explicit user action
     await scheduleAngelusNotifications(mode, true);
-    const updated = await getActiveToggles();
-    setToggles(updated);
+
+    // ← ADDED: switching INTO Custom re-syncs from whatever was last saved,
+    // so re-entering Custom after a stint in Traditional/Noon Only restores
+    // exactly what the user had before, rather than showing stale state.
+    if (mode === "custom") {
+      const stored = await getSlotToggles();
+      setCustomToggles(stored);
+    }
   };
-
-  // ── On mount: read toggle state from what's actually scheduled ───────────
-useEffect(() => {
-  (async () => {
-    const stored = await getSlotToggles(); // ← CHANGED (was getActiveToggles())
-    setToggles(stored);
-
-    try {
-      const savedLang = await AsyncStorage.getItem(LANGUAGE_KEY);
-      if (savedLang) setSelectedLang(savedLang);
-    } catch {}
-  })();
-}, []);
 
   // Fetch user info
   useEffect(() => {
@@ -264,6 +172,7 @@ useEffect(() => {
 
         if (!authSession?.user) return;
         setEmail(authSession.user.email ?? "");
+        setUserId(authSession.user.id); // ← ADDED: capture uid for deletion requests
 
         const uid = authSession.user.id;
         const metaUsername =
@@ -361,104 +270,60 @@ useEffect(() => {
     return () => clearTimeout(timer);
   }, []);
 
-// ── Toggle a single time on/off ───────────────────────────────────────────
-const handleToggle = async (key: AngelusTime, enabled: boolean) => {
-  const { status } = await Notifications.getPermissionsAsync();
-  if (status !== "granted" && enabled) {
-    Alert.alert(
-      "Permission Required",
-      "Enable notifications in Settings to receive Angelus reminders.",
-    );
-    return;
-  }
+  // ── Toggle a single time on/off (Custom mode only) ────────────────────────
+  const handleToggle = async (key: AngelusTime, enabled: boolean) => {
+    // ← ADDED: hard guard. The switches are already visually disabled
+    // outside Custom mode, but this keeps the handler itself safe if it's
+    // ever called some other way.
+    if (!togglesEditable) return;
 
-  const next = { ...toggles, [key]: enabled };
-  setToggles(next);
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted" && enabled) {
+      Alert.alert(
+        "Permission Required",
+        "Enable notifications in Settings to receive Angelus reminders.",
+      );
+      return;
+    }
 
-  // ← ADDED: persist so MainApp's Daily Prayer Progress and MenuScreen's
-  // Light Through the Day / This Week in Prayer pick this up as "Disabled"
-  // the same way they already do for the noon_only Angelus mode.
-  await setSlotToggles(next);
+    const next = { ...customToggles, [key]: enabled };
+    setCustomToggles(next);
+    await setSlotToggles(next);
 
-  // Cancel everything, then reschedule only the enabled ones
-  await cancelAngelusNotifications();
+    // ← CHANGED: reschedule through the service (mode="custom", force=true)
+    // instead of duplicating the scheduling logic here — the service is now
+    // the single place that knows how to filter by mode + toggles.
+    await scheduleAngelusNotifications("custom", true);
+  };
 
-  const mode = await getAngelusMode();
-  const allHours = mode === "noon_only" ? [12] : [6, 12, 18];
+  // ── Enable all (Custom mode only) ─────────────────────────────────────────
+  const handleEnableAll = async () => {
+    if (!togglesEditable) return; // ← ADDED
 
-  const enabledHours = allHours.filter((h) => {
-    if (h === 6) return next.morning;
-    if (h === 12) return next.noon;
-    return next.evening;
-  });
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Required",
+        "Enable notifications in Settings to receive Angelus reminders.",
+      );
+      return;
+    }
 
-  const CHANNEL_ID = "angelus_bells_v17";
-  const ANGELUS_TAG = "angelus_prayer";
+    const allEnabled = { morning: true, noon: true, evening: true };
+    setCustomToggles(allEnabled);
+    await setSlotToggles(allEnabled);
+    await scheduleAngelusNotifications("custom", true);
+  };
 
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  // ── Disable all (Custom mode only) ────────────────────────────────────────
+  const handleDisableAll = async () => {
+    if (!togglesEditable) return; // ← ADDED
 
-  for (const hour of enabledHours) {
-    const label =
-      hour === 6 ? "Morning Angelus" : hour === 12 ? "Noon Angelus" : "Evening Angelus";
-    const body =
-      hour === 6
-        ? "The Angel of the Lord declared unto Mary."
-        : hour === 12
-        ? "Pause and pray the Angelus."
-        : "Pray the Angelus at sunset.";
-
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: `🔔 ${label}`,
-        body,
-        sound: "triple_bell.mp3",
-        data: {
-          screen: "Prayer",
-          autoPlay: true,
-          angelusTag: ANGELUS_TAG,
-          prayerHour: hour,
-          prayerKey: hour === 6 ? "morning" : hour === 12 ? "noon" : "evening",
-        },
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour,
-        minute: 0,
-        channelId: Platform.OS === "android" ? CHANNEL_ID : undefined,
-      } as Notifications.DailyTriggerInput,
-    });
-  }
-};
-
-// ── Enable all ────────────────────────────────────────────────────────────
-const handleEnableAll = async () => {
-  const { status } = await Notifications.getPermissionsAsync();
-  if (status !== "granted") {
-    Alert.alert(
-      "Permission Required",
-      "Enable notifications in Settings to receive Angelus reminders.",
-    );
-    return;
-  }
-  const mode = await getAngelusMode();
-  await scheduleAngelusNotifications(mode, true);
-
-  // ← CHANGED: set the logical preference to "all on" directly, rather than
-  // deriving it from getActiveToggles() (which would incorrectly report
-  // morning/evening as off whenever mode is noon_only — mode and per-slot
-  // preference are meant to be independent).
-  const allEnabled = { morning: true, noon: true, evening: true };
-  setToggles(allEnabled);
-  await setSlotToggles(allEnabled);
-};
-
-// ── Disable all ───────────────────────────────────────────────────────────
-const handleDisableAll = async () => {
-  await cancelAngelusNotifications();
-  const allDisabled = { morning: false, noon: false, evening: false };
-  setToggles(allDisabled);
-  await setSlotToggles(allDisabled); // ← ADDED
-};
+    const allDisabled = { morning: false, noon: false, evening: false };
+    setCustomToggles(allDisabled);
+    await setSlotToggles(allDisabled);
+    await cancelAngelusNotifications();
+  };
 
   const handleSelectLanguage = async (code: string) => {
     setSelectedLang(code);
@@ -479,6 +344,36 @@ const handleDisableAll = async () => {
       onLogout();
     } catch (err) {
       console.error("Logout error:", err);
+    }
+  };
+
+  // ← ADDED: inserts a row into account_deletion_requests. A Supabase
+  // cron job (pg_cron) checks this table and deletes the account 1 hour
+  // after `requested_at`. This function does NOT delete anything itself —
+  // it only records the request, per your "delete after 1 hour" flow.
+  const handleDeleteAccountRequest = async () => {
+    if (!userId) {
+      Alert.alert("Please wait", "Still loading your account, try again in a moment.");
+      return;
+    }
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("account_deletion_requests")
+        .insert({ user_id: userId });
+
+      if (error) throw error;
+
+      setShowDeleteModal(false);
+      Alert.alert(
+        "Deletion Scheduled",
+        "Your account will be permanently deleted in 1 hour. Please log out now to begin the process.",
+      );
+    } catch (err) {
+      console.error("❌ Delete account request error:", err);
+      Alert.alert("Something went wrong", "Please try again.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -512,6 +407,41 @@ const handleDisableAll = async () => {
               onPress={() => setShowLogoutModal(false)}
             >
               <Text style={styles.modalCancelText}>Stay & Pray</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ← ADDED: Delete Account Modal */}
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconCircle}>
+              <Ionicons name="trash-outline" size={32} color="#C0392B" />
+            </View>
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            <Text style={styles.modalText}>
+              Are you sure you want to delete this account? It will be
+              permanently deleted in 1 hour. Please log out now to begin
+              the process.
+            </Text>
+            <View style={styles.modalDivider} />
+            <TouchableOpacity
+              style={styles.modalConfirmBtn}
+              onPress={handleDeleteAccountRequest}
+              disabled={deleting}
+            >
+              <Ionicons name="trash-outline" size={18} color="#fff" />
+              <Text style={styles.modalConfirmText}>
+                {deleting ? "Processing..." : "Yes, Delete My Account"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setShowDeleteModal(false)}
+              disabled={deleting}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -608,8 +538,6 @@ const handleDisableAll = async () => {
             <View style={styles.line} />
           </View>
 
-         
-
           {/* ACCOUNT INFO */}
           <View style={styles.card}>
             <View style={styles.cardTitleRow}>
@@ -650,19 +578,21 @@ const handleDisableAll = async () => {
             >
               <Text style={styles.modeTitle}>Traditional</Text>
               <Text style={styles.modeDescription}>
-                Morning, Noon, and Evening Angelus
+                Morning, Noon, and Evening Angelus — 6:00 AM, 12:00 PM, 6:00 PM
               </Text>
             </TouchableOpacity>
+           
+            {/* ← ADDED: Custom mode */}
             <TouchableOpacity
               style={[
                 styles.modeOption,
-                angelusMode === "noon_only" && styles.modeOptionSelected,
+                angelusMode === "custom" && styles.modeOptionSelected,
               ]}
-              onPress={() => handleAngelusModeChange("noon_only")} // ← CHANGED: re-enabled (was onPress={() => {}} with disabled={true})
+              onPress={() => handleAngelusModeChange("custom")}
             >
-              <Text style={styles.modeTitle}>Noon Only</Text>
+              <Text style={styles.modeTitle}>Custom</Text>
               <Text style={styles.modeDescription}>
-                Receive only the noon Angelus reminder
+                Choose exactly which Angelus times notify you, below
               </Text>
             </TouchableOpacity>
           </View>
@@ -678,15 +608,24 @@ const handleDisableAll = async () => {
               <Text style={styles.cardTitle}>Prayer Notifications</Text>
             </View>
             <View style={styles.cardDivider} />
+
+            {/* ← ADDED: explains why the switches are locked when not Custom */}
+            {!togglesEditable && (
+              <Text style={styles.customHint}>
+                Select "Custom" in Angelus Schedule above to enable or disable
+                these individually.
+              </Text>
+            )}
+
             {(["morning", "noon", "evening"] as AngelusTime[]).map(
               (key, i, arr) => (
                 <View key={key}>
                   <NotificationRow
                     label={ANGELUS_CONFIG[key].label}
                     time={ANGELUS_CONFIG[key].time}
-                    enabled={toggles[key]}
+                    enabled={displayToggles[key]} // ← CHANGED (was toggles[key])
                     onToggle={(val) => handleToggle(key, val)}
-                    disabled={angelusMode === "noon_only" && key !== "noon"} // ← CHANGED: restored mode-based gating (was hardcoded disabled={true})
+                    disabled={!togglesEditable} // ← CHANGED (was mode-based partial gating)
                   />
                   {i < arr.length - 1 && <View style={styles.rowDivider} />}
                 </View>
@@ -694,15 +633,27 @@ const handleDisableAll = async () => {
             )}
           </View>
 
-          {/* ENABLE / DISABLE ALL */}
+          {/* ENABLE / DISABLE ALL — only meaningful in Custom mode */}
           <View style={styles.bulkRow}>
-            <TouchableOpacity style={styles.bulkBtn} onPress={handleEnableAll}>
+            <TouchableOpacity
+              style={[
+                styles.bulkBtn,
+                !togglesEditable && styles.bulkBtnDisabled, // ← ADDED
+              ]}
+              onPress={handleEnableAll}
+              disabled={!togglesEditable} // ← ADDED
+            >
               <Ionicons name="notifications" size={16} color="#fff" />
               <Text style={styles.bulkBtnText}>Enable All</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.bulkBtn, styles.bulkBtnOutline]}
+              style={[
+                styles.bulkBtn,
+                styles.bulkBtnOutline,
+                !togglesEditable && styles.bulkBtnDisabled, // ← ADDED
+              ]}
               onPress={handleDisableAll}
+              disabled={!togglesEditable} // ← ADDED
             >
               <Ionicons
                 name="notifications-off-outline"
@@ -722,15 +673,12 @@ const handleDisableAll = async () => {
               <Text style={styles.cardTitle}>Language</Text>
             </View>
             <View style={styles.cardDivider} />
+            {/* ← CHANGED: enabled — no more disabled style / Coming Soon.
+                Tapping opens the language picker modal. */}
             <TouchableOpacity
-              // ← ADDED: dimmed "disabled" look
-              style={[styles.langRow, styles.langRowDisabled]}
-              // ← CHANGED: no-op, was setShowLangModal(true)
-              onPress={() => {}}
-              // ← ADDED: blocks taps entirely
-              disabled={true}
-              // ← CHANGED: no press feedback since it's disabled
-              activeOpacity={1}
+              style={styles.langRow}
+              onPress={() => setShowLangModal(true)}
+              activeOpacity={0.7}
             >
               <View style={styles.langRowLeft}>
                 <View style={styles.langIconCircle}>
@@ -750,8 +698,11 @@ const handleDisableAll = async () => {
                   </Text>
                 </View>
               </View>
-              {/* ← ADDED */}
-              <Text style={styles.comingSoonTag}>Coming Soon</Text>
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={COLORS.textSecondary}
+              />
             </TouchableOpacity>
           </View>
 
@@ -778,6 +729,33 @@ const handleDisableAll = async () => {
                 color="#C0392B"
                 style={{ marginLeft: "auto" }}
               />
+            </TouchableOpacity>
+          </View>
+
+          {/* ← ADDED: separate Danger Zone card for Delete Account */}
+          <View style={[styles.card, styles.dangerCard]}>
+            <View style={styles.cardTitleRow}>
+              <Ionicons
+                name="warning-outline"
+                size={20}
+                color="#C0392B"
+              />
+              <Text style={[styles.cardTitle, styles.dangerCardTitle]}>
+                Danger Zone
+              </Text>
+            </View>
+            <View style={styles.cardDivider} />
+           <Text style={styles.dangerNote}>
+  Permanent action. Your account will be deleted after 1 hour
+  and cannot be recovered.
+</Text>
+            <TouchableOpacity
+              style={styles.deleteAccountBtn}
+              onPress={() => setShowDeleteModal(true)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="trash-outline" size={18} color="#fff" />
+              <Text style={styles.deleteAccountBtnText}>Delete Account</Text>
             </TouchableOpacity>
           </View>
 
@@ -816,7 +794,7 @@ function NotificationRow({
         <Text style={styles.notifTime}>{time}</Text>
       </View>
       <Switch
-        value={disabled ? false : enabled}
+        value={enabled}
         onValueChange={(val) => {
           if (!disabled) onToggle(val);
         }}
@@ -946,6 +924,13 @@ const styles = StyleSheet.create({
     fontFamily: "CormorantGaramond",
     marginTop: 2,
   },
+  // ← ADDED
+  customHint: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontFamily: "CormorantGaramond",
+    marginBottom: 8,
+  },
   bulkRow: {
     flexDirection: "row",
     gap: 12,
@@ -967,6 +952,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.gold,
   },
+  bulkBtnDisabled: { opacity: 0.4 }, // ← ADDED
   bulkBtnText: {
     color: "#fff",
     fontSize: 15,
@@ -1182,6 +1168,36 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 14,
     color: COLORS.textSecondary,
+    fontFamily: "CormorantGaramond",
+  },
+  // ← ADDED: Danger Zone card + button styles
+  dangerCard: {
+    borderColor: "#EBC6C0",
+    backgroundColor: "#FFF6F5",
+  },
+  dangerCardTitle: {
+    color: "#C0392B",
+  },
+  dangerNote: {
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: COLORS.textSecondary,
+    fontFamily: "CormorantGaramond",
+    marginBottom: 14,
+  },
+  deleteAccountBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#C0392B",
+    borderRadius: 30,
+    paddingVertical: 14,
+  },
+  deleteAccountBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
     fontFamily: "CormorantGaramond",
   },
 });

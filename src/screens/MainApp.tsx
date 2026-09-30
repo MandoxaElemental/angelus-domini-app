@@ -35,7 +35,6 @@ import {
 } from "../services/offlineSync";
 
 const { width } = Dimensions.get("window");
-const isSmallScreen = width < 390;
 const IMAGE_WIDTH = Math.min(width * 0.3, 140);
 
 // Cached the moment we successfully authenticate. Lets MainApp render a
@@ -1096,7 +1095,7 @@ const eveningStatus = prayersLoading
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              DAILY PRAYER PROGRESS
+              DAILY PRAYER RHYTHM
             </Text>
             {prayerLoadError && (
               <View style={styles.connectionBanner}>
@@ -1280,14 +1279,12 @@ function ProgressCard({
             { backgroundColor: statusConfig.bg, borderColor: statusConfig.border },
           ]}
         >
-          {!isSmallScreen && (
-            <Ionicons
-              name={statusConfig.icon as any}
-              size={18}
-              color={statusConfig.iconColor}
-              style={{ marginRight: 5 }}
-            />
-          )}
+          <Ionicons
+            name={statusConfig.icon as any}
+            size={18}
+            color={statusConfig.iconColor}
+            style={{ marginRight: 5 }}
+          />
           <Text style={[styles.progressSubtitle, { color: statusConfig.textColor }]}>
             {statusConfig.text}
           </Text>
